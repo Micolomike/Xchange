@@ -4,12 +4,22 @@ const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const session = require('express-session');
 
 const app = express();
 const port = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Configure session middleware
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'xchange_secret',
+    resave: false,
+    saveUninitialized: true
+  })
+);
 
 const db = new sqlite3.Database('../database/tickets.db');
 
@@ -163,6 +173,9 @@ app.post('/api/users', async (req, res) => {
 // ✅ POST login
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
 
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
     if (err) return res.status(500).json({ error: err });
@@ -171,8 +184,45 @@ app.post('/api/login', (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid password' });
 
-    res.json({ success: true, id: user.id });
+    // Save user ID in session
+    req.session.userId = user.id;
+    res.json({ success: true, id: user.id, username: user.username });
   });
+});
+
+// ✅ POST logout
+app.post('/api/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ success: true });
+  });
+});
+
+// ✅ POST register (alias for creating a user)
+app.post('/api/register', async (req, res) => {
+  const { username, password, email, firstname, lastname } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    db.run(
+      `INSERT INTO users (username, password, email, firstname, lastname)
+       VALUES (?, ?, ?, ?, ?)`,
+      [username, hash, email || '', firstname || '', lastname || ''],
+      function (err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint')) {
+            return res.status(409).json({ error: 'Username already exists' });
+          }
+          return res.status(500).json({ error: err });
+        }
+        res.status(201).json({ id: this.lastID });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
 });
 
 // ✅ GET all users (admin only)
