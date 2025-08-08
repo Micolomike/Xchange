@@ -7,6 +7,10 @@ import TicketDetail from "./pages/TicketDetail"; // 🆕 Détail d'un ticket
 import Navbar from "./components/Navbar"; // Barre de navigation
 import AdminDataManager from "./pages/AdminDataManager";
 
+// 🔐 Import des pages d'authentification
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+
 function App() {
   return (
     <Router>
@@ -19,6 +23,9 @@ function App() {
           <Route path="/tickets/:id" element={<TicketDetail />} /> {/* 🆕 Route ajoutée */}
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/data" element={<AdminDataManager />} />
+          {/* Routes d'authentification */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </div>
     </Router>
