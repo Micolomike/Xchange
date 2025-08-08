@@ -6,14 +6,14 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const port = 4000;
+const port = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json());
 
 const db = new sqlite3.Database('../database/tickets.db');
 
-// 📋 Chemin vers le fichier log JSON
+// 💾 Chemin vers le fichier log JSON
 const deletedLogPath = path.join(__dirname, '../logs/deleted-tickets.json');
 
 // 📁 Crée le dossier logs si besoin
@@ -79,46 +79,180 @@ app.post('/api/tickets', (req, res) => {
     [title, description, priority, category || '', due_date || '', createdAt],
     function (err) {
       if (err) return res.status(500).json({ error: err });
-      res.json({ id: this.lastID });
+      res.status(201).json({ id: this.lastID });
     }
   );
 });
 
-// ✅ DELETE + log JSON
+// ✅ PUT update ticket
+app.put('/api/tickets/:id', (req, res) => {
+  const { id } = req.params;
+  const { title, description, priority, category, due_date } = req.body;
+
+  db.run(
+    `UPDATE tickets
+     SET title = ?, description = ?, priority = ?, category = ?, due_date = ?
+     WHERE id = ?`,
+    [title, description, priority, category || '', due_date || '', id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err });
+      if (this.changes === 0) return res.status(404).json({ error: 'Ticket not found' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// ✅ DELETE remove ticket and log deleted data
 app.delete('/api/tickets/:id', (req, res) => {
   const { id } = req.params;
 
+  // Fetch the ticket details before deleting
   db.get('SELECT * FROM tickets WHERE id = ?', [id], (err, row) => {
-    if (err || !row) return res.status(404).json({ error: 'Ticket non trouvé' });
+    if (err) return res.status(500).json({ error: err });
+    if (!row) return res.status(404).json({ error: 'Ticket not found' });
 
+    // Delete the ticket from DB
     db.run('DELETE FROM tickets WHERE id = ?', [id], function (err) {
       if (err) return res.status(500).json({ error: err });
 
-      const deletedEntry = {
-        id: row.id,
-        title: row.title,
+      // Load existing logs
+      let logsData = JSON.parse(fs.readFileSync(deletedLogPath, 'utf8'));
+
+      // Append deleted ticket data with timestamp
+      logsData.push({
+        ...row,
         deleted_at: new Date().toISOString()
-      };
+      });
 
-      const logs = JSON.parse(fs.readFileSync(deletedLogPath, 'utf-8') || '[]');
-      logs.push(deletedEntry);
-      fs.writeFileSync(deletedLogPath, JSON.stringify(logs, null, 2));
+      // Save updated logs
+      fs.writeFileSync(deletedLogPath, JSON.stringify(logsData, null, 2));
 
-      console.log(`🗑️ Ticket supprimé : ${row.title}`);
       res.json({ success: true });
     });
   });
 });
 
-// ✅ GET deleted ticket logs
-app.get('/api/logs/deleted', (req, res) => {
+// ================= USER SECTION =================
+
+// ✅ POST create user
+const bcrypt = require('bcrypt');
+app.post('/api/users', async (req, res) => {
+  const { username, password, email, firstname, lastname } = req.body;
+
   try {
-    const logs = JSON.parse(fs.readFileSync(deletedLogPath));
-    res.json(logs);
-  } catch (error) {
-    console.error("Erreur lors de la lecture du log :", error);
-    res.status(500).json({ error: "Erreur lors de la lecture du fichier log." });
+    const hash = await bcrypt.hash(password, 10);
+    db.run(
+      `INSERT INTO users (username, password, email, firstname, lastname)
+       VALUES (?, ?, ?, ?, ?)`,
+      [username, hash, email || '', firstname || '', lastname || ''],
+      function (err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint')) {
+            return res.status(409).json({ error: 'Username already exists' });
+          }
+          return res.status(500).json({ error: err });
+        }
+        res.status(201).json({ id: this.lastID });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ error: err });
   }
+});
+
+// ✅ POST login
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+
+  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+    if (err) return res.status(500).json({ error: err });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid password' });
+
+    res.json({ success: true, id: user.id });
+  });
+});
+
+// ✅ GET all users (admin only)
+app.get('/api/users', (req, res) => {
+  db.all('SELECT * FROM users', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(rows);
+  });
+});
+
+// ✅ GET user by ID (admin only)
+app.get('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT * FROM users WHERE id = ?', [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err });
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    res.json(row);
+  });
+});
+
+// ✅ PUT update user (admin only)
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { username, password, email, firstname, lastname } = req.body;
+
+  try {
+    let hash = null;
+    if (password) {
+      hash = await bcrypt.hash(password, 10);
+    }
+
+    db.run(
+      `UPDATE users SET
+       username = COALESCE(?, username),
+       password = COALESCE(?, password),
+       email = COALESCE(?, email),
+       firstname = COALESCE(?, firstname),
+       lastname = COALESCE(?, lastname)
+       WHERE id = ?`,
+      [username, hash, email, firstname, lastname, id],
+      function (err) {
+        if (err) return res.status(500).json({ error: err });
+        if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+        res.json({ success: true });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
+
+// ✅ DELETE remove user (admin only)
+app.delete('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM users WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: err });
+    if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ success: true });
+  });
+});
+
+// ✅ GET all deleted logs (admin only)
+app.get('/api/admin/deleted-logs', (req, res) => {
+  const logsData = JSON.parse(fs.readFileSync(deletedLogPath, 'utf8'));
+  res.json(logsData);
+});
+
+// ✅ DELETE a log entry by index (admin only)
+app.delete('/api/admin/deleted-logs/:index', (req, res) => {
+  const index = parseInt(req.params.index);
+  let logsData = JSON.parse(fs.readFileSync(deletedLogPath, 'utf8'));
+
+  if (isNaN(index) || index < 0 || index >= logsData.length) {
+    return res.status(400).json({ error: 'Invalid index' });
+  }
+
+  logsData.splice(index, 1);
+  fs.writeFileSync(deletedLogPath, JSON.stringify(logsData, null, 2));
+
+  res.json({ success: true });
 });
 
 // ✅ ADMIN - GET table structure + rows
@@ -149,8 +283,8 @@ app.delete('/api/admin/table/:table/:id', (req, res) => {
 
   db.run(`DELETE FROM ${table} WHERE id = ?`, [id], function (err) {
     if (err) {
-      console.error("❌ Erreur SQL :", err);
-      return res.status(500).json({ error: "Erreur lors de la suppression." });
+      console.error('❌ Erreur SQL :', err);
+      return res.status(500).json({ error: 'Erreur lors de la suppression.' });
     }
 
     console.log(`✅ ${table} → ligne ID ${id} supprimée.`);
@@ -182,7 +316,7 @@ app.put('/api/admin/table/:table/:id', (req, res) => {
     [...values, id],
     function (err) {
       if (err) {
-        console.error("❌ Erreur SQL :", err);
+        console.error('❌ Erreur SQL :', err);
         return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
       }
 
