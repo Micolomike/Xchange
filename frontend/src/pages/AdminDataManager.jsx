@@ -74,8 +74,25 @@ export default function AdminDataManager() {
       }
     }
 
-    const url = editRow ? `https://xchange-backend-pasd.onrender.com/api/admin/table/${selectedTable}/${editRow.id}` : `https://xchange-backend-pasd.onrender.com/api/${selectedTable}`;
-    const method = editRow ? "PUT" : "POST";
+    // Déterminer l'URL et la méthode en fonction de la table sélectionnée
+    let url;
+    let method;
+    if (selectedTable === "users") {
+      // Utiliser les routes spécifiques pour les utilisateurs afin de gérer le hash du mot de passe
+      if (editRow) {
+        url = `https://xchange-backend-pasd.onrender.com/api/users/${editRow.id}`;
+        method = "PUT";
+      } else {
+        url = `https://xchange-backend-pasd.onrender.com/api/users`;
+        method = "POST";
+      }
+    } else {
+      // Pour les tickets, continuer d'utiliser les routes administrateur génériques
+      url = editRow
+        ? `https://xchange-backend-pasd.onrender.com/api/admin/table/${selectedTable}/${editRow.id}`
+        : `https://xchange-backend-pasd.onrender.com/api/${selectedTable}`;
+      method = editRow ? "PUT" : "POST";
+    }
 
     try {
       const res = await fetch(url, {
