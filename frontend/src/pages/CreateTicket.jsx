@@ -51,7 +51,7 @@ export default function CreateTicket() {
     console.log("📦 Données envoyées au backend :", ticketData);
 
     try {
-      const res = await fetch("http://localhost:4000/api/tickets", {
+      const res = await fetch("https://xchange-backend-pasd.onrender.com/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ticketData),

@@ -9,7 +9,7 @@ export default function Admin() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/logs/deleted");
+        const res = await fetch("https://xchange-backend-pasd.onrender.com/api/logs/deleted");
         const data = await res.json();
         setLogs(data);
       } catch (err) {

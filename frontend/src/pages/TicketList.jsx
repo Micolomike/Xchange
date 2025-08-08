@@ -8,7 +8,7 @@ export default function TicketList() {
 
   const fetchTickets = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/tickets");
+      const res = await fetch("https://xchange-backend-pasd.onrender.com/api/tickets");
       const data = await res.json();
       setTickets(data);
     } catch (err) {
@@ -27,7 +27,7 @@ export default function TicketList() {
     if (!confirm) return;
 
     try {
-      const res = await fetch(`http://localhost:4000/api/tickets/${id}`, {
+      const res = await fetch(`https://xchange-backend-pasd.onrender.com/api/tickets/${id}`, {
         method: "DELETE",
       });
 

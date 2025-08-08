@@ -8,7 +8,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     // Appel API pour récupérer le ticket par ID
-    fetch(`http://localhost:4000/api/tickets/${id}`)
+    fetch(`https://xchange-backend-pasd.onrender.com/api/tickets/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setTicket(data);

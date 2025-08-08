@@ -14,7 +14,7 @@ export default function AdminDataManager() {
   const fetchTableData = async (tableName) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/admin/table/${tableName}`);
+      const res = await fetch(`https://xchange-backend-pasd.onrender.com/api/admin/table/${tableName}`);
       const data = await res.json();
       setColumns(data.columns || []);
       setRows(data.rows || []);
@@ -50,7 +50,7 @@ export default function AdminDataManager() {
 
     if (result.isConfirmed) {
       try {
-        const res = await fetch(`http://localhost:4000/api/admin/table/${selectedTable}/${id}`, { method: "DELETE" });
+        const res = await fetch(`https://xchange-backend-pasd.onrender.com/api/admin/table/${selectedTable}/${id}`, { method: "DELETE" });
         if (res.ok) {
           setRows(rows.filter((row) => row.id !== id));
           Swal.fire("Deleted!", "Your file has been deleted.", "success");
@@ -74,7 +74,7 @@ export default function AdminDataManager() {
       }
     }
 
-    const url = editRow ? `http://localhost:4000/api/admin/table/${selectedTable}/${editRow.id}` : `http://localhost:4000/api/${selectedTable}`;
+    const url = editRow ? `https://xchange-backend-pasd.onrender.com/api/admin/table/${selectedTable}/${editRow.id}` : `https://xchange-backend-pasd.onrender.com/api/${selectedTable}`;
     const method = editRow ? "PUT" : "POST";
 
     try {
