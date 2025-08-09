@@ -14,15 +14,29 @@ export default function AdminDataManager() {
   const fetchTableData = async (tableName) => {
     setLoading(true);
     try {
-      const res = await fetch(`https://xchange-backend-pasd.onrender.com/api/admin/table/${tableName}`);
+      const res = await fetch(
+        `https://xchange-backend-pasd.onrender.com/api/admin/table/${tableName}`
+      );
       const data = await res.json();
-      setColumns(data.columns || []);
+
+      // Filter out sensitive fields (like password) from columns when managing users
+      let cols = data.columns || [];
+      if (tableName === "users") {
+        cols = cols.filter((c) => c !== "password");
+      }
+      setColumns(cols);
+
       setRows(data.rows || []);
 
-      const defaultForm = data.columns.reduce((acc, col) => {
-        if (col !== "created_at" && col !== "id") acc[col] = col === "id" ? "auto" : "";
+      // Build a default form object. For users, include password field separately (blank)
+      const defaultForm = cols.reduce((acc, col) => {
+        if (col !== "created_at" && col !== "id") acc[col] = "";
         return acc;
       }, {});
+      // Include password field for users even though it's not displayed in the table
+      if (tableName === "users") {
+        defaultForm.password = "";
+      }
       setFormData(defaultForm);
       setEditRow(null);
     } catch (err) {
@@ -101,7 +115,12 @@ export default function AdminDataManager() {
         body: JSON.stringify(toSend)
       });
       if (res.ok) {
-        Swal.fire("Success!", editRow ? "Ticket updated!" : "Ticket created!", "success");
+        const entity = selectedTable === "users" ? "User" : "Ticket";
+        Swal.fire(
+          "Success!",
+          editRow ? `${entity} updated!` : `${entity} created!`,
+          "success"
+        );
         fetchTableData(selectedTable);
         setShowForm(false);
       } else {
@@ -134,10 +153,15 @@ export default function AdminDataManager() {
           onClick={() => {
             setShowForm(true);
             setEditRow(null);
+            // Reset form fields for new entry. Exclude id and created_at.
             const resetForm = columns.reduce((acc, col) => {
-              acc[col] = col === "id" ? "auto" : "";
+              if (col !== "id" && col !== "created_at") acc[col] = "";
               return acc;
             }, {});
+            // Add password field when adding a user
+            if (selectedTable === "users") {
+              resetForm.password = "";
+            }
             setFormData(resetForm);
           }}
           className="text-purple-600 text-xl hover:text-purple-800"
@@ -156,8 +180,16 @@ export default function AdminDataManager() {
           <div className="grid grid-cols-2 gap-4">
             {columns.map((col) => {
               if (col === "created_at") return null;
-              if (col === "priority" || col === "category") {
-                const options = col === "priority" ? ["low", "medium", "high"] : ["bug", "feature", "support"];
+              // Render select inputs for priority, category and role
+              if (col === "priority" || col === "category" || (selectedTable === "users" && col === "role")) {
+                let options;
+                if (col === "priority") {
+                  options = ["low", "medium", "high"];
+                } else if (col === "category") {
+                  options = ["bug", "feature", "support"];
+                } else {
+                  options = ["user", "admin"];
+                }
                 return (
                   <div key={col}>
                     <label className="block text-sm font-medium">{col}</label>
@@ -178,6 +210,7 @@ export default function AdminDataManager() {
                 );
               }
 
+              // Render date input for due_date
               if (col === "due_date") {
                 return (
                   <div key={col}>
@@ -193,10 +226,12 @@ export default function AdminDataManager() {
                 );
               }
 
+              // Default input: treat password as a password field
               return (
                 <div key={col}>
                   <label className="block text-sm font-medium">{col}</label>
                   <input
+                    type={col === "password" ? "password" : "text"}
                     name={col}
                     value={formData[col] || ""}
                     onChange={handleInputChange}
@@ -206,6 +241,19 @@ export default function AdminDataManager() {
                 </div>
               );
             })}
+            {/* Render password input separately when managing users and password is not part of columns */}
+            {selectedTable === "users" && (
+              <div>
+                <label className="block text-sm font-medium">password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password || ""}
+                  onChange={handleInputChange}
+                  className="w-full border px-2 py-1 rounded"
+                />
+              </div>
+            )}
           </div>
 
           <div className="mt-4 flex gap-2">
@@ -250,7 +298,13 @@ export default function AdminDataManager() {
                     <button
                       onClick={() => {
                         setEditRow(row);
-                        setFormData(row);
+                        // When editing a user, do not prefill the password field and exclude created_at
+                        if (selectedTable === "users") {
+                          const { password, created_at, ...rest } = row;
+                          setFormData({ ...rest, password: "" });
+                        } else {
+                          setFormData(row);
+                        }
                         setShowForm(true);
                       }}
                       title="Modifier"
