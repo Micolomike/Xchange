@@ -76,7 +76,34 @@ export default function AdminDataManager() {
       }
     }
   };
-
+// Handle resetting a user's password with confirmation dialog
+const handleResetPassword = async (id) => {
+  const result = await Swal.fire({
+    title: "Réinitialiser le mot de passe ?",
+    text: "Cette opération va réinitialiser le mot de passe de l'utilisateur.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Oui, réinitialiser"
+  });
+  if (result.isConfirmed) {
+    try {
+      const res = await fetch('https://xchange-backend-pasd.onrender.com/api/admin/reset-password/' + id, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.success) {
+        await Swal.fire({ title: 'Mot de passe réinitialisé', text: 'Nouveau mot de passe : ' + data.newPassword, icon: 'success' });
+      } else {
+        await Swal.fire({ title: 'Erreur', text: data.error || 'Impossible de réinitialiser le mot de passe', icon: 'error' });
+      }
+    } catch (err) {
+      console.error(err);
+      await Swal.fire({ title: 'Erreur', text: 'Une erreur est survenue lors de la réinitialisation du mot de passe', icon: 'error' });
+    }
+  }
+};
   const handleSubmit = async () => {
     const toSend = { ...formData };
     delete toSend.created_at;
