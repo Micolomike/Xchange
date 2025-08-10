@@ -29,7 +29,6 @@ export default function Navbar() {
         <Link to="/login" className={`${linkClass("/login")} whitespace-nowrap text-sm sm:text-base`}>Connexion</Link>
         <Link to="/register" className={`${linkClass("/register")} whitespace-nowrap text-sm sm:text-base`}>Inscription</Link>
       </div>
-</nav>
-  );
-        <
+</nav
+);
 }
