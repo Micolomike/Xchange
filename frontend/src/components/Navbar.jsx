@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx
+e// src/components/Navbar.jsx
 import { Link, useLocation } from "react-router-dom";
 
 export default function Navbar() {
@@ -23,12 +23,13 @@ export default function Navbar() {
         <Link to="/create" className={`${linkClass("/create")} whitespace-nowrap text-sm sm:text-base`}>Nouveau ticket</Link>
         <Link to="/tickets" className={`${linkClass("/tickets")} whitespace-nowrap text-sm sm:text-base`}>Tickets</Link>
       </div>
-    </nav>
-  );
-    {/* Liens d'authentification */}
+   
+      {/* Liens d'authentification */}
       <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
         <Link to="/login" className={`${linkClass("/login")} whitespace-nowrap text-sm sm:text-base`}>Connexion</Link>
         <Link to="/register" className={`${linkClass("/register")} whitespace-nowrap text-sm sm:text-base`}>Inscription</Link>
       </div>
-  
+</nav>
+  );
+        <
 }
