@@ -25,4 +25,10 @@ export default function Navbar() {
       </div>
     </nav>
   );
+    {/* Liens d'authentification */}
+      <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+        <Link to="/login" className={`${linkClass("/login")} whitespace-nowrap text-sm sm:text-base`}>Connexion</Link>
+        <Link to="/register" className={`${linkClass("/register")} whitespace-nowrap text-sm sm:text-base`}>Inscription</Link>
+      </div>
+  
 }
