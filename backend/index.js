@@ -359,6 +359,9 @@ app.put('/api/admin/table/:table/:id', (req, res) => {
     return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
   }
 
+  
+
+
   const setClause = columns.map(col => `${col} = ?`).join(', ');
 
   db.run(
@@ -374,6 +377,10 @@ app.put('/api/admin/table/:table/:id', (req, res) => {
       res.json({ success: true });
     }
   );
+});
+// Default route
+app.get('/', (req, res) => {
+  res.send('Backend API is running');
 });
 
 app.listen(port, () => {
