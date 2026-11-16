@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-export const API = 'http://localhost:4000';
+export const API = 'http://127.0.0.1:4000';
 
 export const ADMIN = { username: 'swann', password: 'motdepasse1', firstname: 'Swann', lastname: 'Martin' };
 export const AGENT = { username: 'karim', password: 'motdepasse1', firstname: 'Karim', lastname: 'Benali' };

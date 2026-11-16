@@ -20,6 +20,11 @@ function loadConfig(env = process.env) {
 
   return {
     port: Number(env.PORT) || 4000,
+    // Adresse d'écoute : 127.0.0.1 sur un PC exposé par un tunnel, toutes les interfaces sinon (Render).
+    host: env.HOST || undefined,
+    // Mode PC : l'API sert aussi le site compilé (frontend/dist), sur la même adresse.
+    serveFrontend: bool(env.SERVE_FRONTEND, false),
+    frontendDir: path.resolve(env.FRONTEND_DIR || path.join(REPO_ROOT, 'frontend', 'dist')),
     dataDir,
     databasePath: env.DATABASE_PATH ? path.resolve(env.DATABASE_PATH) : path.join(dataDir, 'tickets.db'),
     uploadsDir: env.UPLOADS_DIR ? path.resolve(env.UPLOADS_DIR) : path.join(dataDir, 'uploads'),
@@ -39,6 +44,9 @@ function loadConfig(env = process.env) {
     adminPassword: env.ADMIN_PASSWORD || null,
     trustProxy: env.TRUST_PROXY === undefined ? 1 : Number(env.TRUST_PROXY) || 0,
     rateLimit: bool(env.RATE_LIMIT, true),
+    // Verrouillage d'un compte après trop d'échecs de connexion, indépendant de l'adresse IP.
+    loginMaxFailures: Number(env.LOGIN_MAX_FAILURES) || 10,
+    loginLockMinutes: Number(env.LOGIN_LOCK_MINUTES) || 15,
   };
 }
 

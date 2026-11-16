@@ -7,8 +7,47 @@ const { signToken } = require('../middleware/auth');
 // Haché factice : rend le temps de réponse identique que l'utilisateur existe ou non.
 const DUMMY_HASH = bcrypt.hashSync('xchange-dummy-password', 10);
 
+/**
+ * Verrouille temporairement un nom d'utilisateur après trop d'échecs de connexion.
+ * Ne dépend pas de l'adresse IP : protège même derrière un tunnel ou un proxy.
+ */
+function createLoginGuard({ maxFailures, lockMinutes }) {
+  const windowMs = lockMinutes * 60 * 1000;
+  const entries = new Map();
+  const key = (username) => String(username).trim().toLowerCase();
+
+  function prune(now) {
+    if (entries.size < 1000) return;
+    for (const [k, e] of entries) if (now - e.first > windowMs && (!e.lockedUntil || e.lockedUntil < now)) entries.delete(k);
+  }
+
+  return {
+    check(username) {
+      const e = entries.get(key(username));
+      if (e?.lockedUntil && e.lockedUntil > Date.now()) {
+        const minutes = Math.ceil((e.lockedUntil - Date.now()) / 60000);
+        throw new HttpError(429, `Trop de tentatives sur ce compte. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`);
+      }
+    },
+    fail(username) {
+      const now = Date.now();
+      prune(now);
+      const k = key(username);
+      let e = entries.get(k);
+      if (!e || now - e.first > windowMs) e = { first: now, count: 0, lockedUntil: 0 };
+      e.count += 1;
+      if (e.count >= maxFailures) e.lockedUntil = now + windowMs;
+      entries.set(k, e);
+    },
+    succeed(username) {
+      entries.delete(key(username));
+    },
+  };
+}
+
 function authRoutes({ db, config, authenticate }) {
   const router = express.Router();
+  const guard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
 
   const limiter = config.rateLimit
     ? rateLimit({
@@ -50,9 +89,14 @@ function authRoutes({ db, config, authenticate }) {
     if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
       throw new HttpError(400, "Nom d'utilisateur et mot de passe requis.");
     }
+    guard.check(username);
     const row = await db.get('SELECT * FROM users WHERE username = ? COLLATE NOCASE', [username.trim()]);
     const valid = await bcrypt.compare(password, row ? row.password : DUMMY_HASH);
-    if (!row || !valid) throw new HttpError(401, 'Identifiants invalides.');
+    if (!row || !valid) {
+      guard.fail(username);
+      throw new HttpError(401, 'Identifiants invalides.');
+    }
+    guard.succeed(username);
     res.json({ token: signToken(row, config), user: publicUser(row) });
   });
 

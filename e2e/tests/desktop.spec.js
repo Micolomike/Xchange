@@ -15,6 +15,9 @@ test.beforeAll(async ({ browser }, testInfo) => {
   const context = await browser.newContext({ ...testInfo.project.use, acceptDownloads: true });
   page = await context.newPage();
   pageErrors = trackPageErrors(page);
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /Content Security Policy/i.test(msg.text())) pageErrors.push(msg.text());
+  });
 });
 
 test.afterAll(async () => {

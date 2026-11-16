@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,7 +19,18 @@ function createApp({ db, config, logger = console }) {
   app.set('trust proxy', config.trustProxy);
   app.disable('x-powered-by');
 
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          // La première connexion se fait en http://localhost : pas de passage forcé en HTTPS.
+          upgradeInsecureRequests: null,
+          imgSrc: ["'self'", 'data:', 'blob:'],
+        },
+      },
+    })
+  );
   app.use(
     cors({
       origin: config.corsOrigins || true,
@@ -28,7 +41,12 @@ function createApp({ db, config, logger = console }) {
 
   const auth = authenticate({ db, config });
 
-  app.get('/', (req, res) => res.send('Backend API is running'));
+  const indexHtml = path.join(config.frontendDir, 'index.html');
+  const serveFrontend = config.serveFrontend && fs.existsSync(indexHtml);
+  if (config.serveFrontend && !serveFrontend) {
+    logger.warn(`SERVE_FRONTEND est activé mais ${indexHtml} est introuvable : compilez le frontend.`);
+  }
+  if (!serveFrontend) app.get('/', (req, res) => res.send('Backend API is running'));
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: nowIso() }));
 
   app.use('/api/auth', authRoutes({ db, config, authenticate: auth }));
@@ -41,6 +59,25 @@ function createApp({ db, config, logger = console }) {
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'Route inconnue.' });
   });
+
+  if (serveFrontend) {
+    // Fichiers compilés : les noms contiennent une empreinte, ils peuvent être gardés en cache.
+    app.use(
+      express.static(config.frontendDir, {
+        index: false,
+        setHeaders: (res, file) => {
+          const immutable = file.includes(`${path.sep}assets${path.sep}`);
+          res.setHeader('Cache-Control', immutable ? 'public, max-age=31536000, immutable' : 'no-cache');
+        },
+      })
+    );
+    // Toute autre adresse (/tickets/12, /admin…) renvoie l'application, qui gère ses routes.
+    app.get(/^\/(?!api\/).*/, (req, res, next) => {
+      if (path.extname(req.path)) return next();
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(indexHtml);
+    });
+  }
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {

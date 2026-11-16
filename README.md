@@ -79,6 +79,20 @@ Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML
 - `frontend/vercel.json` renvoie toutes les adresses vers `index.html`, pour que `/tickets/12` fonctionne au rechargement.
 - L'URL de l'API vient de `frontend/.env.production`.
 
+## Hébergement sur un PC Windows
+
+Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : compte Windows dédié sans droits administrateur, dossier `C:\Xchange` réservé, écoute sur `127.0.0.1` uniquement, démarrage avec Windows et sauvegarde chaque nuit. L'accès depuis Internet passe par Tailscale Funnel, sans ouvrir de port sur la box.
+
+| Script (Terminal administrateur) | Rôle |
+|---|---|
+| `installer.ps1` | Installe ou réinstalle (configuration et données conservées) |
+| `mettre-a-jour.ps1` | Sauvegarde, récupère la dernière version, recompile, redémarre |
+| `etat.ps1` | Affiche l'état : application, accès Internet, sauvegardes, journal |
+| `restaurer.ps1` | Remet une sauvegarde choisie dans une liste |
+| `desinstaller.ps1` | Coupe l'accès Internet, supprime tâches et compte (`-SupprimerDonnees` pour tout effacer) |
+
+Chaque script se lance avec `powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\<script>`. En mode PC, l'API sert aussi le site (`SERVE_FRONTEND=true`, site compilé par `npm run build:pc`), la configuration est lue dans `C:\Xchange\xchange.env`, et un compte est verrouillé 15 minutes après 10 échecs de connexion (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`).
+
 ## Reprise d'une base existante
 
 Au démarrage, l'API met à niveau une base de la première version sans perte : ajout des nouvelles colonnes, normalisation des anciennes valeurs (dates limites vides, priorités manquantes), import du fichier `logs/deleted-tickets.json` dans la corbeille (renommé ensuite en `.imported.json`). Les anciens mots de passe restent valables. S'il n'existe aucun administrateur, le plus ancien compte est promu.

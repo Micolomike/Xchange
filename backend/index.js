@@ -14,9 +14,10 @@ async function main() {
   await ensureAdmin(db, config);
 
   const app = createApp({ db, config });
-  const server = app.listen(config.port, () => {
-    console.log(`Xchange API démarrée sur http://localhost:${config.port}`);
+  const server = app.listen(config.port, config.host, () => {
+    console.log(`Xchange démarré sur http://${config.host || 'localhost'}:${config.port}`);
     console.log(`Base de données : ${config.databasePath}`);
+    if (config.serveFrontend) console.log(`Site servi depuis : ${config.frontendDir}`);
   });
 
   const shutdown = () => {
