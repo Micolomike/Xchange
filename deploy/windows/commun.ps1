@@ -95,6 +95,20 @@ function Construire-Application {
     Push-Location (Join-Path $App 'backend')
     try {
         Invoke-Natif 'L''installation des composants de l''API' { npm.cmd ci --omit=dev --no-audit --no-fund }
+        # Les versions récentes de npm ne lancent plus les scripts d'installation : le module
+        # SQLite (compilé pour Windows) n'est alors pas téléchargé. On le récupère explicitement.
+        & node scripts\verifier-sqlite.js
+        if ($LASTEXITCODE -ne 0) {
+            Push-Location 'node_modules\sqlite3'
+            try {
+                Invoke-Natif 'Le téléchargement du module SQLite' { node ..\prebuild-install\bin.js -r napi }
+            } finally {
+                Pop-Location
+            }
+            & node scripts\verifier-sqlite.js
+            if ($LASTEXITCODE -ne 0) { Arreter-Sur-Erreur 'le module SQLite reste inutilisable après téléchargement.' }
+        }
+        Ecrire-Ok 'module SQLite opérationnel'
     } finally {
         Pop-Location
     }
@@ -148,7 +162,20 @@ function Adresses-Ecoute {
     return @($connexions | Select-Object -ExpandProperty LocalAddress -Unique)
 }
 
+function Afficher-DiagnosticTache {
+    $infos = Get-ScheduledTaskInfo -TaskName $TacheApp -ErrorAction SilentlyContinue
+    if ($infos) {
+        $etat = (Get-ScheduledTask -TaskName $TacheApp).State
+        Write-Host ''
+        Write-Host "Tâche « $TacheApp » : état $etat, dernier lancement $($infos.LastRunTime), code $($infos.LastTaskResult)" -ForegroundColor Yellow
+    }
+    if (-not (Test-Path (Join-Path $Journaux 'xchange.log'))) {
+        Write-Host "Aucun journal : la tâche n'a pas pu lancer Xchange sous le compte « $CompteService »." -ForegroundColor Yellow
+    }
+}
+
 function Afficher-FinJournal([int]$Lignes = 20) {
+    Afficher-DiagnosticTache
     $journal = Join-Path $Journaux 'xchange.log'
     if (Test-Path $journal) {
         Write-Host ''
