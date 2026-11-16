@@ -2,6 +2,7 @@ const { loadConfig } = require('./src/config');
 const { openDatabase } = require('./src/db');
 const { createApp, ensureAdmin } = require('./src/app');
 const { startBackupScheduler } = require('./src/backupScheduler');
+const { applyContent } = require('./src/content');
 
 async function main() {
   const config = loadConfig();
@@ -13,6 +14,7 @@ async function main() {
 
   const db = await openDatabase(config.databasePath, { legacyDeletedLogPath: config.legacyDeletedLogPath });
   await ensureAdmin(db, config);
+  if (config.seedContent) await applyContent(db);
 
   const app = createApp({ db, config });
   const server = app.listen(config.port, config.host, () => {

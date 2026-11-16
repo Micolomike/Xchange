@@ -35,6 +35,10 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Par formulaire : rubrique, description, groupe qui traite les demandes, priorité des tickets créés, visibilité (tout le monde ou certains groupes), publication. Duplication possible.
 - L'envoi crée un ticket dont le titre reprend le nom du formulaire (et, au choix, une réponse) ; les réponses sont conservées avec le ticket, même si le formulaire est modifié ou supprimé ensuite.
 
+**Contenu de départ**
+- Au démarrage, Xchange ajoute une fois 15 catégories (informatique, téléphone, démarches, impôts, budget, carrière, logement, voiture, santé, droit, cuisine, événements, voyages, études, achats), 11 groupes d'entraide (Informaticiens, Fiscalistes, As de la paperasse, Conseillers budget, Coachs carrière, Bricoleurs, Mécanos, Cuisiniers, Organisateurs, Profs, Entraide santé) et 30 formulaires du catalogue, ainsi que des catégories réservées pour les sujets personnels (impôts, budget, carrière, santé).
+- Rien d'existant n'est modifié : un groupe, une catégorie ou un formulaire du même nom est laissé tel quel ; ce qui est supprimé ensuite ne revient pas. `SEED_CONTENT=false` désactive cet ajout.
+
 **Droits et visibilité (Administration > Paramètres)**
 - Matrice : une ligne « Tous les utilisateurs » et une ligne par groupe ; colonnes « Voit les tickets » (les siens, ceux de son groupe, tous), Créer, Traiter, Assigner, Modifier, Supprimer. Une personne cumule la ligne « Tous les utilisateurs » et celles de ses groupes ; les droits s'appliquent aux tickets qu'elle voit.
 - Visibilité par catégorie : les groupes cochés voient tous les tickets de la catégorie ; une catégorie réservée n'est plus visible par le droit « Tous » des autres groupes.

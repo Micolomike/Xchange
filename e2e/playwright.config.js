@@ -19,6 +19,8 @@ const apiEnv = {
   JWT_SECRET: 'e2e-secret',
   RATE_LIMIT: 'false',
   MFA_REQUIRED: 'true',
+  // Base vide pour des comptes précis (le contenu de départ est testé côté API).
+  SEED_CONTENT: 'false',
   BACKUP_TARGETS: USB_DIR,
 };
 

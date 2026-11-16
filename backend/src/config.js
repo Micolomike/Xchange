@@ -53,6 +53,8 @@ function loadConfig(env = process.env) {
     // Verrouillage d'un compte après trop d'échecs de connexion, indépendant de l'adresse IP.
     // Double authentification (code d'application) obligatoire pour tous les comptes.
     mfaRequired: bool(env.MFA_REQUIRED, true),
+    // Contenu de départ (catégories, groupes, formulaires d'entraide), ajouté une fois sans rien écraser.
+    seedContent: bool(env.SEED_CONTENT, true),
     loginMaxFailures: Number(env.LOGIN_MAX_FAILURES) || 10,
     loginLockMinutes: Number(env.LOGIN_LOCK_MINUTES) || 15,
   };
