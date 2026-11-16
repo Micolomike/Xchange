@@ -127,7 +127,7 @@ if (-not (Attendre-Xchange 90)) {
 }
 Ecrire-Ok "Xchange répond sur http://localhost:$Port"
 
-$adresses = Adresses-Ecoute
+$adresses = @(Adresses-Ecoute)
 $horsLocal = @($adresses | Where-Object { $_ -ne '127.0.0.1' -and $_ -ne '::1' })
 if ($horsLocal.Count -gt 0) {
     Arreter-Xchange

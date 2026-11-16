@@ -25,7 +25,7 @@ if (-not $tache) {
     } else {
         Ecrire-Alerte 'Xchange ne répond pas. Essaie : Start-ScheduledTask -TaskName Xchange   puis relance ce script.'
     }
-    $adresses = Adresses-Ecoute
+    $adresses = @(Adresses-Ecoute)
     if ($adresses.Count -eq 0) {
         Ecrire-Info 'Aucune écoute sur le port 4000.'
     } elseif (@($adresses | Where-Object { $_ -ne '127.0.0.1' -and $_ -ne '::1' }).Count -gt 0) {
