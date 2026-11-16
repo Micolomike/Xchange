@@ -1,0 +1,92 @@
+const { HttpError, toIso, displayName } = require('./utils');
+
+const TICKET_SELECT = `
+  SELECT t.*,
+    c.username AS c_username, c.firstname AS c_firstname, c.lastname AS c_lastname,
+    a.username AS a_username, a.firstname AS a_firstname, a.lastname AS a_lastname,
+    d.username AS d_username, d.firstname AS d_firstname, d.lastname AS d_lastname,
+    (SELECT COUNT(*) FROM comments WHERE ticket_id = t.id) AS comment_count,
+    (SELECT COUNT(*) FROM attachments WHERE ticket_id = t.id) AS attachment_count
+  FROM tickets t
+  LEFT JOIN users c ON c.id = t.created_by
+  LEFT JOIN users a ON a.id = t.assigned_to
+  LEFT JOIN users d ON d.id = t.deleted_by
+`;
+
+function userRef(row, prefix, id) {
+  if (!id || !row[`${prefix}_username`]) return null;
+  const user = {
+    username: row[`${prefix}_username`],
+    firstname: row[`${prefix}_firstname`],
+    lastname: row[`${prefix}_lastname`],
+  };
+  return { id, username: user.username, name: displayName(user) };
+}
+
+function serializeTicket(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    category: row.category || '',
+    status: row.status,
+    due_date: row.due_date || null,
+    created_at: toIso(row.created_at),
+    updated_at: toIso(row.updated_at),
+    resolved_at: toIso(row.resolved_at),
+    deleted_at: toIso(row.deleted_at),
+    creator: userRef(row, 'c', row.created_by),
+    assignee: userRef(row, 'a', row.assigned_to),
+    deleted_by: userRef(row, 'd', row.deleted_by),
+    comment_count: row.comment_count || 0,
+    attachment_count: row.attachment_count || 0,
+  };
+}
+
+/** Clause SQL limitant les tickets visibles : tout pour un admin, sinon créés par moi ou assignés à moi. */
+function visibilityClause(user) {
+  if (user.role === 'admin') return { sql: '1 = 1', params: [] };
+  return { sql: '(t.created_by = ? OR t.assigned_to = ?)', params: [user.id, user.id] };
+}
+
+function permissionsFor(user, ticket) {
+  const isAdmin = user.role === 'admin';
+  const isCreator = ticket.creator?.id === user.id;
+  const isAssignee = ticket.assignee?.id === user.id;
+  return {
+    canEdit: isAdmin || isCreator,
+    canChangeStatus: isAdmin || isCreator || isAssignee,
+    canAssign: isAdmin,
+    canDelete: isAdmin,
+    canComment: true,
+  };
+}
+
+/** Charge un ticket non supprimé visible par l'utilisateur, ou lève 404. */
+async function loadVisibleTicket(db, user, id, { includeDeleted = false } = {}) {
+  const vis = visibilityClause(user);
+  const row = await db.get(
+    `${TICKET_SELECT} WHERE t.id = ? AND ${vis.sql} ${includeDeleted ? '' : 'AND t.deleted_at IS NULL'}`,
+    [id, ...vis.params]
+  );
+  if (!row) throw new HttpError(404, 'Ticket introuvable.');
+  return serializeTicket(row);
+}
+
+async function addEvent(db, ticketId, actorId, type, fromValue = null, toValue = null, at = new Date().toISOString()) {
+  await db.run(
+    `INSERT INTO ticket_events (ticket_id, actor_id, type, from_value, to_value, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [ticketId, actorId, type, fromValue == null ? null : String(fromValue), toValue == null ? null : String(toValue), at]
+  );
+}
+
+module.exports = {
+  TICKET_SELECT,
+  serializeTicket,
+  visibilityClause,
+  permissionsFor,
+  loadVisibleTicket,
+  addEvent,
+};

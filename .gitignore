@@ -4,6 +4,8 @@ dist/
 
 # Sensitive and environment files
 .env
+.env.local
+backend/.env
 
 # Editor directories
 .vscode/
@@ -15,4 +17,8 @@ npm-debug.log
 # Logs and data
 logs/
 database/*.db
+database/*.db-wal
+database/*.db-shm
+database/uploads/
+*.imported.json
 electron-app/
