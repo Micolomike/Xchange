@@ -6,7 +6,7 @@
 const { nowIso } = require('./utils');
 const { getSetting, setSetting } = require('./settings');
 
-const CONTENT_VERSION = 1;
+const CONTENT_VERSION = 2;
 
 const CATEGORIES = [
   ['informatique', 'Informatique et internet'],
@@ -39,14 +39,6 @@ const GROUPS = [
   ['Profs', 'Devoirs, études et formation.'],
   ['Entraide santé', 'S’orienter dans les soins, rendez-vous, remboursements. Pas de diagnostic.'],
 ];
-
-// Catégories réservées : seuls ces groupes voient tous leurs tickets (sujets personnels).
-const RESERVED = {
-  impots: ['Fiscalistes'],
-  argent: ['Conseillers budget', 'Fiscalistes'],
-  carriere: ['Coachs carrière'],
-  sante: ['Entraide santé'],
-};
 
 // Raccourcis pour décrire les questions.
 const text = (label, extra = {}) => ({ type: 'text', label, ...extra });
@@ -461,6 +453,51 @@ const FORMS = [
   },
 ];
 
+// Version 2 : un groupe par catégorie, des Coordinateurs, et une visibilité réglée pour chaque catégorie.
+const GROUPS_V2 = [
+  ['Experts mobiles', 'Smartphones et tablettes : réglages, applications, sauvegardes.'],
+  ['Conseillers juridiques', 'Litiges, contrats, droits du consommateur. Des conseils entre proches, pas l’avis d’un avocat.'],
+  ['Globe-trotteurs', 'Voyages, loisirs, sorties.'],
+  ['Chasseurs de bons plans', 'Achats, comparatifs, promotions.'],
+  ['Coordinateurs', 'Voient toutes les demandes non personnelles et répartissent le travail entre les groupes.'],
+];
+
+// Groupe responsable de chaque catégorie.
+const CATEGORY_GROUP = {
+  informatique: 'Informaticiens',
+  telephone: 'Experts mobiles',
+  administratif: 'As de la paperasse',
+  impots: 'Fiscalistes',
+  argent: 'Conseillers budget',
+  carriere: 'Coachs carrière',
+  logement: 'Bricoleurs',
+  vehicule: 'Mécanos',
+  sante: 'Entraide santé',
+  juridique: 'Conseillers juridiques',
+  cuisine: 'Cuisiniers',
+  evenements: 'Organisateurs',
+  voyages: 'Globe-trotteurs',
+  etudes: 'Profs',
+  achats: 'Chasseurs de bons plans',
+};
+
+// Sujets personnels : réservés à leur groupe (les Coordinateurs ne les voient pas).
+const PERSONAL = ['impots', 'argent', 'carriere', 'sante', 'juridique'];
+
+// Formulaires de la version 1 qui changent de groupe (seulement s'ils ont gardé le groupe d'origine).
+const REASSIGN_V2 = {
+  'Problème de smartphone ou de tablette': ['Informaticiens', 'Experts mobiles'],
+  'Sauvegarder ou transférer photos et contacts': ['Informaticiens', 'Experts mobiles'],
+  'Litige avec une entreprise ou un voisin': ['As de la paperasse', 'Conseillers juridiques'],
+  'Préparer un voyage': ['Organisateurs', 'Globe-trotteurs'],
+  'Avis avant un achat important': ['Conseillers budget', 'Chasseurs de bons plans'],
+};
+
+// Droits par défaut : chaque groupe d'entraide traite les demandes de sa catégorie ;
+// les Coordinateurs voient tout (hors sujets personnels), modifient et répartissent.
+const HELPER_RIGHTS = { view: 'group', create: true, work: true, assign: true, edit: false, delete: false };
+const COORDINATOR_RIGHTS = { view: 'all', create: true, work: true, assign: true, edit: true, delete: false };
+
 function slug(label) {
   return label
     .normalize('NFD')
@@ -484,12 +521,15 @@ function withKeys(fields) {
   });
 }
 
-async function applyContent(db, { logger = console } = {}) {
-  const done = await db.get("SELECT value FROM settings WHERE key = 'content_version'");
-  if (done && Number(JSON.parse(done.value)) >= CONTENT_VERSION) return { applied: false };
-  const now = nowIso();
-  const added = { categories: 0, groups: 0, forms: 0 };
+async function findOrCreateGroup(db, name, description, now, added) {
+  const row = await db.get('SELECT id FROM user_groups WHERE name = ? COLLATE NOCASE', [name]);
+  if (row) return row.id;
+  added.groups += 1;
+  return (await db.run('INSERT INTO user_groups (name, description, created_at) VALUES (?, ?, ?)', [name, description, now])).lastID;
+}
 
+/** Version 1 : catégories, groupes d'entraide, formulaires. */
+async function applyV1(db, now, added) {
   // Catégories : ajoutées si ni la clé ni le nom n'existent.
   const categories = await getSetting(db, 'categories');
   for (const [key, label] of CATEGORIES) {
@@ -500,30 +540,9 @@ async function applyContent(db, { logger = console } = {}) {
     }
   }
   await setSetting(db, 'categories', categories);
-  const keyOf = (key) => {
-    const label = CATEGORIES.find(([k]) => k === key)?.[1];
-    return (categories.find((c) => c.key === key) || categories.find((c) => c.label.toLowerCase() === label?.toLowerCase()))?.key || '';
-  };
 
-  // Groupes : ajoutés si aucun groupe ne porte déjà ce nom.
   const groupId = {};
-  for (const [name, description] of GROUPS) {
-    const row = await db.get('SELECT id FROM user_groups WHERE name = ? COLLATE NOCASE', [name]);
-    if (row) groupId[name] = row.id;
-    else {
-      groupId[name] = (await db.run('INSERT INTO user_groups (name, description, created_at) VALUES (?, ?, ?)', [name, description, now])).lastID;
-      added.groups += 1;
-    }
-  }
-
-  // Catégories réservées : seulement si aucune règle n'existe déjà pour elles.
-  const access = await getSetting(db, 'access');
-  access.categories = access.categories || {};
-  for (const [key, names] of Object.entries(RESERVED)) {
-    const k = keyOf(key);
-    if (k && !(access.categories[k] || []).length) access.categories[k] = names.map((n) => groupId[n]);
-  }
-  await setSetting(db, 'access', access);
+  for (const [name, description] of GROUPS) groupId[name] = await findOrCreateGroup(db, name, description, now, added);
 
   // Formulaires : ajoutés si aucun ne porte déjà ce nom.
   for (const form of FORMS) {
@@ -532,15 +551,81 @@ async function applyContent(db, { logger = console } = {}) {
     await db.run(
       `INSERT INTO catalog_items (name, description, section, priority, category, active, fulfillment_group, fields, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-      [form.name, form.description, form.section, form.priority || 'medium', keyOf(form.category), groupId[form.group] ?? null,
-        JSON.stringify(withKeys(form.fields)), now, now]
+      [form.name, form.description, form.section, form.priority || 'medium', categoryKey(categories, form.category),
+        groupId[form.group] ?? null, JSON.stringify(withKeys(form.fields)), now, now]
     );
     added.forms += 1;
   }
+}
 
+function categoryKey(categories, key) {
+  const label = CATEGORIES.find(([k]) => k === key)?.[1];
+  return (categories.find((c) => c.key === key) || categories.find((c) => c.label.toLowerCase() === label?.toLowerCase()))?.key || '';
+}
+
+/** Version 2 : un groupe par catégorie, Coordinateurs, droits et visibilité par défaut. */
+async function applyV2(db, now, added, { previousVersion }) {
+  const categories = await getSetting(db, 'categories');
+  const descriptions = Object.fromEntries([...GROUPS, ...GROUPS_V2]);
+  const groupId = {};
+  for (const name of new Set([...Object.values(CATEGORY_GROUP), 'Coordinateurs'])) {
+    groupId[name] = await findOrCreateGroup(db, name, descriptions[name] || '', now, added);
+  }
+
+  const access = await getSetting(db, 'access');
+  access.groups = access.groups || {};
+  access.categories = access.categories || {};
+  // Droits des groupes : seulement pour ceux qui n'ont pas encore de réglage enregistré.
+  for (const name of Object.keys(groupId)) {
+    const id = groupId[name];
+    if (!access.groups[id]) {
+      access.groups[id] = name === 'Coordinateurs' ? COORDINATOR_RIGHTS : HELPER_RIGHTS;
+      added.rights += 1;
+    }
+  }
+  // Visibilité par catégorie : une règle pour chaque catégorie qui n'en a pas, ou qui a encore
+  // exactement celle posée par la version 1.
+  const V1_RULES = { impots: ['Fiscalistes'], argent: ['Conseillers budget', 'Fiscalistes'], carriere: ['Coachs carrière'], sante: ['Entraide santé'] };
+  for (const [cat, groupName] of Object.entries(CATEGORY_GROUP)) {
+    const key = categoryKey(categories, cat);
+    if (!key) continue;
+    const current = access.categories[key] || [];
+    const v1 = (V1_RULES[cat] || []).map((n) => groupId[n] ?? null);
+    const untouched = !current.length || (previousVersion >= 1 && current.length === v1.length && current.every((id) => v1.includes(id)));
+    if (!untouched) continue;
+    const list = cat === 'argent' ? [groupId[groupName], groupId.Fiscalistes] : [groupId[groupName]];
+    if (!PERSONAL.includes(cat)) list.push(groupId.Coordinateurs);
+    access.categories[key] = [...new Set(list.filter(Boolean))];
+    added.rules += 1;
+  }
+  await setSetting(db, 'access', access);
+
+  // Formulaires à réaffecter, s'ils ont gardé le groupe d'origine.
+  for (const [name, [from, to]] of Object.entries(REASSIGN_V2)) {
+    const fromId = (await db.get('SELECT id FROM user_groups WHERE name = ? COLLATE NOCASE', [from]))?.id;
+    if (!fromId) continue;
+    const { changes } = await db.run(
+      'UPDATE catalog_items SET fulfillment_group = ?, updated_at = ? WHERE name = ? COLLATE NOCASE AND fulfillment_group = ?',
+      [groupId[to], now, name, fromId]
+    );
+    added.forms += changes;
+  }
+}
+
+async function applyContent(db, { logger = console } = {}) {
+  const done = await db.get("SELECT value FROM settings WHERE key = 'content_version'");
+  const version = done ? Number(JSON.parse(done.value)) || 0 : 0;
+  if (version >= CONTENT_VERSION) return { applied: false };
+  const now = nowIso();
+  const added = { categories: 0, groups: 0, forms: 0, rights: 0, rules: 0 };
+  if (version < 1) await applyV1(db, now, added);
+  if (version < 2) await applyV2(db, now, added, { previousVersion: version });
   await setSetting(db, 'content_version', CONTENT_VERSION);
-  logger.info(`Contenu ajouté : ${added.categories} catégorie(s), ${added.groups} groupe(s), ${added.forms} formulaire(s).`);
+  logger.info(
+    `Contenu mis à jour (version ${CONTENT_VERSION}) : ${added.categories} catégorie(s), ${added.groups} groupe(s), ` +
+      `${added.forms} formulaire(s) ajouté(s) ou réaffecté(s), ${added.rights} groupe(s) avec droits, ${added.rules} règle(s) de visibilité.`
+  );
   return { applied: true, added };
 }
 
-module.exports = { applyContent, CONTENT_VERSION, FORMS, GROUPS, CATEGORIES, withKeys };
+module.exports = { applyContent, applyV1, CONTENT_VERSION, FORMS, GROUPS, GROUPS_V2, CATEGORIES, CATEGORY_GROUP, withKeys };
