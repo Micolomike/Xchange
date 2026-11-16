@@ -10,6 +10,7 @@ import CreateTicket from './pages/CreateTicket';
 import TicketDetail from './pages/TicketDetail';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
+import MfaSetup from './pages/MfaSetup';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/double-authentification" element={<MfaSetup />} />
             <Route path="/tickets" element={<RequireAuth><TicketList /></RequireAuth>} />
             <Route path="/tickets/new" element={<RequireAuth><CreateTicket /></RequireAuth>} />
             <Route path="/tickets/:id" element={<RequireAuth><TicketDetail /></RequireAuth>} />

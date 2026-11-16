@@ -2,19 +2,23 @@ import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui';
 import UsersPanel from './admin/UsersPanel';
 import TrashPanel from './admin/TrashPanel';
+import BackupPanel from './admin/BackupPanel';
 
 const TABS = [
   { value: 'users', label: 'Utilisateurs' },
   { value: 'trash', label: 'Corbeille' },
+  { value: 'backup', label: 'Sauvegardes' },
 ];
+const PANELS = { users: UsersPanel, trash: TrashPanel, backup: BackupPanel };
 
 export default function Admin() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'trash' ? 'trash' : 'users';
+  const tab = PANELS[params.get('tab')] ? params.get('tab') : 'users';
+  const Panel = PANELS[tab];
 
   return (
     <div>
-      <PageHeader title="Administration">Comptes de l'équipe et tickets supprimés.</PageHeader>
+      <PageHeader title="Administration">Comptes de l'équipe, tickets supprimés et sauvegardes.</PageHeader>
       <div className="mb-4 flex gap-1 border-b border-line" role="tablist" aria-label="Sections d'administration">
         {TABS.map((t) => (
           <button
@@ -34,7 +38,7 @@ export default function Admin() {
         ))}
       </div>
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        {tab === 'users' ? <UsersPanel /> : <TrashPanel />}
+        <Panel />
       </div>
     </div>
   );

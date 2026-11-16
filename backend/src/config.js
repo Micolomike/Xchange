@@ -37,6 +37,10 @@ function loadConfig(env = process.env) {
     corsOrigins: env.CORS_ORIGIN
       ? env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
       : null,
+    // Dossiers supplémentaires proposés comme destination de sauvegarde (séparés par des virgules).
+    backupTargets: env.BACKUP_TARGETS
+      ? env.BACKUP_TARGETS.split(',').map((s) => path.resolve(s.trim())).filter(Boolean)
+      : [],
     maxUploadMb: Number(env.MAX_UPLOAD_MB) || 10,
     maxFilesPerUpload: 5,
     allowRegistration: bool(env.ALLOW_REGISTRATION, true),
@@ -45,6 +49,8 @@ function loadConfig(env = process.env) {
     trustProxy: env.TRUST_PROXY === undefined ? 1 : Number(env.TRUST_PROXY) || 0,
     rateLimit: bool(env.RATE_LIMIT, true),
     // Verrouillage d'un compte après trop d'échecs de connexion, indépendant de l'adresse IP.
+    // Double authentification (code d'application) obligatoire pour tous les comptes.
+    mfaRequired: bool(env.MFA_REQUIRED, true),
     loginMaxFailures: Number(env.LOGIN_MAX_FAILURES) || 10,
     loginLockMinutes: Number(env.LOGIN_LOCK_MINUTES) || 15,
   };

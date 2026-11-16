@@ -2,7 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
 const { HttpError, publicUser, validateUserInput, nowIso } = require('../utils');
-const { signToken } = require('../middleware/auth');
+const QRCode = require('qrcode');
+const { signToken, signChallenge, verifyChallenge, readSession } = require('../middleware/auth');
+const mfa = require('../mfa');
 
 // Haché factice : rend le temps de réponse identique que l'utilisateur existe ou non.
 const DUMMY_HASH = bcrypt.hashSync('xchange-dummy-password', 10);
@@ -48,6 +50,39 @@ function createLoginGuard({ maxFailures, lockMinutes }) {
 function authRoutes({ db, config, authenticate }) {
   const router = express.Router();
   const guard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
+  const codeGuard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
+
+  /** Réponse après un mot de passe correct : session, ou étape de double authentification. */
+  function afterPassword(row) {
+    if (row.mfa_enabled) return { mfaRequired: true, mfaToken: signChallenge(row, config, 'mfa'), user: publicUser(row) };
+    if (config.mfaRequired) {
+      return { mfaSetupRequired: true, setupToken: signChallenge(row, config, 'setup'), user: publicUser(row) };
+    }
+    return { token: signToken(row, config, { mfa: false }), user: publicUser(row) };
+  }
+
+  async function newRecoveryCodes(userId) {
+    const codes = mfa.generateRecoveryCodes();
+    await db.run('DELETE FROM mfa_recovery_codes WHERE user_id = ?', [userId]);
+    for (const code of codes) {
+      await db.run('INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES (?, ?)', [userId, mfa.hashRecoveryCode(code)]);
+    }
+    return codes;
+  }
+
+  async function recoveryCodesLeft(userId) {
+    const { n } = await db.get('SELECT COUNT(*) AS n FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL', [userId]);
+    return n;
+  }
+
+  /** Utilisateur qui configure son appli : jeton d'étape « setup », ou session d'un compte encore sans MFA. */
+  async function setupUser(req) {
+    const body = req.body || {};
+    if (body.setupToken) return verifyChallenge(body.setupToken, 'setup', { db, config });
+    const session = await readSession(req, { db, config });
+    if (!session) throw new HttpError(401, 'Cette étape a expiré : reconnectez-vous.');
+    return session.row;
+  }
 
   const limiter = config.rateLimit
     ? rateLimit({
@@ -81,7 +116,7 @@ function authRoutes({ db, config, authenticate }) {
       [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso()]
     );
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
-    res.status(201).json({ token: signToken(row, config), user: publicUser(row) });
+    res.status(201).json(afterPassword(row));
   });
 
   router.post('/login', limiter, async (req, res) => {
@@ -97,11 +132,93 @@ function authRoutes({ db, config, authenticate }) {
       throw new HttpError(401, 'Identifiants invalides.');
     }
     guard.succeed(username);
-    res.json({ token: signToken(row, config), user: publicUser(row) });
+    res.json(afterPassword(row));
   });
 
-  router.get('/me', authenticate, (req, res) => {
-    res.json({ user: req.user });
+  // Deuxième étape de la connexion : code de l'appli, ou code de secours.
+  router.post('/mfa/verify', limiter, async (req, res) => {
+    const body = req.body || {};
+    const row = await verifyChallenge(body.mfaToken, 'mfa', { db, config });
+    const key = `mfa:${row.id}`;
+    codeGuard.check(key);
+
+    let usedRecoveryCode = false;
+    const step = mfa.verifyTotp(row.mfa_secret, body.code, row.mfa_last_step);
+    if (step) {
+      await db.run('UPDATE users SET mfa_last_step = ? WHERE id = ?', [step, row.id]);
+    } else {
+      const hash = mfa.hashRecoveryCode(body.code);
+      const recovery = mfa.normalizeRecoveryCode(body.code).length === 8
+        ? await db.get('SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND code_hash = ? AND used_at IS NULL', [row.id, hash])
+        : null;
+      if (!recovery) {
+        codeGuard.fail(key);
+        throw new HttpError(401, 'Code incorrect ou déjà utilisé.');
+      }
+      await db.run('UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ?', [nowIso(), recovery.id]);
+      usedRecoveryCode = true;
+    }
+    codeGuard.succeed(key);
+    res.json({
+      token: signToken(row, config, { mfa: true }),
+      user: publicUser(row),
+      usedRecoveryCode,
+      recoveryCodesLeft: await recoveryCodesLeft(row.id),
+    });
+  });
+
+  // Configuration de l'appli : 1) secret + QR code, 2) confirmation par un premier code.
+  router.post('/mfa/setup/start', limiter, async (req, res) => {
+    const row = await setupUser(req);
+    if (row.mfa_enabled) throw new HttpError(400, 'La double authentification est déjà activée sur ce compte.');
+    const secret = mfa.generateSecret();
+    await db.run('UPDATE users SET mfa_pending_secret = ? WHERE id = ?', [secret, row.id]);
+    const otpauthUrl = mfa.otpauthUrl(secret, row.username);
+    const qr = await QRCode.toDataURL(otpauthUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' });
+    res.json({ secret: secret.replace(/(.{4})/g, '$1 ').trim(), otpauthUrl, qr });
+  });
+
+  router.post('/mfa/setup/confirm', limiter, async (req, res) => {
+    const row = await setupUser(req);
+    if (row.mfa_enabled) throw new HttpError(400, 'La double authentification est déjà activée sur ce compte.');
+    if (!row.mfa_pending_secret) throw new HttpError(400, 'Recommencez la configuration depuis le début.');
+    const key = `mfa:${row.id}`;
+    codeGuard.check(key);
+    const step = mfa.verifyTotp(row.mfa_pending_secret, (req.body || {}).code, 0);
+    if (!step) {
+      codeGuard.fail(key);
+      throw new HttpError(400, "Code incorrect. Vérifiez que l'heure de votre téléphone est réglée automatiquement.", {
+        code: 'Incorrect.',
+      });
+    }
+    codeGuard.succeed(key);
+    await db.run(
+      'UPDATE users SET mfa_enabled = 1, mfa_secret = mfa_pending_secret, mfa_pending_secret = NULL, mfa_last_step = ? WHERE id = ?',
+      [step, row.id]
+    );
+    const recoveryCodes = await newRecoveryCodes(row.id);
+    const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
+    res.json({ token: signToken(updated, config, { mfa: true }), user: publicUser(updated), recoveryCodes });
+  });
+
+  router.get('/me', authenticate, async (req, res) => {
+    res.json({ user: req.user, recoveryCodesLeft: await recoveryCodesLeft(req.user.id) });
+  });
+
+  // Nouveaux codes de secours (les anciens deviennent inutilisables) : exige un code de l'appli.
+  router.post('/mfa/recovery-codes', authenticate, async (req, res) => {
+    const row = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!row.mfa_enabled) throw new HttpError(400, "La double authentification n'est pas activée.");
+    const key = `mfa:${row.id}`;
+    codeGuard.check(key);
+    const step = mfa.verifyTotp(row.mfa_secret, (req.body || {}).code, row.mfa_last_step);
+    if (!step) {
+      codeGuard.fail(key);
+      throw new HttpError(400, 'Code incorrect ou déjà utilisé.', { code: 'Incorrect.' });
+    }
+    codeGuard.succeed(key);
+    await db.run('UPDATE users SET mfa_last_step = ? WHERE id = ?', [step, row.id]);
+    res.json({ recoveryCodes: await newRecoveryCodes(row.id) });
   });
 
   router.put('/me', authenticate, async (req, res) => {
@@ -126,7 +243,7 @@ function authRoutes({ db, config, authenticate }) {
     }
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     // Changer son mot de passe invalide les autres sessions : on renvoie un nouveau jeton.
-    res.json({ user: publicUser(updated), token: signToken(updated, config) });
+    res.json({ user: publicUser(updated), token: signToken(updated, config, { mfa: req.sessionMfa }) });
   });
 
   return router;

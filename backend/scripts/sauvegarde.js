@@ -7,24 +7,8 @@
  */
 const fs = require('fs');
 const path = require('path');
-const sqlite3 = require('sqlite3');
 const { loadConfig } = require('../src/config');
-
-function stamp(date = new Date()) {
-  const p = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}_${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
-}
-
-function vacuumInto(source, target) {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(source, sqlite3.OPEN_READONLY, (openErr) => {
-      if (openErr) return reject(openErr);
-      db.run('VACUUM INTO ?', [target], (err) => {
-        db.close(() => (err ? reject(err) : resolve()));
-      });
-    });
-  });
-}
+const { stamp, vacuumInto } = require('../src/backup');
 
 /** Copie les fichiers absents de la destination (noms uniques : jamais modifiés ni supprimés ici). */
 function copyMissing(from, to) {

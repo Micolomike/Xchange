@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
-import { ADMIN, AGENT, USER, api, day, login, trackPageErrors } from './helpers.js';
+import { ADMIN, AGENT, USER, api, completeMfaSetup, day, enterMfaCode, login, nextCode, trackPageErrors } from './helpers.js';
 
 // Un seul parcours, étape par étape, dans le même onglet (la session est conservée).
 test.describe.configure({ mode: 'serial' });
@@ -10,6 +10,7 @@ let pageErrors;
 let ids = [];
 let createdId;
 let tempPassword;
+let adminRecoveryCodes;
 
 test.beforeAll(async ({ browser }, testInfo) => {
   const context = await browser.newContext({ ...testInfo.project.use, acceptDownloads: true });
@@ -43,6 +44,14 @@ test('le premier inscrit devient administrateur', async () => {
 
   await page.fill('#reg-confirm', ADMIN.password);
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
+
+  // La double authentification est obligatoire : configuration de l'appli avant d'entrer.
+  await expect(page).toHaveURL(/\/double-authentification$/);
+  await page.fill('#mfa-setup-code', '000000');
+  await page.getByRole('button', { name: 'Activer' }).click();
+  await expect(page.getByText(/Code incorrect/)).toBeVisible();
+  adminRecoveryCodes = await completeMfaSetup(page, ADMIN.username);
+  expect(adminRecoveryCodes).toHaveLength(10);
   await expect(page.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible();
 });
@@ -162,10 +171,58 @@ test('corbeille puis administration des comptes', async () => {
   expect(tempPassword).toHaveLength(12);
   await page.locator('.swal2-confirm').click();
 
+  // Inès a « perdu son téléphone » : l'administrateur réinitialise sa double authentification.
+  await page.getByRole('button', { name: `Réinitialiser la double authentification de ${USER.username}` }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByText(`Double authentification de ${USER.username} réinitialisée`)).toBeVisible();
+  await expect(page.getByRole('button', { name: `Réinitialiser la double authentification de ${USER.username}` })).toBeDisabled();
+
   await page.getByRole('tab', { name: 'Corbeille' }).click();
   await expect(page.getByText('Commande de deux claviers')).toBeVisible();
   await page.getByRole('button', { name: 'Restaurer' }).click();
   await expect(page.getByText('La corbeille est vide')).toBeVisible();
+});
+
+test('sauvegardes : téléchargement et écriture sur un disque', async () => {
+  await page.getByRole('tab', { name: 'Sauvegardes' }).click();
+  await expect(page).toHaveURL(/\/admin\?tab=backup$/);
+
+  // Sans la fenêtre « Enregistrer sous » (absente de Firefox et Safari) : téléchargement classique.
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+  });
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Télécharger la sauvegarde' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^xchange_.+\.zip$/);
+  const zip = await fs.readFile(await download.path());
+  expect(zip.subarray(0, 2).toString()).toBe('PK');
+  expect(zip.includes(Buffer.from('xchange.db'))).toBe(true);
+
+  const disk = page.getByRole('radio', { name: /cle-usb/ });
+  await expect(disk).toBeChecked();
+  await page.fill('#backup-folder', '../ailleurs');
+  await page.getByRole('button', { name: 'Enregistrer la sauvegarde' }).click();
+  await expect(page.getByText('Nom invalide.')).toBeVisible();
+  await page.fill('#backup-folder', 'Xchange-sauvegardes');
+  await page.getByRole('button', { name: 'Enregistrer la sauvegarde' }).click();
+  const status = page.getByRole('status').filter({ hasText: 'Sauvegarde écrite' });
+  await expect(status).toContainText(/cle-usb.Xchange-sauvegardes.xchange_.+\.zip/);
+  const written = (await status.locator('.font-mono').innerText()).trim();
+  expect((await fs.readFile(written)).subarray(0, 2).toString()).toBe('PK');
+});
+
+test('mon compte : codes de secours', async () => {
+  await page.locator('button[aria-haspopup=menu]').click();
+  await page.getByRole('menuitem', { name: 'Mon compte' }).click();
+  await expect(page.getByText('Codes de secours restants')).toContainText('10');
+  await page.fill('#p-mfa-code', await nextCode(ADMIN.username));
+  await page.getByRole('button', { name: 'Nouveaux codes de secours' }).click();
+  await expect(page.getByText('Vos nouveaux codes, affichés une seule fois')).toBeVisible();
+  const fresh = await page.getByRole('list', { name: 'Codes de secours' }).locator('li').allInnerTexts();
+  expect(fresh).toHaveLength(10);
+  expect(fresh).not.toContain(adminRecoveryCodes[0]);
+  adminRecoveryCodes = fresh;
 });
 
 test('un utilisateur simple a des droits restreints', async () => {
@@ -184,6 +241,8 @@ test('un utilisateur simple a des droits restreints', async () => {
 
   await page.fill('#login-password', tempPassword);
   await page.getByRole('button', { name: 'Se connecter' }).click();
+  // Double authentification réinitialisée par l'administrateur : nouvelle configuration.
+  await completeMfaSetup(page, USER.username);
   await expect(page.getByRole('heading', { name: `Bonjour ${USER.firstname}` })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Administration' })).toHaveCount(0);
 
@@ -193,6 +252,21 @@ test('un utilisateur simple a des droits restreints', async () => {
   await page.goto(`/tickets/${ids[0]}`);
   await expect(page.getByRole('button', { name: 'Modifier' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mettre à la corbeille' })).toHaveCount(0);
+});
+
+test('connexion avec un code de secours', async () => {
+  await page.locator('button[aria-haspopup=menu]').click();
+  await page.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+  await page.goto('/login');
+  await page.fill('#login-username', ADMIN.username);
+  await page.fill('#login-password', ADMIN.password);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page.getByRole('heading', { name: 'Vérification' })).toBeVisible();
+  await page.getByRole('button', { name: 'Utiliser un code de secours' }).click();
+  await page.fill('#login-code', adminRecoveryCodes[0]);
+  await page.getByRole('button', { name: 'Valider' }).click();
+  await expect(page.getByText('il vous en reste 9')).toBeVisible();
+  await expect(page.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
 });
 
 test('page inconnue et absence d’erreur JavaScript', async () => {

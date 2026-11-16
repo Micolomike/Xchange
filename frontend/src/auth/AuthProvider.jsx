@@ -7,10 +7,13 @@ export default function AuthProvider({ children }) {
   // loading : vérification du jeton en cours ; error : serveur injoignable ; ready : état connu.
   const [status, setStatus] = useState(() => (tokenStore.get() ? 'loading' : 'ready'));
   const [registrationOpen, setRegistrationOpen] = useState(true);
+  // Étape intermédiaire après le mot de passe : { kind: 'mfa' | 'setup', token, user }.
+  const [challenge, setChallenge] = useState(null);
 
   const clearSession = useCallback(() => {
     tokenStore.clear();
     setUser(null);
+    setChallenge(null);
   }, []);
 
   const loadSession = useCallback(async () => {
@@ -43,21 +46,74 @@ export default function AuthProvider({ children }) {
 
   const openSession = useCallback((data) => {
     tokenStore.set(data.token);
+    setChallenge(null);
     setUser(data.user);
     setStatus('ready');
     return data.user;
   }, []);
 
-  const login = useCallback(
-    async (username, password) =>
-      openSession(await api('/api/auth/login', { method: 'POST', body: { username, password }, auth: false })),
+  /** Réponse du serveur après le mot de passe : session ouverte, ou étape de double authentification. */
+  const afterPassword = useCallback(
+    (data) => {
+      if (data.mfaRequired) {
+        const next = { kind: 'mfa', token: data.mfaToken, user: data.user };
+        setChallenge(next);
+        return next;
+      }
+      if (data.mfaSetupRequired) {
+        const next = { kind: 'setup', token: data.setupToken, user: data.user };
+        setChallenge(next);
+        return next;
+      }
+      openSession(data);
+      return { kind: 'session', user: data.user };
+    },
     [openSession]
   );
 
-  const register = useCallback(
-    async (form) => openSession(await api('/api/auth/register', { method: 'POST', body: form, auth: false })),
-    [openSession]
+  const login = useCallback(
+    async (username, password) =>
+      afterPassword(await api('/api/auth/login', { method: 'POST', body: { username, password }, auth: false })),
+    [afterPassword]
   );
+
+  const register = useCallback(
+    async (form) => afterPassword(await api('/api/auth/register', { method: 'POST', body: form, auth: false })),
+    [afterPassword]
+  );
+
+  const verifyMfa = useCallback(
+    async (code) => {
+      const data = await api('/api/auth/mfa/verify', {
+        method: 'POST',
+        body: { mfaToken: challenge?.token, code },
+        auth: false,
+      });
+      openSession(data);
+      return data;
+    },
+    [challenge, openSession]
+  );
+
+  // Configuration de l'appli : avec le jeton d'étape « setup », ou avec la session si le compte n'a pas encore de MFA.
+  const startMfaSetup = useCallback(
+    () =>
+      challenge?.kind === 'setup'
+        ? api('/api/auth/mfa/setup/start', { method: 'POST', body: { setupToken: challenge.token }, auth: false })
+        : api('/api/auth/mfa/setup/start', { method: 'POST', body: {} }),
+    [challenge]
+  );
+
+  /** Valide le premier code ; la session n'est ouverte qu'avec finishMfaSetup, après lecture des codes de secours. */
+  const confirmMfaSetup = useCallback(
+    (code) =>
+      challenge?.kind === 'setup'
+        ? api('/api/auth/mfa/setup/confirm', { method: 'POST', body: { setupToken: challenge.token, code }, auth: false })
+        : api('/api/auth/mfa/setup/confirm', { method: 'POST', body: { code } }),
+    [challenge]
+  );
+
+  const cancelChallenge = useCallback(() => setChallenge(null), []);
 
   const updateProfile = useCallback(
     async (body) => openSession(await api('/api/auth/me', { method: 'PUT', body })),
@@ -70,13 +126,34 @@ export default function AuthProvider({ children }) {
       status,
       isAdmin: user?.role === 'admin',
       registrationOpen,
+      challenge,
       login,
       register,
+      verifyMfa,
+      startMfaSetup,
+      confirmMfaSetup,
+      finishMfaSetup: openSession,
+      cancelChallenge,
       logout: clearSession,
       updateProfile,
       retry: loadSession,
     }),
-    [user, status, registrationOpen, login, register, clearSession, updateProfile, loadSession]
+    [
+      user,
+      status,
+      registrationOpen,
+      challenge,
+      login,
+      register,
+      verifyMfa,
+      startMfaSetup,
+      confirmMfaSetup,
+      openSession,
+      cancelChallenge,
+      clearSession,
+      updateProfile,
+      loadSession,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

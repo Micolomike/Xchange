@@ -119,3 +119,71 @@ describe('sauvegarde', () => {
     assert.equal(row.title, 'À sauvegarder');
   });
 });
+
+describe('sauvegarde depuis l’administration', () => {
+  const AdmZip = require('adm-zip');
+  let ctx;
+  let admin;
+  let target;
+  before(async () => {
+    ctx = await setup({}, {
+      prepare: async (config) => {
+        target = path.join(config.dataDir, 'cle-usb');
+        fs.mkdirSync(target);
+        config.backupTargets = [target];
+      },
+    });
+    admin = await ctx.register('admin');
+    const t = await ctx.createTicket(admin, { title: 'Dans la sauvegarde' });
+    await ctx.api.post(`/api/tickets/${t.id}/attachments`).set(admin.auth).attach('files', Buffer.from('contenu'), 'note.txt').expect(201);
+  });
+  after(() => ctx.cleanup());
+
+  test('réservée aux administrateurs', async () => {
+    const user = await ctx.register('user');
+    assert.equal((await ctx.api.get('/api/admin/backup/download').set(user.auth)).status, 403);
+    assert.equal((await ctx.api.get('/api/admin/backup/destinations').set(user.auth)).status, 403);
+  });
+
+  test('téléchargement : un .zip avec la base, les fichiers joints et le mode d’emploi', async () => {
+    const res = await ctx.api.get('/api/admin/backup/download').set(admin.auth).buffer(true).parse((r, cb) => {
+      const chunks = [];
+      r.on('data', (c) => chunks.push(c));
+      r.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.equal(res.status, 200);
+    assert.match(res.headers['content-disposition'], /attachment; filename="xchange_\d{4}-\d{2}-\d{2}_\d{6}\.zip"/);
+    const zip = new AdmZip(res.body);
+    const names = zip.getEntries().map((e) => e.entryName).sort();
+    assert.ok(names.includes('xchange.db'));
+    assert.ok(names.includes('LISEZMOI.txt'));
+    assert.equal(names.filter((n) => n.startsWith('fichiers/') && !n.endsWith('/')).length, 1);
+    const dbFile = path.join(ctx.dir, 'extrait.db');
+    fs.writeFileSync(dbFile, zip.getEntry('xchange.db').getData());
+    const { Database } = require('../src/db');
+    const copy = await Database.open(dbFile);
+    assert.equal((await copy.get("SELECT COUNT(*) AS n FROM tickets WHERE title = 'Dans la sauvegarde'")).n, 1);
+    await copy.close();
+    assert.equal(fs.readdirSync(ctx.dir).filter((n) => n.startsWith('.sauvegarde-')).length, 0, 'fichier temporaire supprimé');
+  });
+
+  test('écriture sur un disque proposé, dans un sous-dossier', async () => {
+    const list = await ctx.api.get('/api/admin/backup/destinations').set(admin.auth);
+    const dest = list.body.destinations.find((d) => d.id === target);
+    assert.ok(dest, 'la destination configurée est proposée');
+    assert.ok(dest.free > 0);
+    const res = await ctx.api.post('/api/admin/backup/write').set(admin.auth).send({ destination: target, folder: 'Mes sauvegardes' });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.ok(res.body.path.startsWith(path.join(target, 'Mes sauvegardes')));
+    assert.ok(fs.statSync(res.body.path).size > 100);
+  });
+
+  test('refuse un disque non proposé et les noms de dossier dangereux', async () => {
+    assert.equal((await ctx.api.post('/api/admin/backup/write').set(admin.auth).send({ destination: '/etc' })).status, 400);
+    for (const folder of ['..', '../ailleurs', 'a/b', 'a\\b', '']) {
+      const res = await ctx.api.post('/api/admin/backup/write').set(admin.auth).send({ destination: target, folder });
+      assert.equal(res.status, 400, folder);
+    }
+    assert.ok(!fs.existsSync(path.join(ctx.dir, 'ailleurs')));
+  });
+});

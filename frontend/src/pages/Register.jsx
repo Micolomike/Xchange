@@ -6,7 +6,7 @@ import { Logo } from '../components/Navbar';
 import { toast } from '../lib/notify';
 
 export default function Register() {
-  const { user, register, registrationOpen } = useAuth();
+  const { user, register, registrationOpen, challenge } = useAuth();
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -21,6 +21,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   if (user) return <Navigate to="/" replace />;
+  if (challenge?.kind === 'setup') return <Navigate to="/double-authentification" replace />;
 
   if (!registrationOpen) {
     return (
@@ -53,9 +54,9 @@ export default function Register() {
     setSubmitting(true);
     try {
       const { confirmPassword: _ignored, ...payload } = form;
-      const created = await register(payload);
-      toast(created.role === 'admin' ? 'Compte créé : vous êtes administrateur' : 'Compte créé');
-      navigate('/', { replace: true });
+      const next = await register(payload);
+      toast(next.user.role === 'admin' ? 'Compte créé : vous êtes administrateur' : 'Compte créé');
+      navigate(next.kind === 'setup' ? '/double-authentification' : '/', { replace: true });
     } catch (err) {
       setErrors(err.details || {});
       setError(err.message);

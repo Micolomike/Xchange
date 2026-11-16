@@ -22,6 +22,17 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Le premier compte créé devient administrateur. Le dernier administrateur ne peut être ni supprimé ni rétrogradé.
 - Changer ou réinitialiser un mot de passe ferme les autres sessions de l'utilisateur.
 
+**Double authentification (obligatoire par défaut)**
+- Code à 6 chiffres d'une appli d'authentification (Microsoft Authenticator, Google Authenticator, 2FAS…), norme TOTP. Chaque code ne sert qu'une fois.
+- Configuration à la première connexion (QR code ou clé à saisir), puis 10 codes de secours à usage unique, téléchargeables et renouvelables depuis « Mon compte ».
+- Un administrateur peut réinitialiser la double authentification d'un compte (téléphone perdu). Sur le PC serveur : `node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js <nom>` depuis `C:\Xchange\app\backend`, si plus aucun administrateur ne peut se connecter.
+- 10 codes faux de suite bloquent la vérification 15 minutes, comme pour le mot de passe.
+
+**Sauvegardes à la demande (Administration > Sauvegardes)**
+- Téléchargement d'une archive .zip (base et pièces jointes) ; sur Chrome et Edge, choix de l'emplacement (clé USB, disque externe).
+- Écriture directe par le serveur sur un disque du PC qui l'héberge (lettres de lecteur sous Windows, ou dossiers listés dans `BACKUP_TARGETS`).
+- Restauration d'une archive : `restaurer.ps1 -Fichier <archive.zip>`.
+
 **Tableau de bord**
 - Compteurs (ouverts, en cours, en retard, délai moyen de résolution sur 90 jours), « Ma file » triée par priorité, activité récente, graphique créés/résolus sur 14 jours, répartition des tickets actifs par priorité.
 
@@ -60,6 +71,8 @@ Toutes les variables sont facultatives ; voir `backend/.env.example`.
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Crée ce compte administrateur au démarrage s'il n'existe pas, ou le promeut | |
 | `MAX_UPLOAD_MB` | Taille maximale d'une pièce jointe | `10` |
 | `JWT_EXPIRES_IN` | Durée de validité d'une session | `7d` |
+| `MFA_REQUIRED` | `false` pour rendre la double authentification facultative (activable depuis « Mon compte ») | `true` |
+| `BACKUP_TARGETS` | Dossiers proposés pour la sauvegarde écrite par le serveur, séparés par des virgules (en plus des lecteurs Windows) | |
 
 Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML et SVG sont refusés. Les fichiers sont servis uniquement en téléchargement, après contrôle des droits sur le ticket.
 
@@ -81,7 +94,7 @@ Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML
 
 ## Hébergement sur un PC Windows
 
-Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : compte Windows dédié sans droits administrateur, dossier `C:\Xchange` réservé, écoute sur `127.0.0.1` uniquement, démarrage avec Windows et sauvegarde chaque nuit. L'accès depuis Internet passe par Tailscale Funnel, sans ouvrir de port sur la box.
+Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : compte de service Windows « Service local » sans droits administrateur, dossier `C:\Xchange` réservé, écoute sur `127.0.0.1` uniquement, démarrage avec Windows et sauvegarde chaque nuit. L'accès depuis Internet passe par Tailscale Funnel, sans ouvrir de port sur la box.
 
 | Script (Terminal administrateur) | Rôle |
 |---|---|
@@ -89,7 +102,7 @@ Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : com
 | `mettre-a-jour.ps1` | Sauvegarde, récupère la dernière version, recompile, redémarre |
 | `etat.ps1` | Affiche l'état : application, accès Internet, sauvegardes, journal |
 | `redemarrer.ps1` | Redémarre Xchange (après une modification de `C:\Xchange\xchange.env`) |
-| `restaurer.ps1` | Remet une sauvegarde choisie dans une liste |
+| `restaurer.ps1` | Remet une sauvegarde choisie dans une liste, ou une archive avec `-Fichier` |
 | `desinstaller.ps1` | Coupe l'accès Internet, supprime tâches et compte (`-SupprimerDonnees` pour tout effacer) |
 
 Chaque script se lance avec `powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\<script>`. En mode PC, l'API sert aussi le site (`SERVE_FRONTEND=true`, site compilé par `npm run build:pc`), la configuration est lue dans `C:\Xchange\xchange.env`, et un compte est verrouillé 15 minutes après 10 échecs de connexion (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`).
@@ -104,7 +117,9 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 
 | Méthode | Route | Accès |
 |---|---|---|
-| `POST` | `/api/auth/register`, `/api/auth/login` | public |
+| `POST` | `/api/auth/register`, `/api/auth/login` (renvoient une session, ou une étape `mfaToken` / `setupToken`) | public |
+| `POST` | `/api/auth/mfa/verify`, `/api/auth/mfa/setup/start`, `/api/auth/mfa/setup/confirm` | jeton d'étape |
+| `POST` | `/api/auth/mfa/recovery-codes` | connecté |
 | `GET`, `PUT` | `/api/auth/me` | connecté |
 | `GET` | `/api/tickets?status=&priority=&category=&assignee=&scope=&overdue=&q=&sort=&order=&page=&pageSize=` | connecté |
 | `POST` | `/api/tickets` | connecté |
@@ -115,7 +130,9 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `DELETE` | `/api/attachments/:id` | selon droits |
 | `GET` | `/api/stats` | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/users`, `/api/users/:id` | admin |
-| `POST` | `/api/users/:id/reset-password` | admin |
+| `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa` | admin |
+| `GET` | `/api/admin/backup/download`, `/api/admin/backup/destinations` | admin |
+| `POST` | `/api/admin/backup/write` | admin |
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |
 | `POST` | `/api/admin/trash/:id/restore` | admin |
 

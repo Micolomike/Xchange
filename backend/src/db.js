@@ -89,6 +89,13 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  used_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS ticket_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -105,6 +112,10 @@ const ADDED_COLUMNS = {
   users: {
     role: "TEXT NOT NULL DEFAULT 'user'",
     token_version: 'INTEGER NOT NULL DEFAULT 0',
+    mfa_enabled: 'INTEGER NOT NULL DEFAULT 0',
+    mfa_secret: 'TEXT',
+    mfa_pending_secret: 'TEXT',
+    mfa_last_step: 'INTEGER NOT NULL DEFAULT 0',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",
@@ -125,6 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_deleted_at ON tickets(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_comments_ticket ON comments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_events_ticket ON ticket_events(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_recovery_user ON mfa_recovery_codes(user_id);
 `;
 
 async function addMissingColumns(db) {

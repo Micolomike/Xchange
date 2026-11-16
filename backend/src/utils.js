@@ -38,6 +38,7 @@ function publicUser(row) {
     firstname: row.firstname || '',
     lastname: row.lastname || '',
     role: row.role,
+    mfa_enabled: Boolean(row.mfa_enabled),
     name: displayName(row),
     created_at: toIso(row.created_at),
   };

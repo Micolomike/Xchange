@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FiEdit2, FiKey, FiTrash2, FiUserPlus } from 'react-icons/fi';
+import { FiEdit2, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import { useAuth } from '../../auth/context';
 import { api } from '../../lib/api';
 import { ROLES } from '../../lib/constants';
@@ -143,6 +143,23 @@ export default function UsersPanel() {
     }
   };
 
+  const resetMfa = async (u) => {
+    const ok = await confirmAction({
+      title: `Réinitialiser la double authentification de ${u.username} ?`,
+      text: "À faire s'il a perdu son téléphone et ses codes de secours. Ses sessions sont fermées et il reconfigurera une appli à sa prochaine connexion.",
+      confirmText: 'Réinitialiser',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api(`/api/users/${u.id}/reset-mfa`, { method: 'POST' });
+      toast(`Double authentification de ${u.username} réinitialisée`);
+      load();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
   const remove = async (u) => {
     const ok = await confirmAction({
       title: `Supprimer le compte de ${u.username} ?`,
@@ -194,6 +211,7 @@ export default function UsersPanel() {
               <th scope="col" className="px-5 py-2.5">Utilisateur</th>
               <th scope="col" className="px-5 py-2.5">E-mail</th>
               <th scope="col" className="px-5 py-2.5">Rôle</th>
+              <th scope="col" className="px-5 py-2.5">Double auth.</th>
               <th scope="col" className="px-5 py-2.5 text-right">Tickets créés</th>
               <th scope="col" className="px-5 py-2.5 text-right">En charge</th>
               <th scope="col" className="px-5 py-2.5">Inscrit le</th>
@@ -232,6 +250,13 @@ export default function UsersPanel() {
                     ))}
                   </select>
                 </td>
+                <td className="whitespace-nowrap px-5 py-3">
+                  {u.mfa_enabled ? (
+                    <span className="font-semibold text-resolved">Activée</span>
+                  ) : (
+                    <span className="text-ink-mute">À configurer</span>
+                  )}
+                </td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.created_count}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.assigned_active_count}</td>
                 <td className="whitespace-nowrap px-5 py-3 text-ink-mute">{formatDate(u.created_at)}</td>
@@ -247,6 +272,16 @@ export default function UsersPanel() {
                     title="Réinitialiser le mot de passe"
                   >
                     <FiKey aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost px-2"
+                    onClick={() => resetMfa(u)}
+                    disabled={!u.mfa_enabled}
+                    aria-label={`Réinitialiser la double authentification de ${u.username}`}
+                    title={u.mfa_enabled ? 'Réinitialiser la double authentification' : 'Double authentification pas encore configurée'}
+                  >
+                    <FiShieldOff aria-hidden="true" />
                   </button>
                   <button
                     type="button"

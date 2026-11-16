@@ -6,6 +6,9 @@ const { loadConfig } = require('../src/config');
 const { openDatabase } = require('../src/db');
 const { createApp, ensureAdmin } = require('../src/app');
 
+const mfa = require('../src/mfa');
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const silentLogger = { info() {}, warn() {}, error() {} };
 
 /** Monte une instance isolée de l'API sur un dossier temporaire. */
@@ -16,6 +19,8 @@ async function setup(env = {}, { prepare } = {}) {
     LEGACY_DELETED_LOG: path.join(dir, 'logs', 'deleted-tickets.json'),
     JWT_SECRET: 'test-secret',
     RATE_LIMIT: 'false',
+    // Les suites générales testent sans double authentification ; test/mfa.test.js la teste.
+    MFA_REQUIRED: 'false',
     ...env,
   });
   if (prepare) await prepare(config);
@@ -26,6 +31,15 @@ async function setup(env = {}, { prepare } = {}) {
   await ensureAdmin(db, config, silentLogger);
   const app = createApp({ db, config, logger: silentLogger });
   const api = request(app);
+
+  // Codes TOTP comme sur un téléphone : jamais deux fois le même intervalle de 30 s par compte.
+  const lastSteps = new Map();
+  async function nextCode(username, secret) {
+    const candidate = Math.max((lastSteps.get(username) || 0) + 1, mfa.currentStep() - 1);
+    while (candidate > mfa.currentStep() + 1) await sleep(250);
+    lastSteps.set(username, candidate);
+    return mfa.totp(secret.replace(/\s/g, ''), candidate);
+  }
 
   async function register(username, extra = {}) {
     const res = await api
@@ -49,7 +63,7 @@ async function setup(env = {}, { prepare } = {}) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 
-  return { api, app, db, config, dir, register, createTicket, cleanup };
+  return { api, app, db, config, dir, register, createTicket, cleanup, nextCode };
 }
 
 module.exports = { setup, silentLogger };

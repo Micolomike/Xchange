@@ -10,11 +10,16 @@ process.env.XCHANGE_E2E_DATA ??= fs.mkdtempSync(path.join(os.tmpdir(), 'xchange-
 const PC_MODE = process.env.XCHANGE_E2E_MODE === 'pc';
 const API_URL = 'http://127.0.0.1:4000';
 const APP_URL = PC_MODE ? API_URL : 'http://localhost:4173';
+// Dossier qui joue le rôle d'une clé USB pour la sauvegarde écrite par le serveur.
+const USB_DIR = path.join(process.env.XCHANGE_E2E_DATA, 'cle-usb');
+fs.mkdirSync(USB_DIR, { recursive: true });
 const apiEnv = {
   PORT: '4000',
   DATA_DIR: process.env.XCHANGE_E2E_DATA,
   JWT_SECRET: 'e2e-secret',
   RATE_LIMIT: 'false',
+  MFA_REQUIRED: 'true',
+  BACKUP_TARGETS: USB_DIR,
 };
 
 // En local, CHROME_PATH permet d'utiliser un Chrome déjà installé.

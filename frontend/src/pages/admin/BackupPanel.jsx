@@ -1,0 +1,225 @@
+import { useCallback, useEffect, useState } from 'react';
+import { FiDownload, FiHardDrive, FiRefreshCw } from 'react-icons/fi';
+import { api } from '../../lib/api';
+import { toast, toastError } from '../../lib/notify';
+import { Field, Spinner } from '../../components/ui';
+
+function formatSize(bytes) {
+  if (bytes == null) return '';
+  const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+  let value = bytes;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  return `${value.toLocaleString('fr-FR', { maximumFractionDigits: i >= 3 ? 1 : 0 })} ${units[i]}`;
+}
+
+function stampNow() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
+}
+
+/** Téléchargement dans le navigateur, avec choix de l'emplacement quand le navigateur le permet (Chrome, Edge). */
+function DownloadCard() {
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    const name = `xchange_${stampNow()}.zip`;
+    let handle = null;
+    // La fenêtre « Enregistrer sous » doit s'ouvrir tout de suite après le clic, avant le téléchargement.
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'Sauvegarde Xchange', accept: { 'application/zip': ['.zip'] } }],
+        });
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        handle = null;
+      }
+    }
+    setBusy(true);
+    try {
+      const res = await api('/api/admin/backup/download', { raw: true });
+      const blob = await res.blob();
+      if (handle) {
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        toast(`Sauvegarde enregistrée : ${handle.name}`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        toast('Sauvegarde téléchargée');
+      }
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel p-5 sm:p-6" aria-labelledby="backup-download-title">
+      <h2 id="backup-download-title" className="font-bold">
+        Télécharger une sauvegarde
+      </h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Une archive .zip avec la base (tickets, comptes, commentaires) et les pièces jointes. Sur Chrome ou Edge, vous choisissez
+        où l'enregistrer : clé USB, disque externe ; ailleurs, elle va dans vos téléchargements.
+      </p>
+      <button type="button" className="btn btn-primary mt-4" onClick={download} disabled={busy}>
+        <FiDownload aria-hidden="true" /> {busy ? 'Préparation…' : 'Télécharger la sauvegarde'}
+      </button>
+    </section>
+  );
+}
+
+/** Écriture directe par le serveur sur un disque du PC qui héberge Xchange. */
+function ServerCard() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [destination, setDestination] = useState('');
+  const [folder, setFolder] = useState('Xchange-sauvegardes');
+  const [folderError, setFolderError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState(null);
+
+  const load = useCallback(() => {
+    setError(null);
+    return api('/api/admin/backup/destinations')
+      .then((d) => {
+        setData(d);
+        setDestination((current) =>
+          d.destinations.some((x) => x.id === current) ? current : d.destinations.find((x) => !x.sameAsData)?.id || ''
+        );
+      })
+      .catch(setError);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const write = async (e) => {
+    e.preventDefault();
+    setFolderError(null);
+    setBusy(true);
+    try {
+      const result = await api('/api/admin/backup/write', { method: 'POST', body: { destination, folder } });
+      setLast(result);
+      toast('Sauvegarde écrite sur le disque');
+      load();
+    } catch (err) {
+      setFolderError(err.details?.folder || null);
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const chosen = data?.destinations.find((d) => d.id === destination);
+
+  return (
+    <section className="panel p-5 sm:p-6" aria-labelledby="backup-server-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="backup-server-title" className="font-bold">
+            Enregistrer sur un disque du PC serveur
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Branchez la clé USB ou le disque externe sur le PC qui héberge Xchange, puis actualisez la liste.
+          </p>
+        </div>
+        <button type="button" className="btn btn-secondary" onClick={load}>
+          <FiRefreshCw aria-hidden="true" /> Actualiser
+        </button>
+      </div>
+
+      {error ? (
+        <p role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
+          {error.message}
+        </p>
+      ) : !data ? (
+        <Spinner label="Recherche des disques…" className="py-8" />
+      ) : data.destinations.length === 0 ? (
+        <p className="mt-4 rounded-md bg-paper px-4 py-3 text-sm text-ink-soft">
+          Aucun disque disponible sur ce serveur. Utilisez le téléchargement ci-dessus.
+        </p>
+      ) : (
+        <form onSubmit={write} className="mt-4 space-y-4" noValidate>
+          <fieldset>
+            <legend className="label">Disque</legend>
+            <div className="space-y-2">
+              {data.destinations.map((d) => (
+                <label
+                  key={d.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 ${
+                    destination === d.id ? 'border-accent bg-accent-soft' : 'border-line hover:bg-paper'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="destination"
+                    value={d.id}
+                    checked={destination === d.id}
+                    onChange={() => setDestination(d.id)}
+                    className="size-4"
+                  />
+                  <FiHardDrive aria-hidden="true" className="shrink-0 text-ink-mute" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{d.label}</span>
+                    <span className="block text-xs text-ink-mute">
+                      {d.free != null ? `${formatSize(d.free)} libres sur ${formatSize(d.total)}` : 'Espace libre inconnu'}
+                      {d.sameAsData && ', sur le même disque que les données'}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {chosen?.sameAsData && (
+            <p className="rounded-md bg-progress-soft px-3 py-2 text-sm text-progress">
+              Ce disque contient déjà Xchange : si le disque tombe en panne, la sauvegarde est perdue avec lui. Préférez une
+              clé USB ou un disque externe.
+            </p>
+          )}
+          <Field id="backup-folder" label="Dossier" error={folderError} hint="Créé s'il n'existe pas, à la racine du disque.">
+            {(p) => (
+              <input {...p} className="field max-w-sm" value={folder} onChange={(e) => setFolder(e.target.value)} />
+            )}
+          </Field>
+          <button type="submit" className="btn btn-primary" disabled={busy || !destination || !folder.trim()}>
+            {busy ? 'Écriture…' : 'Enregistrer la sauvegarde'}
+          </button>
+          {last && (
+            <p role="status" className="rounded-md bg-resolved-soft px-3 py-2 text-sm text-resolved">
+              Sauvegarde écrite : <span className="break-all font-mono">{last.path}</span> ({formatSize(last.size)})
+            </p>
+          )}
+        </form>
+      )}
+    </section>
+  );
+}
+
+export default function BackupPanel() {
+  return (
+    <div className="space-y-6">
+      <DownloadCard />
+      <ServerCard />
+      <p className="text-sm text-ink-mute">
+        Pour remettre Xchange dans l'état d'une sauvegarde, utilisez le script restaurer.ps1 sur le PC serveur (voir le guide).
+      </p>
+    </div>
+  );
+}

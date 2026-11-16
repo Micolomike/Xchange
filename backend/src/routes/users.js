@@ -10,6 +10,15 @@ function generatePassword(length = 12) {
   return out;
 }
 
+async function resetMfa(db, row) {
+  await db.run(
+    `UPDATE users SET mfa_enabled = 0, mfa_secret = NULL, mfa_pending_secret = NULL, mfa_last_step = 0,
+       token_version = ? WHERE id = ?`,
+    [(row.token_version || 0) + 1, row.id]
+  );
+  await db.run('DELETE FROM mfa_recovery_codes WHERE user_id = ?', [row.id]);
+}
+
 async function countAdmins(db) {
   const { count } = await db.get("SELECT COUNT(*) AS count FROM users WHERE role = 'admin'");
   return count;
@@ -100,6 +109,16 @@ function userRoutes({ db }) {
     res.json({ success: true, password });
   });
 
+  // Téléphone perdu : la double authentification est remise à zéro, l'utilisateur la reconfigure
+  // à sa prochaine connexion. Ses sessions ouvertes sont fermées.
+  router.post('/:id/reset-mfa', async (req, res) => {
+    const id = parseId(req.params.id);
+    const row = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+    if (!row) throw new HttpError(404, 'Utilisateur introuvable.');
+    await resetMfa(db, row);
+    res.json({ success: true });
+  });
+
   router.delete('/:id', async (req, res) => {
     const id = parseId(req.params.id);
     if (id === req.user.id) throw new HttpError(400, 'Vous ne pouvez pas supprimer votre propre compte.');
@@ -116,4 +135,4 @@ function userRoutes({ db }) {
   return router;
 }
 
-module.exports = { userRoutes, generatePassword };
+module.exports = { userRoutes, generatePassword, resetMfa };

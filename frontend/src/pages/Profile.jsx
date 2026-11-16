@@ -1,8 +1,100 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FiShield } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
+import { api } from '../lib/api';
+import RecoveryCodes from '../components/RecoveryCodes';
 import { ROLES } from '../lib/constants';
 import { toast, toastError } from '../lib/notify';
 import { Field, PageHeader } from '../components/ui';
+
+function MfaSection({ user }) {
+  const [left, setLeft] = useState(null);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [codes, setCodes] = useState(null);
+
+  useEffect(() => {
+    api('/api/auth/me')
+      .then((d) => setLeft(d.recoveryCodesLeft))
+      .catch(() => {});
+  }, []);
+
+  const regenerate = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const { recoveryCodes } = await api('/api/auth/mfa/recovery-codes', { method: 'POST', body: { code: code.replace(/\s/g, '') } });
+      setCodes(recoveryCodes);
+      setLeft(recoveryCodes.length);
+      setCode('');
+      toast('Nouveaux codes de secours créés ; les anciens ne fonctionnent plus');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel mb-6 space-y-4 p-5 sm:p-6" aria-labelledby="mfa-title">
+      <h2 id="mfa-title" className="flex items-center gap-2 font-bold">
+        <FiShield aria-hidden="true" /> Double authentification
+      </h2>
+      {!user.mfa_enabled ? (
+        <div className="space-y-3">
+          <p className="text-sm text-ink-soft">Pas encore activée sur ce compte.</p>
+          <Link to="/double-authentification" className="btn btn-primary">
+            Activer la double authentification
+          </Link>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-ink-soft">
+            Activée : un code de votre appli d'authentification est demandé à chaque connexion.
+            {left !== null && (
+              <>
+                {' '}
+                Codes de secours restants : <strong className={left <= 2 ? 'text-danger' : 'text-ink'}>{left}</strong>.
+              </>
+            )}
+          </p>
+          <p className="text-sm text-ink-mute">
+            Changement de téléphone : demandez à un administrateur de réinitialiser votre double authentification, puis
+            reconfigurez-la à la connexion suivante.
+          </p>
+          {codes ? (
+            <div>
+              <p className="mb-3 text-sm font-semibold">Vos nouveaux codes, affichés une seule fois :</p>
+              <RecoveryCodes codes={codes} username={user.username} />
+            </div>
+          ) : (
+            <form onSubmit={regenerate} className="flex flex-wrap items-end gap-3" noValidate>
+              <Field id="p-mfa-code" label="Code de l'appli, pour créer de nouveaux codes de secours" error={error}>
+                {(p) => (
+                  <input
+                    {...p}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={7}
+                    className="field max-w-40 font-mono tracking-[0.2em]"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))}
+                  />
+                )}
+              </Field>
+              <button type="submit" className="btn btn-secondary" disabled={busy || code.replace(/\s/g, '').length !== 6}>
+                {busy ? 'Création…' : 'Nouveaux codes de secours'}
+              </button>
+            </form>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();
@@ -74,6 +166,8 @@ export default function Profile() {
           </button>
         </div>
       </form>
+
+      <MfaSection user={user} />
 
       <form onSubmit={savePassword} className="panel space-y-4 p-5 sm:p-6" noValidate>
         <h2 className="font-bold">Mot de passe</h2>
