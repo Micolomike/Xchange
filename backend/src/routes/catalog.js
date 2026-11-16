@@ -2,7 +2,7 @@ const express = require('express');
 const { HttpError, parseId, nowIso } = require('../utils');
 const { validateItemInput, validateSubmission, describeAnswers } = require('../catalog');
 const { addEvent, MY_GROUPS_SQL } = require('../tickets');
-const { loadTicketDetail } = require('./tickets');
+const { loadTicketDetail, defaultDueDate } = require('./tickets');
 
 function parseFields(text) {
   try {
@@ -91,12 +91,13 @@ function catalogRoutes({ db }) {
     const group = item.fulfillment_group?.id ?? null;
 
     const now = nowIso();
+    const due = await defaultDueDate(db, item.priority);
     const { lastID } = await db.run(
       `INSERT INTO tickets
         (title, description, priority, category, due_date, status, created_at, updated_at, created_by,
          assigned_group, catalog_item, form_answers)
-       VALUES (?, ?, ?, '', NULL, 'open', ?, ?, ?, ?, ?, ?)`,
-      [title, description, item.priority, now, now, req.user.id, group, item.id, JSON.stringify(answers)]
+       VALUES (?, ?, ?, '', ?, 'open', ?, ?, ?, ?, ?, ?)`,
+      [title, description, item.priority, due, now, now, req.user.id, group, item.id, JSON.stringify(answers)]
     );
     await addEvent(db, lastID, req.user.id, 'created', null, item.name, now);
     if (group) await addEvent(db, lastID, req.user.id, 'group', null, group, now);

@@ -99,7 +99,7 @@ function validateUserInput(body, { partial = false, requirePassword = !partial }
 }
 
 /** Contrôle les champs d'un ticket. */
-function validateTicketInput(body, { partial = false } = {}) {
+function validateTicketInput(body, { partial = false, categories = CATEGORIES } = {}) {
   const errors = {};
   const values = {};
   const has = (k) => Object.prototype.hasOwnProperty.call(body, k);
@@ -122,7 +122,7 @@ function validateTicketInput(body, { partial = false } = {}) {
   }
   if (has('category')) {
     const category = body.category == null ? '' : body.category;
-    if (!CATEGORIES.includes(category)) errors.category = 'Catégorie inconnue.';
+    if (category !== '' && !categories.includes(category)) errors.category = 'Catégorie inconnue.';
     values.category = category;
   } else if (!partial) {
     values.category = '';

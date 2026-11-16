@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthProvider from './auth/AuthProvider';
+import SettingsProvider from './settings/SettingsProvider';
 import Navbar from './components/Navbar';
 import RequireAuth from './components/RequireAuth';
 import Home from './pages/Home';
@@ -19,6 +20,7 @@ import NotFound from './pages/NotFound';
 export default function App() {
   return (
     <BrowserRouter>
+      <SettingsProvider>
       <AuthProvider>
         <a
           href="#contenu"
@@ -48,6 +50,7 @@ export default function App() {
           </Routes>
         </main>
       </AuthProvider>
+      </SettingsProvider>
     </BrowserRouter>
   );
 }

@@ -1,5 +1,6 @@
 const express = require('express');
-const { STATUSES, PRIORITIES, CATEGORIES, todayIso } = require('../utils');
+const { STATUSES, PRIORITIES, todayIso } = require('../utils');
+const { getSetting } = require('../settings');
 const { TICKET_SELECT, serializeTicket, visibilityClause, MY_GROUPS_SQL } = require('../tickets');
 
 const TREND_DAYS = 14;
@@ -31,10 +32,12 @@ function statsRoutes({ db }) {
     for (const r of await db.all(`SELECT t.priority AS k, COUNT(*) AS n ${base} AND ${active} GROUP BY t.priority`, p)) {
       if (r.k in activeByPriority) activeByPriority[r.k] = r.n;
     }
-    const byCategory = Object.fromEntries(CATEGORIES.map((s) => [s || 'none', 0]));
+    const byCategory = Object.fromEntries([
+      ...(await getSetting(db, 'categories')).map((c) => [c.key, 0]),
+      ['none', 0],
+    ]);
     for (const r of await db.all(`SELECT t.category AS k, COUNT(*) AS n ${base} GROUP BY t.category`, p)) {
-      const key = r.k || 'none';
-      if (key in byCategory) byCategory[key] = r.n;
+      byCategory[r.k || 'none'] = r.n;
     }
 
     const today = todayIso();

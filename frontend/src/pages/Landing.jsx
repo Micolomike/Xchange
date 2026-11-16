@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/context';
 import { PriorityBadge } from '../components/Badges';
+import { useSettings } from '../settings/context';
 
 const STEPS = ['Ouvert', 'En cours', 'Résolu'];
 
@@ -14,16 +15,17 @@ const TIMELINE = [
 /** Page d'accueil des visiteurs non connectés. */
 export default function Landing() {
   const { registrationOpen } = useAuth();
+  const { settings } = useSettings();
 
   return (
     <section className="grid items-center gap-12 py-6 lg:grid-cols-[1.05fr_1fr] lg:py-14">
       <div className="max-w-xl">
         <h1 className="text-[2.25rem] font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">
-          Chaque demande de l'équipe, suivie jusqu'à sa résolution.
+          {settings.homeTitle || "Chaque demande de l'équipe, suivie jusqu'à sa résolution."}
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-ink-soft">
-          Xchange regroupe les tickets au même endroit : on les décrit, on les assigne, on en discute avec les fichiers
-          utiles, et chacun sait où en est sa demande.
+        <p className="mt-5 whitespace-pre-line text-lg leading-relaxed text-ink-soft">
+          {settings.homeText ||
+            `${settings.appName} regroupe les tickets au même endroit : on les décrit, on les assigne, on en discute avec les fichiers utiles, et chacun sait où en est sa demande.`}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           {registrationOpen && (

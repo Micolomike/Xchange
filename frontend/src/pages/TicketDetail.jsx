@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { api, downloadAttachment } from '../lib/api';
-import { CATEGORIES, PRIORITIES, PRIORITY_ORDER, STATUSES, STATUS_ORDER } from '../lib/constants';
+import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER, STATUSES, STATUS_ORDER } from '../lib/constants';
 import { formatDate, formatDateTime, formatRelative, formatSize, isOverdue } from '../lib/format';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Avatar, PriorityBadge, StatusBadge, TicketStub } from '../components/Badges';
@@ -118,11 +118,13 @@ function EditForm({ ticket, onCancel, onSave }) {
           {(p) => (
             <select {...p} className="field" value={form.category} onChange={(e) => update('category', e.target.value)}>
               <option value="">Aucune</option>
-              {Object.entries(CATEGORIES).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
+              {Object.entries(CATEGORIES)
+                .filter(([k]) => ACTIVE_CATEGORY_KEYS.includes(k) || k === ticket.category)
+                .map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
             </select>
           )}
         </Field>
@@ -628,7 +630,7 @@ export default function TicketDetail() {
                 <PriorityBadge priority={ticket.priority} />
               )}
             </SideItem>
-            <SideItem label="Catégorie">{CATEGORIES[ticket.category] || <span className="text-ink-mute">Aucune</span>}</SideItem>
+            <SideItem label="Catégorie">{CATEGORIES[ticket.category] || ticket.category || <span className="text-ink-mute">Aucune</span>}</SideItem>
             <SideItem label="Date limite">
               {ticket.due_date ? (
                 <span className={overdue ? 'font-semibold text-danger' : ''}>{formatDate(ticket.due_date)}</span>

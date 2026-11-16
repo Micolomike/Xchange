@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/context';
 import { api } from '../lib/api';
-import { CATEGORIES, PRIORITY_ORDER } from '../lib/constants';
+import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER } from '../lib/constants';
 import { todayIso } from '../lib/format';
 import { toast, toastError } from '../lib/notify';
 import { PriorityBadge } from '../components/Badges';
@@ -169,15 +169,24 @@ export default function CreateTicket() {
             {(props) => (
               <select {...props} className="field" value={form.category} onChange={(e) => update('category', e.target.value)}>
                 <option value="">Aucune</option>
-                {Object.entries(CATEGORIES).map(([k, label]) => (
+                {ACTIVE_CATEGORY_KEYS.map((k) => (
                   <option key={k} value={k}>
-                    {label}
+                    {CATEGORIES[k]}
                   </option>
                 ))}
               </select>
             )}
           </Field>
-          <Field id="ticket-due" label="Date limite souhaitée" error={errors.due_date}>
+          <Field
+            id="ticket-due"
+            label="Date limite souhaitée"
+            error={errors.due_date}
+            hint={
+              PRIORITIES[form.priority]?.days != null && !form.due_date
+                ? `Vide : dans ${PRIORITIES[form.priority].days} jour${PRIORITIES[form.priority].days > 1 ? 's' : ''} (priorité ${PRIORITIES[form.priority].label.toLowerCase()}).`
+                : undefined
+            }
+          >
             {(props) => (
               <input
                 {...props}

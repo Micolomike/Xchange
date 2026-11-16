@@ -4,7 +4,8 @@
    - exécution sous « Service local », compte intégré à Windows sans mot de passe ni droits administrateur ;
    - C:\Xchange accessible seulement aux administrateurs et à ce compte ;
    - Xchange n'écoute que sur 127.0.0.1 (ce PC) : Internet n'y accède que par le tunnel Tailscale ;
-   - démarrage automatique avec Windows, sauvegarde chaque nuit à 3 h 30.
+   - démarrage automatique avec Windows ; sauvegarde quotidienne faite par Xchange (3 h 30 par défaut,
+     réglable dans Administration > Sauvegardes).
 
   À lancer dans un Terminal administrateur, depuis C:\Xchange\app :
     powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\installer.ps1
@@ -95,7 +96,7 @@ foreach ($dossier in @($Donnees, $Sauvegardes, $Journaux)) {
 }
 Ecrire-Ok 'accès réservé aux administrateurs et à Service local'
 
-Ecrire-Etape 'Démarrage automatique et sauvegarde quotidienne'
+Ecrire-Etape 'Démarrage automatique'
 $principal = New-ScheduledTaskPrincipal -UserId $SidServiceLocal -LogonType ServiceAccount -RunLevel Limited
 $dossierBackend = Join-Path $App 'backend'
 
@@ -109,15 +110,8 @@ Register-ScheduledTask -TaskName $TacheApp -Action $action -Trigger $declencheur
     -Principal $principal -Description 'Xchange : démarre avec Windows, sous Service local.' -Force | Out-Null
 Ecrire-Ok "tâche « $TacheApp » : démarrage avec Windows, même sans session ouverte"
 
-$sauvegarde = Join-Path $App 'deploy\windows\sauvegarder.cmd'
-$actionSauvegarde = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/d /c `"$sauvegarde`"" -WorkingDirectory $dossierBackend
-$declencheurSauvegarde = New-ScheduledTaskTrigger -Daily -At '03:30'
-$parametresSauvegarde = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
-    -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 1)
-Register-ScheduledTask -TaskName $TacheSauvegarde -Action $actionSauvegarde -Trigger $declencheurSauvegarde `
-    -Settings $parametresSauvegarde -Principal $principal `
-    -Description 'Xchange : sauvegarde de la base et des fichiers joints.' -Force | Out-Null
-Ecrire-Ok "tâche « $TacheSauvegarde » : chaque nuit à 3 h 30 (ou au démarrage suivant si le PC était éteint)"
+Retirer-AncienneTacheSauvegarde
+Ecrire-Info 'sauvegarde quotidienne : faite par Xchange, à 3 h 30 par défaut (réglable dans Administration > Sauvegardes)'
 
 Ecrire-Etape 'Démarrage de Xchange'
 Demarrer-Xchange
@@ -136,18 +130,19 @@ if ($horsLocal.Count -gt 0) {
 Ecrire-Ok 'écoute uniquement sur 127.0.0.1 : rien n''est ouvert sur ton réseau'
 
 Ecrire-Etape 'Test de la sauvegarde'
-Start-ScheduledTask -TaskName $TacheSauvegarde
-$limite = (Get-Date).AddSeconds(60)
-$sauvegardeFaite = $null
-while ((Get-Date) -lt $limite -and -not $sauvegardeFaite) {
+# Xchange sauvegarde au démarrage si la dernière sauvegarde prévue n'a pas été faite.
+$limite = (Get-Date).AddSeconds(45)
+$recente = $null
+while ((Get-Date) -lt $limite -and -not $recente) {
     Start-Sleep -Seconds 3
-    $sauvegardeFaite = Get-ChildItem $Sauvegardes -Filter 'xchange_*.db' -ErrorAction SilentlyContinue |
-        Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-3) } | Select-Object -First 1
+    $recente = Get-ChildItem $Sauvegardes -Filter 'xchange_*.db' -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-26) } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
 }
-if ($sauvegardeFaite) {
-    Ecrire-Ok "première sauvegarde créée : $($sauvegardeFaite.Name)"
+if ($recente) {
+    Ecrire-Ok "sauvegarde présente : $($recente.Name)"
 } else {
-    Ecrire-Alerte "la sauvegarde de test n'est pas apparue dans $Sauvegardes. Consulte $Journaux\sauvegardes.log."
+    Ecrire-Alerte "aucune sauvegarde récente dans $Sauvegardes. Consulte $Journaux\xchange.log, ou lance « Sauvegarder maintenant » dans Administration > Sauvegardes."
 }
 
 Write-Host ''

@@ -1,4 +1,5 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+export const API_BASE_URL = BASE_URL;
 const TOKEN_KEY = 'xchange.token';
 
 export class ApiError extends Error {

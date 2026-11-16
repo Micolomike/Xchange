@@ -1,6 +1,7 @@
 const { loadConfig } = require('./src/config');
 const { openDatabase } = require('./src/db');
 const { createApp, ensureAdmin } = require('./src/app');
+const { startBackupScheduler } = require('./src/backupScheduler');
 
 async function main() {
   const config = loadConfig();
@@ -20,7 +21,17 @@ async function main() {
     if (config.serveFrontend) console.log(`Site servi depuis : ${config.frontendDir}`);
   });
 
+  // Journal horodaté pour les sauvegardes automatiques (C:\Xchange\journaux sur un PC).
+  const stampLog = (fn) => (msg) => fn(`${new Date().toISOString()} ${msg}`);
+  const stopBackups = startBackupScheduler({
+    db,
+    config,
+    logger: { info: stampLog(console.log), error: stampLog(console.error) },
+  });
+  if (config.backupDir) console.log(`Sauvegardes automatiques dans : ${config.backupDir}`);
+
   const shutdown = () => {
+    stopBackups();
     server.close(() => db.close().finally(() => process.exit(0)));
   };
   process.on('SIGTERM', shutdown);

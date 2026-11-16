@@ -44,6 +44,10 @@ Ecrire-Ok 'fait'
 
 Construire-Application
 
+Ecrire-Etape 'Tâches planifiées'
+Retirer-AncienneTacheSauvegarde
+Ecrire-Ok 'fait'
+
 Ecrire-Etape 'Redémarrage'
 Demarrer-Xchange
 if (-not (Attendre-Xchange 90)) {

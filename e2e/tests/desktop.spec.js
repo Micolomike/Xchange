@@ -369,6 +369,41 @@ test('connexion avec un code de secours', async () => {
   await expect(page.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
 });
 
+test('paramètres : listes, délai par défaut et apparence', async () => {
+  await page.goto('/admin?tab=settings');
+  await page.getByRole('button', { name: 'Ajouter une catégorie' }).click();
+  await page.getByLabel('Nom de la catégorie 4').fill('Matériel');
+  await page.getByLabel('Nom de la priorité 1').fill('Urgente');
+  await page.getByLabel('Couleur de la priorité 1').selectOption('purple');
+  await page.getByLabel('Délai par défaut de la priorité 1, en jours').fill('2');
+  await page.getByRole('button', { name: 'Enregistrer les listes' }).click();
+  await expect(page.getByText('Listes enregistrées')).toBeVisible();
+
+  await page.fill('#set-name', 'Helpdesk Magna');
+  await page.fill('#set-color', '#ffd700');
+  await page.getByRole('button', { name: "Enregistrer l'apparence" }).click();
+  await expect(page.locator('form p[role=alert]').filter({ hasText: 'trop claire' })).toBeVisible();
+  await page.fill('#set-color', '#0b6e4f');
+  await page.getByRole('button', { name: "Enregistrer l'apparence" }).click();
+  await expect(page.getByRole('link', { name: 'Helpdesk Magna' })).toBeVisible();
+  await expect(page).toHaveTitle('Helpdesk Magna');
+  const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim());
+  expect(accent).toBe('#0b6e4f');
+
+  // Nouveau ticket : catégorie ajoutée, priorité renommée, date limite par défaut annoncée.
+  await page.goto('/tickets/new');
+  await expect(page.locator('#ticket-category option', { hasText: 'Matériel' })).toHaveCount(1);
+  await page.locator('label', { hasText: 'Urgente' }).click();
+  await expect(page.getByText('Vide : dans 2 jours (priorité urgente).')).toBeVisible();
+  await page.fill('#ticket-title', 'Clavier HS');
+  await page.fill('#ticket-description', 'Touches bloquées.');
+  await page.selectOption('#ticket-category', { label: 'Matériel' });
+  await page.getByRole('button', { name: 'Créer le ticket' }).click();
+  await expect(page.getByRole('heading', { name: 'Clavier HS' })).toBeVisible();
+  await expect(page.locator('dl').getByText('Matériel')).toBeVisible();
+  await expect(page.locator('dl').getByText('Aucune')).toHaveCount(0);
+});
+
 test('page inconnue et absence d’erreur JavaScript', async () => {
   await page.goto('/nimporte-quoi');
   await expect(page.getByText("Cette page n'existe pas")).toBeVisible();

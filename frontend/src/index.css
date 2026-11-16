@@ -25,6 +25,7 @@
   --color-closed-soft: #eceff3;
   --color-danger: #c22f2f;
   --color-danger-soft: #fdecec;
+  --color-violet: #6b3fc4;
 }
 
 @layer base {

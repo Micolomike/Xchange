@@ -212,9 +212,200 @@ function ServerCard() {
   );
 }
 
+function formatWhen(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Sauvegarde automatique faite chaque jour par Xchange (uniquement quand il est hébergé sur un PC). */
+function ScheduleCard() {
+  const [info, setInfo] = useState(null);
+  const [form, setForm] = useState(null);
+  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [probe, setProbe] = useState(null);
+
+  const apply = (data) => {
+    setInfo(data);
+    setForm({ ...data.settings });
+  };
+  const load = useCallback(() => {
+    setError(null);
+    api('/api/admin/backup/schedule').then(apply).catch(setError);
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (error) {
+    return (
+      <p role="alert" className="panel px-5 py-4 text-sm text-danger">
+        {error.message}
+      </p>
+    );
+  }
+  if (!info) return <Spinner label="Chargement des réglages…" className="py-8" />;
+  if (!info.available) {
+    return (
+      <section className="panel p-5 sm:p-6">
+        <h2 className="font-bold">Sauvegarde automatique</h2>
+        <p className="mt-1 text-sm text-ink-mute">Non disponible sur ce serveur : elle fonctionne quand Xchange est hébergé sur un PC.</p>
+      </section>
+    );
+  }
+
+  const set = (patch) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setFieldErrors({});
+    if ('copyDir' in patch) setProbe(null);
+  };
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      apply(await api('/api/admin/backup/schedule', { method: 'PUT', body: { ...form, keep: Number(form.keep) } }));
+      toast('Réglages des sauvegardes enregistrés');
+    } catch (err) {
+      setFieldErrors(err.details || {});
+      toastError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runNow = async () => {
+    setRunning(true);
+    try {
+      const data = await api('/api/admin/backup/run', { method: 'POST' });
+      setInfo(data);
+      if (data.state.lastStatus === 'ok' && data.state.copyStatus !== 'error') toast('Sauvegarde faite');
+      else toastError({ message: data.state.lastError || data.state.copyError });
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const testDir = async () => {
+    setProbe(null);
+    try {
+      setProbe(await api('/api/admin/backup/test-dir', { method: 'POST', body: { dir: form.copyDir } }));
+    } catch (err) {
+      setProbe({ ok: false, message: err.message });
+    }
+  };
+
+  const { state } = info;
+
+  return (
+    <section className="panel p-5 sm:p-6" aria-labelledby="backup-auto-title">
+      <h2 id="backup-auto-title" className="font-bold">
+        Sauvegarde automatique
+      </h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Chaque jour, Xchange copie la base et les pièces jointes dans <span className="font-mono text-xs">{info.directory}</span>. Si
+        le PC était éteint à l'heure prévue, la sauvegarde est faite à son redémarrage.
+      </p>
+
+      <dl className="mt-4 grid gap-3 rounded-md bg-paper px-4 py-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-semibold text-ink-mute">Dernière sauvegarde</dt>
+          <dd>
+            {!state.lastRunAt ? (
+              <span className="text-ink-mute">Pas encore faite par Xchange</span>
+            ) : state.lastStatus === 'ok' ? (
+              <span className="text-resolved">Réussie, {formatWhen(state.lastRunAt)}</span>
+            ) : (
+              <span className="text-danger">Échec, {formatWhen(state.lastRunAt)} : {state.lastError}</span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold text-ink-mute">Prochaine</dt>
+          <dd>{info.nextRun ? formatWhen(info.nextRun) : <span className="text-ink-mute">Désactivée</span>}</dd>
+        </div>
+        {state.copyStatus && (
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-semibold text-ink-mute">Dernière copie vers l'autre disque</dt>
+            <dd>
+              {state.copyStatus === 'ok' ? (
+                <span className="break-all text-resolved">Réussie : {state.copyFile}</span>
+              ) : (
+                <span className="text-danger">Échec : {state.copyError}</span>
+              )}
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <form onSubmit={save} className="mt-5 space-y-4" noValidate>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
+          Sauvegarder automatiquement chaque jour
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="backup-time" label="Heure" error={fieldErrors.time}>
+            {(p) => <input {...p} type="time" className="field max-w-40" value={form.time} onChange={(e) => set({ time: e.target.value })} />}
+          </Field>
+          <Field id="backup-keep" label="Nombre de sauvegardes gardées" error={fieldErrors.keep} hint="Les plus anciennes sont supprimées au-delà.">
+            {(p) => (
+              <input
+                {...p}
+                inputMode="numeric"
+                className="field max-w-28"
+                value={form.keep}
+                onChange={(e) => set({ keep: e.target.value.replace(/\D/g, '') })}
+              />
+            )}
+          </Field>
+        </div>
+        <Field
+          id="backup-copy"
+          label="Copier aussi dans ce dossier (autre disque)"
+          error={fieldErrors.copyDir}
+          hint="Par exemple D:\Xchange-sauvegardes. Une archive .zip complète y est écrite à chaque sauvegarde. Vide : pas de copie."
+        >
+          {(p) => (
+            <span className="flex flex-wrap gap-2">
+              <input
+                {...p}
+                className="field max-w-md flex-1 font-mono text-sm"
+                placeholder="D:\Xchange-sauvegardes"
+                value={form.copyDir}
+                onChange={(e) => set({ copyDir: e.target.value })}
+              />
+              <button type="button" className="btn btn-secondary" onClick={testDir} disabled={!form.copyDir.trim()}>
+                Tester l'écriture
+              </button>
+            </span>
+          )}
+        </Field>
+        {probe && (
+          <p role="status" className={`rounded-md px-3 py-2 text-sm ${probe.ok ? 'bg-resolved-soft text-resolved' : 'bg-danger-soft text-danger'}`}>
+            {probe.message}
+          </p>
+        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="btn btn-secondary" onClick={runNow} disabled={running}>
+            {running ? 'Sauvegarde…' : 'Sauvegarder maintenant'}
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Enregistrement…' : 'Enregistrer les réglages'}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 export default function BackupPanel() {
   return (
     <div className="space-y-6">
+      <ScheduleCard />
       <DownloadCard />
       <ServerCard />
       <p className="text-sm text-ink-mute">

@@ -37,6 +37,8 @@ function loadConfig(env = process.env) {
     corsOrigins: env.CORS_ORIGIN
       ? env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
       : null,
+    // Dossier des sauvegardes automatiques ; sans lui (hébergement en ligne), pas de sauvegarde planifiée.
+    backupDir: env.BACKUP_DIR ? path.resolve(env.BACKUP_DIR) : null,
     // Dossiers supplémentaires proposés comme destination de sauvegarde (séparés par des virgules).
     backupTargets: env.BACKUP_TARGETS
       ? env.BACKUP_TARGETS.split(',').map((s) => path.resolve(s.trim())).filter(Boolean)

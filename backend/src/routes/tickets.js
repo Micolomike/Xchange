@@ -5,7 +5,6 @@ const {
   ACTIVE_STATUSES,
   DONE_STATUSES,
   PRIORITIES,
-  CATEGORIES,
   nowIso,
   todayIso,
   toIso,
@@ -13,6 +12,7 @@ const {
   parseId,
   validateTicketInput,
 } = require('../utils');
+const { getSetting } = require('../settings');
 const {
   TICKET_SELECT,
   serializeTicket,
@@ -156,6 +156,19 @@ async function loadTicketDetail(db, user, id) {
   };
 }
 
+async function activeCategories(db) {
+  return (await getSetting(db, 'categories')).filter((c) => c.active).map((c) => c.key);
+}
+
+/** Date limite par défaut selon la priorité (Administration > Paramètres), ou null. */
+async function defaultDueDate(db, priority) {
+  const days = (await getSetting(db, 'priorities'))[priority]?.days;
+  if (days == null) return null;
+  const d = new Date(`${todayIso()}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Après un transfert vers un groupe dont l'utilisateur ne fait pas partie, le ticket
  * peut lui devenir invisible : on renvoie alors l'essentiel avec noLongerVisible.
@@ -199,7 +212,7 @@ function ticketRoutes({ db }) {
 
     const categories = listParam(q.category)
       .map((c) => (c === 'none' ? '' : c))
-      .filter((c) => CATEGORIES.includes(c));
+      .filter((c) => /^[a-z0-9_]{0,40}$/.test(c));
     if (categories.length) {
       where.push(`t.category IN (${categories.map(() => '?').join(',')})`);
       params.push(...categories);
@@ -268,7 +281,8 @@ function ticketRoutes({ db }) {
   });
 
   router.post('/', async (req, res) => {
-    const values = validateTicketInput(req.body || {}, { partial: false });
+    const values = validateTicketInput(req.body || {}, { partial: false, categories: await activeCategories(db) });
+    if (!values.due_date) values.due_date = await defaultDueDate(db, values.priority);
     let assignedTo = null;
     const assignedGroup = values.assigned_group ?? null;
     if (assignedGroup) await ensureGroupExists(db, assignedGroup);
@@ -301,7 +315,10 @@ function ticketRoutes({ db }) {
     const id = parseId(req.params.id);
     const ticket = await loadVisibleTicket(db, req.user, id);
     const perms = permissionsFor(req.user, ticket, await userGroupIds(db, req.user.id));
-    const values = validateTicketInput(req.body || {}, { partial: true });
+    const values = validateTicketInput(req.body || {}, {
+      partial: true,
+      categories: [...(await activeCategories(db)), ticket.category],
+    });
 
     if (CONTENT_FIELDS.some((f) => f in values) && !perms.canEdit) {
       throw new HttpError(403, "Seul l'auteur du ticket ou un administrateur peut le modifier.");
@@ -436,4 +453,4 @@ function ticketRoutes({ db }) {
   return router;
 }
 
-module.exports = { ticketRoutes, loadTicketDetail };
+module.exports = { ticketRoutes, loadTicketDetail, defaultDueDate };

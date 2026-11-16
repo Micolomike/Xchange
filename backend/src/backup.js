@@ -24,6 +24,62 @@ function vacuumInto(source, target) {
   });
 }
 
+/** Copie les fichiers absents de la destination (noms uniques : jamais modifiés ni supprimés ici). */
+function copyMissing(from, to) {
+  if (!fs.existsSync(from)) return 0;
+  fs.mkdirSync(to, { recursive: true });
+  let copied = 0;
+  for (const name of fs.readdirSync(from)) {
+    const src = path.join(from, name);
+    const dst = path.join(to, name);
+    if (fs.statSync(src).isFile() && !fs.existsSync(dst)) {
+      fs.copyFileSync(src, dst);
+      copied += 1;
+    }
+  }
+  return copied;
+}
+
+/** Ne garde que les `keep` fichiers les plus récents correspondant au motif (noms datés). */
+function prune(dir, pattern, keep) {
+  const all = fs
+    .readdirSync(dir)
+    .filter((n) => pattern.test(n))
+    .sort()
+    .reverse();
+  const removed = all.slice(keep);
+  for (const name of removed) fs.rmSync(path.join(dir, name), { force: true });
+  return { kept: Math.min(all.length, keep), removed: removed.length };
+}
+
+/**
+ * Sauvegarde locale : xchange_<date>.db + dossier fichiers/ (copie incrémentale des pièces jointes).
+ * Garde les `keep` dernières bases.
+ */
+async function localBackup({ config, destination, keep, now = new Date() }) {
+  if (!fs.existsSync(config.databasePath)) throw new Error(`Base introuvable : ${config.databasePath}`);
+  fs.mkdirSync(destination, { recursive: true });
+  const file = path.join(destination, `xchange_${stamp(now)}.db`);
+  await vacuumInto(config.databasePath, file);
+  const copied = copyMissing(config.uploadsDir, path.join(destination, 'fichiers'));
+  const { kept, removed } = prune(destination, /^xchange_\d{4}-\d{2}-\d{2}_\d{6}\.db$/, keep);
+  return { file, copied, kept, removed };
+}
+
+/** Copie complète en archive .zip dans un autre dossier (ex. D:\Xchange-sauvegardes), avec rotation. */
+async function zipCopy({ config, directory, keep, now = new Date() }) {
+  fs.mkdirSync(directory, { recursive: true });
+  const file = path.join(directory, `xchange_${stamp(now)}.zip`);
+  try {
+    await writeBackupZip(config, fs.createWriteStream(file));
+  } catch (err) {
+    fs.rmSync(file, { force: true });
+    throw err;
+  }
+  prune(directory, /^xchange_\d{4}-\d{2}-\d{2}_\d{6}\.zip$/, keep);
+  return { file, size: fs.statSync(file).size };
+}
+
 const LISEZMOI = [
   'Sauvegarde Xchange',
   '',
@@ -86,4 +142,4 @@ function listDestinations(config, platform = process.platform) {
   return out;
 }
 
-module.exports = { stamp, vacuumInto, writeBackupZip, listDestinations };
+module.exports = { stamp, vacuumInto, writeBackupZip, listDestinations, localBackup, zipCopy };

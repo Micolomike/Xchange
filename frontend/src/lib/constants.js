@@ -13,11 +13,23 @@ export const PRIORITIES = {
 };
 export const PRIORITY_ORDER = ['high', 'medium', 'low'];
 
+/** Couleurs proposées pour les priorités (Administration > Paramètres). */
+export const PRIORITY_COLORS = {
+  red: { label: 'Rouge', className: 'text-danger' },
+  orange: { label: 'Orange', className: 'text-progress' },
+  gray: { label: 'Gris', className: 'text-ink-mute' },
+  blue: { label: 'Bleu', className: 'text-open' },
+  green: { label: 'Vert', className: 'text-resolved' },
+  purple: { label: 'Violet', className: 'text-violet' },
+};
+
+// Remplacées au démarrage par les catégories des paramètres (voir settings/apply.js).
 export const CATEGORIES = {
   bug: 'Bug',
   feature: 'Fonctionnalité',
   support: 'Support',
 };
+export const ACTIVE_CATEGORY_KEYS = ['bug', 'feature', 'support'];
 
 export const ROLES = {
   user: 'Utilisateur',

@@ -136,6 +136,15 @@ function Arreter-Xchange {
     Start-Sleep -Seconds 2
 }
 
+# Depuis la version avec réglages dans l'Administration, Xchange fait lui-même sa sauvegarde
+# quotidienne : l'ancienne tâche planifiée Windows est retirée pour ne pas sauvegarder deux fois.
+function Retirer-AncienneTacheSauvegarde {
+    if (Get-ScheduledTask -TaskName $TacheSauvegarde -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $TacheSauvegarde -Confirm:$false
+        Ecrire-Ok "ancienne tâche « $TacheSauvegarde » retirée : Xchange fait désormais la sauvegarde lui-même"
+    }
+}
+
 function Demarrer-Xchange {
     Start-ScheduledTask -TaskName $TacheApp
 }

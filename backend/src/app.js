@@ -16,6 +16,7 @@ const statsRoutes = require('./routes/stats');
 const backupRoutes = require('./routes/backup');
 const { groupRoutes } = require('./routes/groups');
 const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
+const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings');
 
 function createApp({ db, config, logger = console }) {
   const app = express();
@@ -52,6 +53,7 @@ function createApp({ db, config, logger = console }) {
   if (!serveFrontend) app.get('/', (req, res) => res.send('Backend API is running'));
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: nowIso() }));
 
+  app.use('/api/settings', settingsPublicRoutes({ db, config }));
   app.use('/api/auth', authRoutes({ db, config, authenticate: auth }));
   app.use('/api', attachmentRoutes({ db, config, auth }));
   app.use('/api/tickets', auth, ticketRoutes({ db, config }));
@@ -60,6 +62,7 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/groups', auth, groupRoutes({ db, config, requireAdmin }));
   app.use('/api/catalog', auth, catalogRoutes({ db, config }));
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
+  app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

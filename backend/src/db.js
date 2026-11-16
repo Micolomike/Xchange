@@ -128,6 +128,11 @@ CREATE TABLE IF NOT EXISTS catalog_visibility (
   PRIMARY KEY (item_id, group_id)
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS ticket_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -194,7 +199,7 @@ async function normalizeLegacyData(db) {
     UPDATE tickets SET title = '(sans titre)' WHERE title IS NULL OR trim(title) = '';
     UPDATE tickets SET description = '' WHERE description IS NULL;
     UPDATE tickets SET priority = 'medium' WHERE priority IS NULL OR priority NOT IN ('low', 'medium', 'high');
-    UPDATE tickets SET category = '' WHERE category IS NULL OR category NOT IN ('', 'bug', 'feature', 'support');
+    UPDATE tickets SET category = '' WHERE category IS NULL;
     UPDATE tickets SET due_date = NULL WHERE due_date = '';
     UPDATE tickets SET due_date = substr(due_date, 1, 10) WHERE due_date IS NOT NULL;
     UPDATE tickets SET created_at = COALESCE(created_at, datetime('now')) WHERE created_at IS NULL;

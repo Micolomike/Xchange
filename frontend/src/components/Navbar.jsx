@@ -3,12 +3,14 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FiLogOut, FiMenu, FiPlus, FiUser, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { Avatar } from './Badges';
+import { useSettings } from '../settings/context';
 
 export function Logo() {
+  const { settings } = useSettings();
   return (
-    <Link to="/" className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-ink">
-      <img src="/favicon.svg" alt="" className="size-7" />
-      Xchange
+    <Link to="/" className="flex min-w-0 items-center gap-2 text-lg font-extrabold tracking-tight text-ink">
+      <img src={settings.logoSrc || '/favicon.svg'} alt="" className="size-7 shrink-0 rounded object-contain" />
+      <span className="truncate">{settings.appName}</span>
     </Link>
   );
 }

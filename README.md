@@ -35,6 +35,11 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Par formulaire : rubrique, description, groupe qui traite les demandes, priorité des tickets créés, visibilité (tout le monde ou certains groupes), publication. Duplication possible.
 - L'envoi crée un ticket dont le titre reprend le nom du formulaire (et, au choix, une réponse) ; les réponses sont conservées avec le ticket, même si le formulaire est modifié ou supprimé ensuite.
 
+**Paramètres (Administration > Paramètres)**
+- Catégories : ajout, renommage, ordre, désactivation. Une catégorie désactivée ou retirée n'est plus proposée, mais les tickets qui l'utilisent la gardent.
+- Priorités : toujours trois niveaux, avec nom, couleur et délai par défaut (en jours), qui remplit la date limite d'un nouveau ticket quand le demandeur n'en donne pas.
+- Apparence : nom de l'application, logo (PNG, JPG ou WEBP, 512 Ko), couleur principale (refusée si le texte blanc des boutons devient illisible), titre et texte de la page d'accueil.
+
 **Double authentification (obligatoire par défaut)**
 - Code à 6 chiffres d'une appli d'authentification (Microsoft Authenticator, Google Authenticator, 2FAS…), norme TOTP. Chaque code ne sert qu'une fois.
 - Configuration à la première connexion (QR code ou clé à saisir), puis 10 codes de secours à usage unique, téléchargeables et renouvelables depuis « Mon compte ».
@@ -46,6 +51,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Téléchargement d'une archive .zip (base et pièces jointes) ; sur Chrome et Edge, choix de l'emplacement (clé USB, disque externe).
 - Écriture directe par le serveur sur un disque du PC qui l'héberge (lettres de lecteur sous Windows, ou dossiers listés dans `BACKUP_TARGETS`).
 - Restauration d'une archive : `restaurer.ps1 -Fichier <archive.zip>`.
+- Sauvegarde automatique faite par Xchange lui-même quand `BACKUP_DIR` est défini (hébergement sur un PC) : heure, nombre de sauvegardes gardées et copie .zip vers un autre dossier (par exemple `D:\Xchange-sauvegardes`) réglables dans l'onglet Sauvegardes, avec l'état de la dernière sauvegarde et un bouton « Sauvegarder maintenant ». Si le PC était éteint à l'heure prévue, la sauvegarde est faite au démarrage suivant.
 
 **Tableau de bord**
 - Compteurs (ouverts, en cours, en retard, délai moyen de résolution sur 90 jours), « Ma file » triée par priorité, activité récente, graphique créés/résolus sur 14 jours, répartition des tickets actifs par priorité.
@@ -108,7 +114,7 @@ Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML
 
 ## Hébergement sur un PC Windows
 
-Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : compte de service Windows « Service local » sans droits administrateur, dossier `C:\Xchange` réservé, écoute sur `127.0.0.1` uniquement, démarrage avec Windows et sauvegarde chaque nuit. L'accès depuis Internet passe par Tailscale Funnel, sans ouvrir de port sur la box.
+Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : compte de service Windows « Service local » sans droits administrateur, dossier `C:\Xchange` réservé, écoute sur `127.0.0.1` uniquement, démarrage avec Windows et sauvegarde quotidienne faite par Xchange. L'accès depuis Internet passe par Tailscale Funnel, sans ouvrir de port sur la box.
 
 | Script (Terminal administrateur) | Rôle |
 |---|---|
@@ -117,6 +123,7 @@ Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : com
 | `etat.ps1` | Affiche l'état : application, accès Internet, sauvegardes, journal |
 | `redemarrer.ps1` | Redémarre Xchange (après une modification de `C:\Xchange\xchange.env`) |
 | `restaurer.ps1` | Remet une sauvegarde choisie dans une liste, ou une archive avec `-Fichier` |
+| `autoriser-dossier.ps1 -Dossier <chemin>` | Crée un dossier et autorise Xchange à y écrire (copie des sauvegardes sur un autre disque) |
 | `desinstaller.ps1` | Coupe l'accès Internet, supprime tâches et compte (`-SupprimerDonnees` pour tout effacer) |
 
 Chaque script se lance avec `powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\<script>`. En mode PC, l'API sert aussi le site (`SERVE_FRONTEND=true`, site compilé par `npm run build:pc`), la configuration est lue dans `C:\Xchange\xchange.env`, et un compte est verrouillé 15 minutes après 10 échecs de connexion (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`).
@@ -150,6 +157,9 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET` | `/api/catalog`, `/api/catalog/:id` (formulaires proposés à l'utilisateur) | connecté |
 | `POST` | `/api/catalog/:id/submit` (`answers` : réponses par identifiant de question) | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/admin/catalog`, `/api/admin/catalog/:id` ; `POST /api/admin/catalog/:id/duplicate` | admin |
+| `GET` | `/api/settings` (nom, couleur, logo, catégories, priorités), `/api/settings/logo` | public |
+| `GET` | `/api/admin/settings` ; `PUT` `/api/admin/settings/lists`, `/api/admin/settings/appearance` ; `POST`, `DELETE` `/api/admin/settings/logo` | admin |
+| `GET`, `PUT` | `/api/admin/backup/schedule` ; `POST` `/api/admin/backup/run`, `/api/admin/backup/test-dir` | admin |
 | `GET` | `/api/admin/backup/download`, `/api/admin/backup/destinations` | admin |
 | `POST` | `/api/admin/backup/write` | admin |
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |
