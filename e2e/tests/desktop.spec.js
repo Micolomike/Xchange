@@ -120,16 +120,17 @@ test('commentaire, prise en charge, historique et téléchargement', async () =>
 
 test('liste : recherche et filtres', async () => {
   await page.getByRole('link', { name: 'Tickets', exact: true }).click();
-  await expect(page.getByText('6 tickets')).toBeVisible();
+  await expect(page).toHaveURL(/\/tickets$/);
+  await expect(page.getByText('6 tickets', { exact: true })).toBeVisible();
 
   await page.fill('input[type=search]', 'vpn');
   await expect(page.getByText('1 ticket', { exact: true })).toBeVisible();
   await page.fill('input[type=search]', '');
 
   await page.getByRole('button', { name: 'Tous', exact: true }).click();
-  await expect(page.getByText('8 tickets')).toBeVisible();
+  await expect(page.getByText('8 tickets', { exact: true })).toBeVisible();
   await page.selectOption('select[aria-label="Responsable"]', 'unassigned');
-  await expect(page.getByText('3 tickets')).toBeVisible();
+  await expect(page.getByText('3 tickets', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Effacer les filtres' }).first().click();
 });
 
@@ -138,7 +139,8 @@ test('tableau de bord et accès aux tickets en retard', async () => {
   await expect(page.getByRole('heading', { name: 'Ma file' })).toBeVisible();
   await expect(page.locator('figure svg')).toBeVisible();
   await page.locator('a[href="/tickets?overdue=1"]').click();
-  await expect(page.getByText('2 tickets')).toBeVisible();
+  await expect(page).toHaveURL(/\/tickets\?overdue=1$/);
+  await expect(page.getByText('2 tickets', { exact: true })).toBeVisible();
 });
 
 test('corbeille puis administration des comptes', async () => {

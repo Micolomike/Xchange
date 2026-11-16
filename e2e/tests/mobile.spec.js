@@ -17,7 +17,8 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
 
   await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
   await page.getByRole('link', { name: 'Tickets', exact: true }).click();
-  await expect(page.getByText('6 tickets')).toBeVisible();
+  await expect(page).toHaveURL(/\/tickets$/);
+  await expect(page.getByText('6 tickets', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('link', { name: 'Le VPN se coupe toutes les dix minutes' }).click();
