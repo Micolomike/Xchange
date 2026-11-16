@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FiCalendar, FiMessageSquare, FiPaperclip } from 'react-icons/fi';
+import { FiCalendar, FiMessageSquare, FiPaperclip, FiUsers } from 'react-icons/fi';
 import { PriorityBadge, StatusBadge, TicketStub } from './Badges';
 import { formatDate, formatRelative, isOverdue } from '../lib/format';
 
@@ -23,6 +23,11 @@ export default function TicketRow({ ticket, meta = 'updated' }) {
                 <FiCalendar aria-hidden="true" />
                 {overdue ? 'En retard : ' : 'Échéance : '}
                 {formatDate(ticket.due_date)}
+              </span>
+            )}
+            {ticket.group && (
+              <span className="inline-flex items-center gap-1">
+                <FiUsers aria-hidden="true" /> {ticket.group.name}
               </span>
             )}
             {meta === 'updated' && <span>Mis à jour {formatRelative(ticket.updated_at)}</span>}

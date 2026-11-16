@@ -96,6 +96,19 @@ CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
   used_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS user_groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  description TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS ticket_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -125,6 +138,7 @@ const ADDED_COLUMNS = {
     assigned_to: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
     deleted_at: 'TEXT',
     deleted_by: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
+    assigned_group: 'INTEGER REFERENCES user_groups(id) ON DELETE SET NULL',
   },
 };
 
@@ -136,6 +150,8 @@ CREATE INDEX IF NOT EXISTS idx_tickets_deleted_at ON tickets(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_comments_ticket ON comments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_events_ticket ON ticket_events(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_group ON tickets(assigned_group);
+CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_recovery_user ON mfa_recovery_codes(user_id);
 `;
 

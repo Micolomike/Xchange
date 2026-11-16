@@ -35,11 +35,16 @@ function userRoutes({ db }) {
         (SELECT COUNT(*) FROM tickets t WHERE t.assigned_to = u.id AND t.deleted_at IS NULL
            AND t.status IN ('open', 'in_progress')) AS assigned_active_count
       FROM users u ORDER BY u.username COLLATE NOCASE`);
+    const memberships = await db.all(
+      `SELECT m.user_id, g.id, g.name FROM group_members m JOIN user_groups g ON g.id = m.group_id
+       ORDER BY g.name COLLATE NOCASE`
+    );
     res.json(
       rows.map((r) => ({
         ...publicUser(r),
         created_count: r.created_count,
         assigned_active_count: r.assigned_active_count,
+        groups: memberships.filter((m) => m.user_id === r.id).map((m) => ({ id: m.id, name: m.name })),
       }))
     );
   });

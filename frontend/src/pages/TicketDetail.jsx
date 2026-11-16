@@ -46,6 +46,10 @@ function describeEvent(e) {
       if (!e.to) return `${who} a retiré ${e.from} du ticket`;
       if (!e.from) return e.actor && e.to === e.actor.name ? `${who} s'est assigné le ticket` : `${who} a assigné le ticket à ${e.to}`;
       return `${who} a réassigné le ticket de ${e.from} à ${e.to}`;
+    case 'group':
+      if (!e.to) return `${who} a retiré le ticket du groupe ${e.from}`;
+      if (!e.from) return `${who} a affecté le ticket au groupe ${e.to}`;
+      return `${who} a transféré le ticket du groupe ${e.from} au groupe ${e.to}`;
     case 'edited':
       return `${who} a modifié ${listFr((e.to || '').split(',').map((f) => FIELD_NAMES[f] || f))}`;
     case 'attachment_added':
@@ -145,6 +149,7 @@ export default function TicketDetail() {
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [editing, setEditing] = useState(false);
   const [comment, setComment] = useState('');
   const [posting, setPosting] = useState(false);
@@ -166,6 +171,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     if (isAdmin) api('/api/users').then(setUsers).catch(() => {});
+    api('/api/groups').then(setGroups).catch(() => {});
   }, [isAdmin]);
 
   if (error) {
@@ -184,12 +190,21 @@ export default function TicketDetail() {
 
   const perms = ticket.permissions;
   const overdue = isOverdue(ticket);
+  // Responsables possibles : les membres du groupe d'affectation, sinon (admin) tous les comptes.
+  const ticketGroup = ticket.group ? groups.find((g) => g.id === ticket.group.id) : null;
+  const candidates = ticket.group ? ticketGroup?.members || [] : users;
+  const canTakeIt = perms.canAssign && (!ticket.group || candidates.some((m) => m.id === user.id));
   const isActive = ['open', 'in_progress'].includes(ticket.status);
 
   const patch = async (body, message) => {
     setBusy(true);
     try {
       const updated = await api(`/api/tickets/${ticket.id}`, { method: 'PATCH', body });
+      if (updated.noLongerVisible) {
+        toast(`Ticket transféré au groupe ${updated.group?.name || ''}`.trim());
+        navigate('/tickets', { replace: true });
+        return updated;
+      }
       setTicket(updated);
       if (message) toast(message);
       return updated;
@@ -204,7 +219,7 @@ export default function TicketDetail() {
 
   const takeOver = () =>
     safePatch(
-      { status: 'in_progress', ...(isAdmin && !ticket.assignee ? { assigned_to: user.id } : {}) },
+      { status: 'in_progress', ...(canTakeIt && !ticket.assignee ? { assigned_to: user.id } : {}) },
       'Ticket pris en charge'
     );
 
@@ -511,8 +526,32 @@ export default function TicketDetail() {
                 <StatusBadge status={ticket.status} />
               )}
             </SideItem>
+            <SideItem label="Groupe d'affectation">
+              {perms.canChangeGroup ? (
+                <select
+                  className="field py-1.5"
+                  aria-label="Groupe d'affectation"
+                  value={ticket.group?.id || ''}
+                  disabled={busy}
+                  onChange={(e) =>
+                    safePatch({ assigned_group: e.target.value ? Number(e.target.value) : null }, "Groupe d'affectation mis à jour")
+                  }
+                >
+                  <option value="">Aucun groupe</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              ) : ticket.group ? (
+                ticket.group.name
+              ) : (
+                <span className="text-ink-mute">Aucun groupe</span>
+              )}
+            </SideItem>
             <SideItem label="Responsable">
-              {perms.canAssign ? (
+              {perms.canAssign && (ticket.group || isAdmin) ? (
                 <>
                   <select
                     className="field py-1.5"
@@ -524,13 +563,19 @@ export default function TicketDetail() {
                     }
                   >
                     <option value="">Personne</option>
-                    {users.map((u) => (
+                    {ticket.assignee && !candidates.some((u) => u.id === ticket.assignee.id) && (
+                      <option value={ticket.assignee.id}>{ticket.assignee.name}</option>
+                    )}
+                    {candidates.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.name}
                       </option>
                     ))}
                   </select>
-                  {ticket.assignee?.id !== user.id && (
+                  {ticket.group && candidates.length === 0 && (
+                    <p className="mt-1.5 text-xs text-ink-mute">Ce groupe n'a pas encore de membre.</p>
+                  )}
+                  {canTakeIt && ticket.assignee?.id !== user.id && (
                     <button
                       type="button"
                       className="mt-1.5 text-xs font-semibold text-accent hover:underline"

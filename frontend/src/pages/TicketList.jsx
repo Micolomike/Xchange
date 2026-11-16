@@ -27,7 +27,7 @@ const SORTS = [
 ];
 
 const PAGE_SIZE = 20;
-const FILTER_KEYS = ['q', 'priority', 'category', 'assignee', 'scope', 'overdue'];
+const FILTER_KEYS = ['q', 'priority', 'category', 'assignee', 'scope', 'group', 'overdue'];
 
 export default function TicketList() {
   const { isAdmin } = useAuth();
@@ -36,6 +36,7 @@ export default function TicketList() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [search, setSearch] = useState(params.get('q') || '');
 
   const status = params.get('status') || 'active';
@@ -52,6 +53,7 @@ export default function TicketList() {
       category: params.get('category'),
       assignee: params.get('assignee'),
       scope: params.get('scope'),
+      group: params.get('group'),
       overdue: params.get('overdue'),
       sort: sortField,
       order,
@@ -89,6 +91,7 @@ export default function TicketList() {
 
   useEffect(() => {
     if (isAdmin) api('/api/users').then(setUsers).catch(() => {});
+    api('/api/groups').then(setGroups).catch(() => {});
   }, [isAdmin]);
 
   // Recherche appliquée 300 ms après la dernière frappe.
@@ -121,7 +124,9 @@ export default function TicketList() {
           </Link>
         }
       >
-        {isAdmin ? "Tous les tickets de l'équipe." : 'Les tickets que vous avez créés ou qui vous sont assignés.'}
+        {isAdmin
+          ? "Tous les tickets de l'équipe."
+          : 'Les tickets que vous avez créés, qui vous sont assignés ou qui sont affectés à vos groupes.'}
       </PageHeader>
 
       <div className="panel">
@@ -143,7 +148,13 @@ export default function TicketList() {
           ))}
         </div>
 
-        <div className="grid gap-3 border-b border-line p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]">
+        <div
+          className={`grid gap-3 border-b border-line p-3 sm:grid-cols-2 ${
+            groups.length
+              ? 'lg:grid-cols-[minmax(0,1.5fr)_repeat(5,minmax(0,1fr))]'
+              : 'lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]'
+          }`}
+        >
           <label className="relative block sm:col-span-2 lg:col-span-1">
             <span className="sr-only">Rechercher</span>
             <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute" aria-hidden="true" />
@@ -208,6 +219,24 @@ export default function TicketList() {
               <option value="">Tous mes tickets</option>
               <option value="mine">Créés par moi</option>
               <option value="assigned">Qui me sont assignés</option>
+              <option value="groups">Dans mes groupes</option>
+            </select>
+          )}
+          {groups.length > 0 && (
+            <select
+              className="field"
+              aria-label="Groupe"
+              value={params.get('group') || ''}
+              onChange={(e) => setParam('group', e.target.value)}
+            >
+              <option value="">Tous groupes</option>
+              <option value="mine">Mes groupes</option>
+              <option value="none">Sans groupe</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
             </select>
           )}
           <select className="field" aria-label="Trier par" value={sort} onChange={(e) => setParam('sort', e.target.value)}>
@@ -319,6 +348,7 @@ export default function TicketList() {
                           ) : (
                             <span className="text-ink-mute">Personne</span>
                           )}
+                          {t.group && <span className="mt-0.5 block truncate text-xs text-ink-mute">{t.group.name}</span>}
                         </td>
                         <td className={`whitespace-nowrap px-4 py-3 ${overdue ? 'font-semibold text-danger' : 'text-ink-soft'}`}>
                           {t.due_date ? formatDate(t.due_date) : <span className="text-ink-mute">Aucune</span>}

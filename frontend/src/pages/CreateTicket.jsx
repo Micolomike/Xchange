@@ -19,15 +19,30 @@ export default function CreateTicket() {
     category: '',
     due_date: '',
     assigned_to: '',
+    assigned_group: '',
   });
   const [files, setFiles] = useState([]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
 
   useEffect(() => {
     if (isAdmin) api('/api/users').then(setUsers).catch(() => {});
+    api('/api/groups').then(setGroups).catch(() => {});
   }, [isAdmin]);
+
+  const chosenGroup = groups.find((g) => String(g.id) === form.assigned_group);
+  // Un ticket affecté à un groupe ne peut avoir pour responsable qu'un de ses membres.
+  const assignees = chosenGroup ? chosenGroup.members : users;
+  const changeGroup = (value) => {
+    const group = groups.find((g) => String(g.id) === value);
+    setForm((f) => ({
+      ...f,
+      assigned_group: value,
+      assigned_to: group && f.assigned_to && !group.members.some((m) => String(m.id) === f.assigned_to) ? '' : f.assigned_to,
+    }));
+  };
 
   const update = (name, value) => {
     setForm((f) => ({ ...f, [name]: value }));
@@ -51,7 +66,11 @@ export default function CreateTicket() {
     }
     setSubmitting(true);
     try {
-      const body = { ...form, assigned_to: form.assigned_to ? Number(form.assigned_to) : null };
+      const body = {
+        ...form,
+        assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
+        assigned_group: form.assigned_group ? Number(form.assigned_group) : null,
+      };
       if (!isAdmin) delete body.assigned_to;
       const ticket = await api('/api/tickets', { method: 'POST', body });
 
@@ -159,19 +178,42 @@ export default function CreateTicket() {
           </Field>
         </div>
 
-        {isAdmin && (
-          <Field id="ticket-assignee" label="Responsable" error={errors.assigned_to} hint="Vous pourrez aussi l'assigner plus tard.">
-            {(props) => (
-              <select {...props} className="field" value={form.assigned_to} onChange={(e) => update('assigned_to', e.target.value)}>
-                <option value="">Personne pour l'instant</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.username})
-                  </option>
-                ))}
-              </select>
+        {(groups.length > 0 || isAdmin) && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {groups.length > 0 && (
+              <Field
+                id="ticket-group"
+                label="Groupe d'affectation"
+                error={errors.assigned_group}
+                hint="L'équipe qui traitera la demande ; ses membres verront le ticket."
+              >
+                {(props) => (
+                  <select {...props} className="field" value={form.assigned_group} onChange={(e) => changeGroup(e.target.value)}>
+                    <option value="">Aucun groupe</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
             )}
-          </Field>
+            {isAdmin && (
+              <Field id="ticket-assignee" label="Responsable" error={errors.assigned_to} hint="Vous pourrez aussi l'assigner plus tard.">
+                {(props) => (
+                  <select {...props} className="field" value={form.assigned_to} onChange={(e) => update('assigned_to', e.target.value)}>
+                    <option value="">Personne pour l'instant</option>
+                    {assignees.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.username})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+            )}
+          </div>
         )}
 
         <div>

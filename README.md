@@ -22,6 +22,12 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Le premier compte créé devient administrateur. Le dernier administrateur ne peut être ni supprimé ni rétrogradé.
 - Changer ou réinitialiser un mot de passe ferme les autres sessions de l'utilisateur.
 
+**Groupes d'affectation**
+- Un administrateur crée des groupes (Administration > Groupes) et choisit leurs membres.
+- Un ticket peut être affecté à un groupe dès sa création, par n'importe quel utilisateur. Les membres du groupe le voient, le prennent en charge, changent son statut, l'assignent à l'un d'eux ou le transfèrent à un autre groupe.
+- Seul un membre du groupe peut être responsable d'un ticket affecté à ce groupe ; lors d'un transfert, le responsable qui n'est pas membre du nouveau groupe est retiré.
+- Filtres « Mes groupes », « Sans groupe » ou par groupe dans la liste ; le tableau de bord signale les tickets de mes groupes sans responsable.
+
 **Double authentification (obligatoire par défaut)**
 - Code à 6 chiffres d'une appli d'authentification (Microsoft Authenticator, Google Authenticator, 2FAS…), norme TOTP. Chaque code ne sert qu'une fois.
 - Configuration à la première connexion (QR code ou clé à saisir), puis 10 codes de secours à usage unique, téléchargeables et renouvelables depuis « Mon compte ».
@@ -121,7 +127,7 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/auth/mfa/verify`, `/api/auth/mfa/setup/start`, `/api/auth/mfa/setup/confirm` | jeton d'étape |
 | `POST` | `/api/auth/mfa/recovery-codes` | connecté |
 | `GET`, `PUT` | `/api/auth/me` | connecté |
-| `GET` | `/api/tickets?status=&priority=&category=&assignee=&scope=&overdue=&q=&sort=&order=&page=&pageSize=` | connecté |
+| `GET` | `/api/tickets?status=&priority=&category=&assignee=&group=&scope=&overdue=&q=&sort=&order=&page=&pageSize=` | connecté |
 | `POST` | `/api/tickets` | connecté |
 | `GET`, `PATCH` | `/api/tickets/:id` | selon droits sur le ticket |
 | `DELETE` | `/api/tickets/:id` (mise à la corbeille) | admin |
@@ -131,6 +137,8 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET` | `/api/stats` | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/users`, `/api/users/:id` | admin |
 | `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa` | admin |
+| `GET` | `/api/groups` (groupes et membres) | connecté |
+| `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants) | admin |
 | `GET` | `/api/admin/backup/download`, `/api/admin/backup/destinations` | admin |
 | `POST` | `/api/admin/backup/write` | admin |
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |

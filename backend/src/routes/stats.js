@@ -1,6 +1,6 @@
 const express = require('express');
 const { STATUSES, PRIORITIES, CATEGORIES, todayIso } = require('../utils');
-const { TICKET_SELECT, serializeTicket, visibilityClause } = require('../tickets');
+const { TICKET_SELECT, serializeTicket, visibilityClause, MY_GROUPS_SQL } = require('../tickets');
 
 const TREND_DAYS = 14;
 
@@ -44,9 +44,10 @@ function statsRoutes({ db }) {
          SUM(CASE WHEN ${active} AND t.due_date IS NOT NULL AND t.due_date < ? THEN 1 ELSE 0 END) AS overdue,
          SUM(CASE WHEN ${active} AND t.assigned_to IS NULL THEN 1 ELSE 0 END) AS unassigned,
          SUM(CASE WHEN ${active} AND t.assigned_to = ? THEN 1 ELSE 0 END) AS assigned_to_me,
-         SUM(CASE WHEN ${active} AND t.created_by = ? THEN 1 ELSE 0 END) AS created_by_me_active
+         SUM(CASE WHEN ${active} AND t.created_by = ? THEN 1 ELSE 0 END) AS created_by_me_active,
+         SUM(CASE WHEN ${active} AND t.assigned_to IS NULL AND t.assigned_group IN (${MY_GROUPS_SQL}) THEN 1 ELSE 0 END) AS group_queue
        ${base}`,
-      [today, req.user.id, req.user.id, ...p]
+      [today, req.user.id, req.user.id, req.user.id, ...p]
     );
 
     const { avg_hours: avgHours } = await db.get(
@@ -86,6 +87,7 @@ function statsRoutes({ db }) {
       unassigned: counts.unassigned || 0,
       assignedToMe: counts.assigned_to_me || 0,
       createdByMeActive: counts.created_by_me_active || 0,
+      groupQueue: counts.group_queue || 0,
       avgResolutionHours: avgHours == null ? null : Math.round(avgHours * 10) / 10,
       trend: days.map((d) => ({ date: d, created: created.get(d) || 0, resolved: resolved.get(d) || 0 })),
       recent: recent.map(serializeTicket),

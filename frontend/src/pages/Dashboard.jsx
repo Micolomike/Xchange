@@ -104,6 +104,17 @@ export default function Dashboard() {
               )
             }
           >
+            {stats.groupQueue > 0 && (
+              <div className="border-b border-line bg-accent-soft/60 px-4 py-2.5 text-sm">
+                <Link to="/tickets?group=mine&assignee=unassigned" className="font-semibold text-accent-strong hover:underline">
+                  {plural(
+                    stats.groupQueue,
+                    'ticket de vos groupes attend un responsable',
+                    'tickets de vos groupes attendent un responsable'
+                  )}
+                </Link>
+              </div>
+            )}
             {stats.myQueue.length ? (
               <ul className="divide-y divide-line">
                 {stats.myQueue.map((t) => (
@@ -114,7 +125,7 @@ export default function Dashboard() {
               <EmptyState title="Rien ne vous est assigné">
                 {isAdmin
                   ? 'Les tickets que vous vous assignez apparaîtront ici, triés par priorité.'
-                  : 'Quand un administrateur vous assignera un ticket, il apparaîtra ici.'}
+                  : 'Quand un ticket vous sera assigné, il apparaîtra ici.'}
               </EmptyState>
             )}
           </Section>

@@ -17,6 +17,8 @@ const {
   TICKET_SELECT,
   serializeTicket,
   visibilityClause,
+  MY_GROUPS_SQL,
+  userGroupIds,
   permissionsFor,
   loadVisibleTicket,
   addEvent,
@@ -57,8 +59,25 @@ async function ensureUserExists(db, id) {
   if (!row) throw new HttpError(400, "L'utilisateur à assigner n'existe pas.", { assigned_to: 'Introuvable.' });
 }
 
+async function ensureGroupExists(db, id) {
+  const row = await db.get('SELECT id, name FROM user_groups WHERE id = ?', [id]);
+  if (!row) throw new HttpError(400, "Ce groupe n'existe pas.", { assigned_group: 'Introuvable.' });
+  return row;
+}
+
+/** Un ticket affecté à un groupe ne peut avoir pour responsable qu'un membre de ce groupe. */
+async function ensureMember(db, groupId, userId) {
+  const row = await db.get('SELECT 1 AS ok FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+  if (!row) {
+    throw new HttpError(400, "Le responsable doit faire partie du groupe d'affectation.", {
+      assigned_to: "Pas membre du groupe d'affectation.",
+    });
+  }
+}
+
 async function loadTicketDetail(db, user, id) {
   const ticket = await loadVisibleTicket(db, user, id);
+  const groupIds = await userGroupIds(db, user.id);
 
   const comments = await db.all(
     `SELECT c.id, c.body, c.created_at, u.id AS author_id, u.username AS author_username,
@@ -101,9 +120,15 @@ async function loadTicketDetail(db, user, id) {
   }
   const nameOf = (v) => (v ? names.get(Number(v)) || 'Utilisateur supprimé' : null);
 
+  const groupNames = new Map(
+    (await db.all('SELECT id, name FROM user_groups')).map((g) => [g.id, g.name])
+  );
+  const groupOf = (v) => (v ? groupNames.get(Number(v)) || 'Groupe supprimé' : null);
+  const label = (e, v) => (e.type === 'assignee' ? nameOf(v) : e.type === 'group' ? groupOf(v) : v);
+
   return {
     ...ticket,
-    permissions: permissionsFor(user, ticket),
+    permissions: permissionsFor(user, ticket, groupIds),
     comments: comments.map((c) => ({
       id: c.id,
       body: c.body,
@@ -123,12 +148,26 @@ async function loadTicketDetail(db, user, id) {
     events: events.map((e) => ({
       id: e.id,
       type: e.type,
-      from: e.type === 'assignee' ? nameOf(e.from_value) : e.from_value,
-      to: e.type === 'assignee' ? nameOf(e.to_value) : e.to_value,
+      from: label(e, e.from_value),
+      to: label(e, e.to_value),
       created_at: toIso(e.created_at),
       actor: userSummary(e, 'actor_'),
     })),
   };
+}
+
+/**
+ * Après un transfert vers un groupe dont l'utilisateur ne fait pas partie, le ticket
+ * peut lui devenir invisible : on renvoie alors l'essentiel avec noLongerVisible.
+ */
+async function detailAfterChange(db, user, id) {
+  try {
+    return await loadTicketDetail(db, user, id);
+  } catch (err) {
+    if (err.status !== 404) throw err;
+    const ticket = await loadVisibleTicket(db, { role: 'admin' }, id);
+    return { id: ticket.id, title: ticket.title, group: ticket.group, noLongerVisible: true };
+  }
 }
 
 function ticketRoutes({ db }) {
@@ -172,6 +211,18 @@ function ticketRoutes({ db }) {
     } else if (q.scope === 'assigned') {
       where.push('t.assigned_to = ?');
       params.push(req.user.id);
+    } else if (q.scope === 'groups') {
+      where.push(`t.assigned_group IN (${MY_GROUPS_SQL})`);
+      params.push(req.user.id);
+    }
+
+    if (q.group === 'none') where.push('t.assigned_group IS NULL');
+    else if (q.group === 'mine') {
+      where.push(`t.assigned_group IN (${MY_GROUPS_SQL})`);
+      params.push(req.user.id);
+    } else if (q.group && Number.isInteger(Number(q.group))) {
+      where.push('t.assigned_group = ?');
+      params.push(Number(q.group));
     }
 
     if (q.assignee === 'unassigned') where.push('t.assigned_to IS NULL');
@@ -219,20 +270,24 @@ function ticketRoutes({ db }) {
   router.post('/', async (req, res) => {
     const values = validateTicketInput(req.body || {}, { partial: false });
     let assignedTo = null;
+    const assignedGroup = values.assigned_group ?? null;
+    if (assignedGroup) await ensureGroupExists(db, assignedGroup);
     if (values.assigned_to != null) {
       if (req.user.role !== 'admin') throw new HttpError(403, 'Seul un administrateur peut assigner un ticket.');
       await ensureUserExists(db, values.assigned_to);
+      if (assignedGroup) await ensureMember(db, assignedGroup, values.assigned_to);
       assignedTo = values.assigned_to;
     }
 
     const now = nowIso();
     const { lastID } = await db.run(
       `INSERT INTO tickets
-        (title, description, priority, category, due_date, status, created_at, updated_at, created_by, assigned_to)
-       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`,
-      [values.title, values.description, values.priority, values.category, values.due_date, now, now, req.user.id, assignedTo]
+        (title, description, priority, category, due_date, status, created_at, updated_at, created_by, assigned_to, assigned_group)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`,
+      [values.title, values.description, values.priority, values.category, values.due_date, now, now, req.user.id, assignedTo, assignedGroup]
     );
     await addEvent(db, lastID, req.user.id, 'created', null, null, now);
+    if (assignedGroup) await addEvent(db, lastID, req.user.id, 'group', null, assignedGroup, now);
     if (assignedTo) await addEvent(db, lastID, req.user.id, 'assignee', null, assignedTo, now);
 
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
@@ -245,7 +300,7 @@ function ticketRoutes({ db }) {
   router.patch('/:id', async (req, res) => {
     const id = parseId(req.params.id);
     const ticket = await loadVisibleTicket(db, req.user, id);
-    const perms = permissionsFor(req.user, ticket);
+    const perms = permissionsFor(req.user, ticket, await userGroupIds(db, req.user.id));
     const values = validateTicketInput(req.body || {}, { partial: true });
 
     if (CONTENT_FIELDS.some((f) => f in values) && !perms.canEdit) {
@@ -254,10 +309,33 @@ function ticketRoutes({ db }) {
     if ('status' in values && !perms.canChangeStatus) {
       throw new HttpError(403, "Vous ne pouvez pas changer le statut de ce ticket.");
     }
-    if ('assigned_to' in values && !perms.canAssign) {
-      throw new HttpError(403, 'Seul un administrateur peut assigner un ticket.');
+    if ('assigned_group' in values && values.assigned_group !== (ticket.group?.id ?? null) && !perms.canChangeGroup) {
+      throw new HttpError(403, "Seuls un administrateur ou les membres du groupe peuvent changer le groupe d'affectation.");
+    }
+    if ('assigned_to' in values && values.assigned_to !== (ticket.assignee?.id ?? null) && !perms.canAssign) {
+      throw new HttpError(403, 'Seuls un administrateur ou les membres du groupe peuvent assigner ce ticket.');
     }
     if (values.assigned_to != null) await ensureUserExists(db, values.assigned_to);
+    if (values.assigned_group != null) await ensureGroupExists(db, values.assigned_group);
+
+    // Responsable et groupe doivent rester cohérents.
+    const finalGroup = 'assigned_group' in values ? values.assigned_group : ticket.group?.id ?? null;
+    const groupChanged = finalGroup !== (ticket.group?.id ?? null);
+    if (finalGroup) {
+      if (values.assigned_to != null) {
+        await ensureMember(db, finalGroup, values.assigned_to);
+      } else if (!('assigned_to' in values) && groupChanged && ticket.assignee) {
+        // Transfert à un autre groupe : le responsable actuel est retiré s'il n'en fait pas partie.
+        const member = await db.get('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', [
+          finalGroup,
+          ticket.assignee.id,
+        ]);
+        if (!member) values.assigned_to = null;
+      }
+    }
+    if (req.user.role !== 'admin' && values.assigned_to != null && !finalGroup) {
+      throw new HttpError(403, 'Seul un administrateur peut assigner un ticket sans groupe.');
+    }
 
     const current = {
       title: ticket.title,
@@ -267,13 +345,14 @@ function ticketRoutes({ db }) {
       due_date: ticket.due_date,
       status: ticket.status,
       assigned_to: ticket.assignee?.id ?? null,
+      assigned_group: ticket.group?.id ?? null,
     };
     const changes = {};
     for (const [field, value] of Object.entries(values)) {
       if (value !== current[field]) changes[field] = value;
     }
     if (Object.keys(changes).length === 0) {
-      return res.json(await loadTicketDetail(db, req.user, id));
+      return res.json(await detailAfterChange(db, req.user, id));
     }
 
     const now = nowIso();
@@ -296,13 +375,16 @@ function ticketRoutes({ db }) {
 
     if ('status' in changes) await addEvent(db, id, req.user.id, 'status', current.status, changes.status, now);
     if ('priority' in changes) await addEvent(db, id, req.user.id, 'priority', current.priority, changes.priority, now);
+    if ('assigned_group' in changes) {
+      await addEvent(db, id, req.user.id, 'group', current.assigned_group, changes.assigned_group, now);
+    }
     if ('assigned_to' in changes) {
       await addEvent(db, id, req.user.id, 'assignee', current.assigned_to, changes.assigned_to, now);
     }
     const edited = ['title', 'description', 'category', 'due_date'].filter((f) => f in changes);
     if (edited.length) await addEvent(db, id, req.user.id, 'edited', null, edited.join(','), now);
 
-    res.json(await loadTicketDetail(db, req.user, id));
+    res.json(await detailAfterChange(db, req.user, id));
   });
 
   // Suppression = mise à la corbeille (restaurable par un administrateur).

@@ -183,6 +183,35 @@ test('corbeille puis administration des comptes', async () => {
   await expect(page.getByText('La corbeille est vide')).toBeVisible();
 });
 
+test("groupes d'affectation", async () => {
+  await page.getByRole('tab', { name: 'Groupes' }).click();
+  await expect(page.getByText("Aucun groupe pour l'instant")).toBeVisible();
+  await page.getByRole('button', { name: 'Nouveau groupe' }).click();
+  await page.fill('#g-name', 'Support informatique');
+  await page.fill('#g-description', 'Postes, réseau et imprimantes');
+  await page.getByPlaceholder('Filtrer par nom').fill('kar');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Créer le groupe' }).click();
+  const row = page.getByRole('row', { name: /Support informatique/ });
+  await expect(row).toContainText('1 membre');
+
+  // Une demande envoyée au groupe s'affiche avec son groupe et son historique.
+  const token = await login(ADMIN);
+  const groups = await api('GET', '/api/groups', undefined, token);
+  const ticket = await api(
+    'POST',
+    '/api/tickets',
+    { title: 'Écran qui clignote', description: 'Depuis ce matin.', priority: 'medium', assigned_group: groups[0].id },
+    token
+  );
+  await page.goto(`/tickets/${ticket.id}`);
+  await expect(page.getByLabel("Groupe d'affectation")).toHaveValue(String(groups[0].id));
+  await expect(page.getByText('a affecté le ticket au groupe Support informatique')).toBeVisible();
+  // Responsables proposés : les seuls membres du groupe.
+  await expect(page.getByLabel('Responsable').locator('option')).toHaveText(['Personne', 'Karim Benali']);
+  await page.goto('/admin?tab=groups');
+});
+
 test('sauvegardes : téléchargement et écriture sur un disque', async () => {
   await page.getByRole('tab', { name: 'Sauvegardes' }).click();
   await expect(page).toHaveURL(/\/admin\?tab=backup$/);

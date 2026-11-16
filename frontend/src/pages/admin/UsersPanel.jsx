@@ -211,6 +211,7 @@ export default function UsersPanel() {
               <th scope="col" className="px-5 py-2.5">Utilisateur</th>
               <th scope="col" className="px-5 py-2.5">E-mail</th>
               <th scope="col" className="px-5 py-2.5">Rôle</th>
+              <th scope="col" className="px-5 py-2.5">Groupes</th>
               <th scope="col" className="px-5 py-2.5">Double auth.</th>
               <th scope="col" className="px-5 py-2.5 text-right">Tickets créés</th>
               <th scope="col" className="px-5 py-2.5 text-right">En charge</th>
@@ -249,6 +250,9 @@ export default function UsersPanel() {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-5 py-3 text-ink-soft">
+                  {u.groups?.length ? u.groups.map((g) => g.name).join(', ') : <span className="text-ink-mute">Aucun</span>}
                 </td>
                 <td className="whitespace-nowrap px-5 py-3">
                   {u.mfa_enabled ? (

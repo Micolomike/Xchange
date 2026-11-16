@@ -26,6 +26,7 @@ describe('tickets', () => {
       canEdit: true,
       canChangeStatus: true,
       canAssign: false,
+      canChangeGroup: false,
       canDelete: false,
       canComment: true,
     });
