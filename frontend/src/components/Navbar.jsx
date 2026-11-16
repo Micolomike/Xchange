@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { FiLogOut, FiMenu, FiPlus, FiUser, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
@@ -46,9 +46,11 @@ export default function Navbar() {
     };
   }, [menuOpen]);
 
+  // React Router navigue dans une transition : la session doit être effacée dans la même
+  // transition, sinon la page protégée en cours redirige d'abord vers /login.
   const handleLogout = () => {
-    logout();
-    navigate('/');
+    navigate('/', { replace: true });
+    startTransition(() => logout());
   };
 
   const links = user ? (
