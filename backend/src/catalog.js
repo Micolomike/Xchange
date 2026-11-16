@@ -1,7 +1,8 @@
 const { HttpError, PRIORITIES, isValidDate } = require('./utils');
 
 /** Types de champ proposés dans le constructeur de formulaires. */
-const FIELD_TYPES = ['text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'email', 'file'];
+const FIELD_TYPES = ['text', 'textarea', 'select', 'radio', 'checkbox', 'yesno', 'date', 'number', 'email', 'file'];
+const YES_NO = ['Oui', 'Non'];
 const CHOICE_TYPES = ['select', 'radio'];
 // Opérateurs des règles d'affichage : « afficher ce champ si … ».
 const CONDITION_OPS = ['equals', 'not_equals', 'checked', 'not_checked', 'filled', 'empty'];
@@ -39,6 +40,8 @@ function validateField(raw, index, previous) {
     if (options.length > MAX_OPTIONS) errors.push(`« ${field.label || where} » : ${MAX_OPTIONS} choix maximum.`);
     if (options.some((o) => o.length > 200)) errors.push(`« ${field.label || where} » : choix trop long.`);
     field.options = options;
+  } else if (field.type === 'yesno') {
+    field.options = YES_NO;
   }
 
   if (raw.condition && raw.condition.field) {
@@ -52,7 +55,7 @@ function validateField(raw, index, previous) {
       const condition = { field: source.key, op };
       if (op === 'equals' || op === 'not_equals') {
         condition.value = str(raw.condition.value);
-        if (CHOICE_TYPES.includes(source.type) && !source.options?.includes(condition.value)) {
+        if (source.options && !source.options.includes(condition.value)) {
           errors.push(`« ${field.label || where} » : choisissez une valeur de « ${source.label} » pour la règle.`);
         }
       }
@@ -186,7 +189,7 @@ function validateSubmission(fields, raw = {}) {
       continue;
     }
     if (f.type === 'textarea' ? v.length > 5000 : v.length > 500) errors[f.key] = 'Réponse trop longue.';
-    else if (CHOICE_TYPES.includes(f.type) && !f.options.includes(v)) errors[f.key] = 'Choix inconnu.';
+    else if (f.options && !f.options.includes(v)) errors[f.key] = 'Choix inconnu.';
     else if (f.type === 'date' && !isValidDate(v)) errors[f.key] = 'Date invalide.';
     else if (f.type === 'number' && !/^-?\d+([.,]\d+)?$/.test(v)) errors[f.key] = 'Nombre attendu.';
     else if (f.type === 'email' && !EMAIL_RE.test(v)) errors[f.key] = 'Adresse e-mail invalide.';

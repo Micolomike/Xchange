@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import FileDrop from '../components/FileDrop';
 import { Field } from '../components/ui';
-import { isFieldVisible } from './fields';
+import { YES_NO, isFieldVisible } from './fields';
 
 /**
  * Affiche un formulaire du catalogue. `values` contient les réponses (les pièces jointes
@@ -45,7 +45,8 @@ export default function FormRenderer({ fields, values, onChange, errors = {}, id
           );
         }
 
-        if (f.type === 'radio') {
+        if (f.type === 'radio' || f.type === 'yesno') {
+          const options = f.type === 'yesno' ? YES_NO : f.options;
           return (
             <fieldset key={f.key} aria-invalid={errors[f.key] ? 'true' : undefined}>
               <legend className="label">
@@ -54,7 +55,7 @@ export default function FormRenderer({ fields, values, onChange, errors = {}, id
               </legend>
               {f.help && <p className="-mt-0.5 mb-2 text-xs text-ink-mute">{f.help}</p>}
               <div className="flex flex-wrap gap-2">
-                {f.options.map((o) => (
+                {options.map((o) => (
                   <label
                     key={o}
                     className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${

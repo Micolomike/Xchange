@@ -21,6 +21,14 @@ const FIELDS = [
     condition: { field: 'urgent', op: 'checked' },
   },
   { key: 'photo', label: 'Photo', type: 'file' },
+  { key: 'pret', label: 'Besoin d’un poste de prêt', type: 'yesno', required: true },
+  {
+    key: 'lieu',
+    label: 'Où le livrer',
+    type: 'text',
+    required: true,
+    condition: { field: 'pret', op: 'equals', value: 'Oui' },
+  },
 ];
 
 describe('catalogue de formulaires', () => {
@@ -76,7 +84,8 @@ describe('catalogue de formulaires', () => {
       fields: FIELDS,
     });
     assert.equal(res.status, 201);
-    assert.equal(res.body.fields.length, 6);
+    assert.equal(res.body.fields.length, 8);
+    assert.deepEqual(res.body.fields[6].options, ['Oui', 'Non']);
     assert.deepEqual(res.body.fields[2].condition, { field: 'type', op: 'equals', value: 'Autre' });
     item = res.body;
   });
@@ -105,13 +114,26 @@ describe('catalogue de formulaires', () => {
 
     const missing = await submit({ type: 'Autre', urgent: true });
     assert.equal(missing.status, 400);
-    assert.deepEqual(Object.keys(missing.body.details).sort(), ['depuis', 'poste', 'precision']);
+    assert.deepEqual(Object.keys(missing.body.details).sort(), ['depuis', 'poste', 'precision', 'pret']);
+    const notYesNo = await submit({ poste: 'PC-12', type: 'Écran', pret: 'Peut-être' });
+    assert.equal(notYesNo.body.details.pret, 'Choix inconnu.');
+    const needPlace = await submit({ poste: 'PC-12', type: 'Écran', pret: 'Oui' });
+    assert.deepEqual(Object.keys(needPlace.body.details), ['lieu']);
 
     const badChoice = await submit({ poste: 'PC-12', type: 'Imprimante' });
     assert.equal(badChoice.body.details.type, 'Choix inconnu.');
 
     // « Précisez » est masqué (type différent de Autre) : sa valeur est ignorée.
-    const ok = await submit({ poste: 'PC-12', type: 'Écran', precision: 'texte caché', urgent: true, depuis: '2026-11-10', photo: 1 });
+    const ok = await submit({
+      poste: 'PC-12',
+      type: 'Écran',
+      precision: 'texte caché',
+      urgent: true,
+      depuis: '2026-11-10',
+      photo: 1,
+      pret: 'Non',
+      lieu: 'ignoré car masqué',
+    });
     assert.equal(ok.status, 201);
     const t = ok.body;
     assert.equal(t.title, 'Matériel en panne : PC-12');
@@ -126,6 +148,7 @@ describe('catalogue de formulaires', () => {
         ['Bloquant pour travailler', 'Oui'],
         ['Depuis quand', '2026-11-10'],
         ['Photo', '1 fichier joint'],
+        ['Besoin d’un poste de prêt', 'Non'],
       ]
     );
     assert.ok(t.description.includes('Depuis quand : 10/11/2026'));
@@ -150,6 +173,6 @@ describe('catalogue de formulaires', () => {
     const tickets = await ctx.api.get('/api/tickets').set(admin.auth);
     const kept = tickets.body.items.find((t) => t.title === 'Matériel en panne : PC-12');
     assert.deepEqual(kept.form, { id: null, name: null });
-    assert.equal(kept.answers.length, 5);
+    assert.equal(kept.answers.length, 6);
   });
 });

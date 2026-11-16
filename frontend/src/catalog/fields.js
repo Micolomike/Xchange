@@ -4,7 +4,8 @@ export const FIELD_TYPES = {
   textarea: { label: 'Texte long', hint: 'Plusieurs lignes' },
   select: { label: 'Liste déroulante', hint: 'Un choix parmi une liste' },
   radio: { label: 'Boutons de choix', hint: 'Un choix, tous visibles' },
-  checkbox: { label: 'Case à cocher', hint: 'Oui ou non' },
+  checkbox: { label: 'Case à cocher', hint: 'Cochée ou non' },
+  yesno: { label: 'Oui / Non', hint: 'Deux boutons Oui et Non' },
   date: { label: 'Date', hint: 'Calendrier' },
   number: { label: 'Nombre', hint: 'Chiffres uniquement' },
   email: { label: 'E-mail', hint: 'Adresse e-mail' },
@@ -12,6 +13,7 @@ export const FIELD_TYPES = {
 };
 
 export const CHOICE_TYPES = ['select', 'radio'];
+export const YES_NO = ['Oui', 'Non'];
 
 export const CONDITION_OPS = {
   equals: 'est égal à',

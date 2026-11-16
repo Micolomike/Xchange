@@ -4,7 +4,7 @@ import { FiArrowDown, FiArrowLeft, FiArrowUp, FiPlus, FiTrash2 } from 'react-ico
 import { api } from '../../lib/api';
 import { PRIORITIES, PRIORITY_ORDER } from '../../lib/constants';
 import { toast, toastError } from '../../lib/notify';
-import { CHOICE_TYPES, CONDITION_OPS, FIELD_TYPES, needsValue, newKey, opsFor } from '../../catalog/fields';
+import { CHOICE_TYPES, CONDITION_OPS, FIELD_TYPES, YES_NO, needsValue, newKey, opsFor } from '../../catalog/fields';
 import FormRenderer from '../../catalog/FormRenderer';
 import { ErrorState, Field, Spinner } from '../../components/ui';
 
@@ -26,6 +26,7 @@ function normalizeFields(fields) {
   return fields.map((f) => {
     const out = { ...f };
     if (CHOICE_TYPES.includes(f.type)) out.options = cleanOptions(f.options);
+    else if (f.type === 'yesno') out.options = YES_NO;
     else delete out.options;
     if (!f.condition?.field) delete out.condition;
     return out;
@@ -60,7 +61,13 @@ function FieldEditor({ field, index, count, previous, onChange, onMove, onRemove
   const id = `fb-${field.key}`;
   const set = (patch) => onChange({ ...field, ...patch });
   const source = previous.find((p) => p.key === field.condition?.field);
-  const sourceOptions = source && CHOICE_TYPES.includes(source.type) ? cleanOptions(source.options) : null;
+  const sourceOptions = !source
+    ? null
+    : source.type === 'yesno'
+      ? YES_NO
+      : CHOICE_TYPES.includes(source.type)
+        ? cleanOptions(source.options)
+        : null;
 
   const setCondition = (patch) => {
     const next = { ...(field.condition || {}), ...patch };

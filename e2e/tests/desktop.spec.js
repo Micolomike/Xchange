@@ -235,12 +235,16 @@ test('catalogue : construire un formulaire puis l’utiliser', async () => {
   await questions.nth(1).getByLabel('Choix proposés').fill('Écran\nClavier\nAutre');
 
   await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: /^Oui \/ Non/ }).click();
+  await questions.nth(2).getByLabel('Libellé').fill('Anomalie bloquante');
+
+  await page.getByRole('button', { name: 'Ajouter une question' }).click();
   await page.getByRole('button', { name: /^Texte court/ }).click();
-  await questions.nth(2).getByLabel('Libellé').fill('Précisez le matériel');
-  await questions.nth(2).getByLabel('Obligatoire').check();
-  await questions.nth(2).getByLabel('Afficher seulement si…').check();
-  await questions.nth(2).getByLabel("Question dont dépend l'affichage").selectOption({ label: 'Type de matériel' });
-  await questions.nth(2).getByLabel('Valeur attendue').selectOption('Autre');
+  await questions.nth(3).getByLabel('Libellé').fill('Précisez le matériel');
+  await questions.nth(3).getByLabel('Obligatoire').check();
+  await questions.nth(3).getByLabel('Afficher seulement si…').check();
+  await questions.nth(3).getByLabel("Question dont dépend l'affichage").selectOption({ label: 'Type de matériel' });
+  await questions.nth(3).getByLabel('Valeur attendue').selectOption('Autre');
 
   // L'aperçu applique la règle d'affichage.
   const preview = page.locator('aside[aria-labelledby=fb-preview]');
@@ -261,9 +265,11 @@ test('catalogue : construire un formulaire puis l’utiliser', async () => {
   await page.getByLabel('Numéro du poste').fill('PC-0042');
   await page.getByText('Autre', { exact: true }).click();
   await page.getByLabel('Précisez le matériel').fill('Webcam');
+  await page.getByRole('radio', { name: 'Oui' }).check();
   await page.getByRole('button', { name: 'Envoyer la demande' }).click();
   await expect(page.getByRole('heading', { name: 'Matériel en panne : PC-0042' })).toBeVisible();
   await expect(page.getByText('Webcam')).toBeVisible();
+  await expect(page.locator('dl').getByText('Anomalie bloquante')).toBeVisible();
   await expect(page.getByLabel("Groupe d'affectation")).toHaveValue(/\d+/);
   await expect(page.getByText('a créé le ticket avec le formulaire « Matériel en panne »')).toBeVisible();
   await page.goto('/admin');
