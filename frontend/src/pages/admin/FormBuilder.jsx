@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowDown, FiArrowLeft, FiArrowUp, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../lib/api';
-import { PRIORITIES, PRIORITY_ORDER } from '../../lib/constants';
+import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER } from '../../lib/constants';
 import { toast, toastError } from '../../lib/notify';
 import { CHOICE_TYPES, CONDITION_OPS, FIELD_TYPES, YES_NO, needsValue, newKey, opsFor } from '../../catalog/fields';
 import FormRenderer from '../../catalog/FormRenderer';
@@ -13,6 +13,7 @@ const EMPTY_ITEM = {
   description: '',
   section: '',
   priority: 'medium',
+  category: '',
   active: true,
   fulfillment_group: '',
   visible_groups: [],
@@ -365,6 +366,7 @@ export default function FormBuilder() {
       description: item.description,
       section: item.section,
       priority: item.priority,
+      category: item.category || '',
       active: item.active,
       fulfillment_group: item.fulfillment_group ? Number(item.fulfillment_group) : null,
       visible_groups: item.visible_groups,
@@ -474,6 +476,26 @@ export default function FormBuilder() {
                 )}
               </Field>
             </div>
+
+            <Field
+              id="fb-category"
+              label="Catégorie des tickets créés"
+              error={errors.category}
+              hint="Les règles de visibilité par catégorie (Paramètres) s'appliquent à ces tickets."
+            >
+              {(p) => (
+                <select {...p} className="field max-w-sm" value={item.category} onChange={(e) => set({ category: e.target.value })}>
+                  <option value="">Aucune</option>
+                  {Object.entries(CATEGORIES)
+                    .filter(([k]) => ACTIVE_CATEGORY_KEYS.includes(k) || k === item.category)
+                    .map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </Field>
 
             <fieldset>
               <legend className="label">Qui peut utiliser ce formulaire ?</legend>

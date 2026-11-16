@@ -18,7 +18,14 @@ function adminRoutes({ db, config }) {
 
   router.get('/trash', async (req, res) => {
     const rows = await db.all(`${TICKET_SELECT} WHERE t.deleted_at IS NOT NULL ORDER BY t.deleted_at DESC, t.id DESC`);
-    res.json(rows.map(serializeTicket));
+    // Demandes confidentielles : l'administrateur qui n'y participe pas n'en voit pas le contenu.
+    res.json(
+      rows.map(serializeTicket).map((t) =>
+        t.confidential && t.creator?.id !== req.user.id && t.assignee?.id !== req.user.id
+          ? { ...t, title: 'Demande confidentielle', description: '', answers: [] }
+          : t
+      )
+    );
   });
 
   router.post('/trash/:id/restore', async (req, res) => {

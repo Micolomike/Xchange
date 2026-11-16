@@ -39,7 +39,7 @@ function Section({ title, action, children }) {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, canCreate } = useAuth();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
@@ -72,9 +72,11 @@ export default function Dashboard() {
       <PageHeader
         title={`Bonjour ${firstName}`}
         actions={
-          <Link to="/tickets/new" className="btn btn-primary sm:hidden">
-            <FiPlus aria-hidden="true" /> Nouveau ticket
-          </Link>
+          canCreate && (
+            <Link to="/tickets/new" className="btn btn-primary sm:hidden">
+              <FiPlus aria-hidden="true" /> Nouveau ticket
+            </Link>
+          )
         }
       >
         {subtitle}

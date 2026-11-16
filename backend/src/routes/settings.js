@@ -11,6 +11,8 @@ const {
   validateAppearance,
 } = require('../settings');
 
+const { getAccessSettings, validateAccessSettings } = require('../access');
+
 const LOGO_TYPES = [
   { ext: 'png', mime: 'image/png', test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
   { ext: 'jpg', mime: 'image/jpeg', test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
@@ -73,6 +75,18 @@ function settingsAdminRoutes({ db, config }) {
     }
     if (body.priorities !== undefined) await setSetting(db, 'priorities', validatePriorities(body.priorities));
     res.json(await publicSettings(db));
+  });
+
+  // Droits par groupe et règles de visibilité par catégorie.
+  router.get('/access', async (req, res) => {
+    res.json(await getAccessSettings(db));
+  });
+
+  router.put('/access', async (req, res) => {
+    const groupIds = (await db.all('SELECT id FROM user_groups')).map((g) => g.id);
+    const categoryKeys = (await getSetting(db, 'categories')).map((c) => c.key);
+    await setSetting(db, 'access', validateAccessSettings(req.body || {}, { groupIds, categoryKeys }));
+    res.json(await getAccessSettings(db));
   });
 
   router.put('/appearance', async (req, res) => {

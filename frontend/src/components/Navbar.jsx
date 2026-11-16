@@ -21,7 +21,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Navbar() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, canCreate, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -83,9 +83,11 @@ export default function Navbar() {
         <div className="ml-auto flex items-center gap-2">
           {user ? (
             <>
-              <Link to="/tickets/new" className="btn btn-primary hidden sm:inline-flex">
-                <FiPlus aria-hidden="true" /> Nouveau ticket
-              </Link>
+              {canCreate && (
+                <Link to="/tickets/new" className="btn btn-primary hidden sm:inline-flex">
+                  <FiPlus aria-hidden="true" /> Nouveau ticket
+                </Link>
+              )}
               <div className="relative hidden md:block" ref={menuRef}>
                 <button
                   type="button"
@@ -144,9 +146,11 @@ export default function Navbar() {
         <div id="mobile-menu" className="border-t border-line bg-white px-4 pb-4 pt-2 md:hidden">
           <div className="flex flex-col gap-1">
             {links}
-            <NavLink to="/tickets/new" className={linkClass}>
-              Nouveau ticket
-            </NavLink>
+            {canCreate && (
+              <NavLink to="/tickets/new" className={linkClass}>
+                Nouveau ticket
+              </NavLink>
+            )}
             <NavLink to="/profile" className={linkClass}>
               Mon compte
             </NavLink>

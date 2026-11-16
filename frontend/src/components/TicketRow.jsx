@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FiCalendar, FiMessageSquare, FiPaperclip, FiUsers } from 'react-icons/fi';
+import { FiCalendar, FiLock, FiMessageSquare, FiPaperclip, FiUsers } from 'react-icons/fi';
 import { PriorityBadge, StatusBadge, TicketStub } from './Badges';
 import { formatDate, formatRelative, isOverdue } from '../lib/format';
 
@@ -14,7 +14,10 @@ export default function TicketRow({ ticket, meta = 'updated' }) {
       >
         <TicketStub id={ticket.id} muted={['resolved', 'closed'].includes(ticket.status)} />
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 font-semibold text-ink group-hover:text-accent-strong">{ticket.title}</p>
+          <p className="line-clamp-2 font-semibold text-ink group-hover:text-accent-strong">
+            {ticket.confidential && <FiLock className="mr-1 inline align-[-2px]" aria-label="Confidentielle" />}
+            {ticket.title}
+          </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-mute">
             <StatusBadge status={ticket.status} />
             <PriorityBadge priority={ticket.priority} />

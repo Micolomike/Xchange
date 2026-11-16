@@ -166,6 +166,10 @@ const ADDED_COLUMNS = {
     assigned_group: 'INTEGER REFERENCES user_groups(id) ON DELETE SET NULL',
     catalog_item: 'INTEGER REFERENCES catalog_items(id) ON DELETE SET NULL',
     form_answers: 'TEXT',
+    confidential: 'INTEGER NOT NULL DEFAULT 0',
+  },
+  catalog_items: {
+    category: "TEXT NOT NULL DEFAULT ''",
   },
 };
 

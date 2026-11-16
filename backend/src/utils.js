@@ -147,6 +147,12 @@ function validateTicketInput(body, { partial = false, categories = CATEGORIES } 
     else if (!Number.isInteger(Number(raw)) || Number(raw) <= 0) errors.assigned_to = 'Utilisateur invalide.';
     else values.assigned_to = Number(raw);
   }
+  if (has('confidential')) {
+    if (typeof body.confidential !== 'boolean') errors.confidential = 'Valeur invalide.';
+    values.confidential = body.confidential;
+  } else if (!partial) {
+    values.confidential = false;
+  }
   if (has('assigned_group')) {
     const raw = body.assigned_group;
     if (raw === null || raw === '' || raw === undefined) values.assigned_group = null;

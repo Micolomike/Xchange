@@ -6,6 +6,7 @@ import {
   FiDownload,
   FiEdit2,
   FiFile,
+  FiLock,
   FiPlayCircle,
   FiRotateCcw,
   FiTrash2,
@@ -50,6 +51,8 @@ function describeEvent(e) {
       if (!e.to) return `${who} a retiré le ticket du groupe ${e.from}`;
       if (!e.from) return `${who} a affecté le ticket au groupe ${e.to}`;
       return `${who} a transféré le ticket du groupe ${e.from} au groupe ${e.to}`;
+    case 'confidential':
+      return e.to === 'oui' ? `${who} a rendu la demande confidentielle` : `${who} a retiré la confidentialité`;
     case 'edited':
       return `${who} a modifié ${listFr((e.to || '').split(',').map((f) => FIELD_NAMES[f] || f))}`;
     case 'attachment_added':
@@ -325,6 +328,11 @@ export default function TicketDetail() {
           <TicketStub id={ticket.id} size="lg" muted={!isActive} />
           <StatusBadge status={ticket.status} />
           {overdue && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger">En retard</span>}
+          {ticket.confidential && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">
+              <FiLock aria-hidden="true" /> Confidentielle
+            </span>
+          )}
         </div>
         <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{ticket.title}</h1>
         <p className="mt-2 text-sm text-ink-mute">
@@ -638,6 +646,25 @@ export default function TicketDetail() {
                 <span className="text-ink-mute">Aucune</span>
               )}
             </SideItem>
+            {perms.canSetConfidential && (
+              <SideItem label="Confidentialité">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4"
+                    checked={ticket.confidential}
+                    disabled={busy}
+                    onChange={(e) =>
+                      safePatch(
+                        { confidential: e.target.checked },
+                        e.target.checked ? 'Demande rendue confidentielle' : 'Confidentialité retirée'
+                      )
+                    }
+                  />
+                  <span>Demande confidentielle</span>
+                </label>
+              </SideItem>
+            )}
             <SideItem label="Dernière activité">{formatDateTime(ticket.updated_at)}</SideItem>
             {ticket.resolved_at && <SideItem label="Résolu le">{formatDateTime(ticket.resolved_at)}</SideItem>}
           </dl>

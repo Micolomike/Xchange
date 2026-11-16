@@ -7,10 +7,11 @@ import { todayIso } from '../lib/format';
 import { toast, toastError } from '../lib/notify';
 import { PriorityBadge } from '../components/Badges';
 import FileDrop from '../components/FileDrop';
+import ConfidentialOption from '../components/ConfidentialOption';
 import { Field, PageHeader } from '../components/ui';
 
 export default function CreateTicket() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canCreate } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title: '',
@@ -20,6 +21,7 @@ export default function CreateTicket() {
     due_date: '',
     assigned_to: '',
     assigned_group: '',
+    confidential: false,
   });
   const [files, setFiles] = useState([]);
   const [errors, setErrors] = useState({});
@@ -97,6 +99,15 @@ export default function CreateTicket() {
       setSubmitting(false);
     }
   };
+
+  if (!canCreate) {
+    return (
+      <div className="panel mx-auto max-w-md p-8 text-center">
+        <h1 className="mb-2 text-xl font-bold">Création de ticket non autorisée</h1>
+        <p className="text-ink-mute">Votre compte ne peut pas créer de demande. Adressez-vous à un administrateur.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -237,6 +248,8 @@ export default function CreateTicket() {
             )}
           </div>
         )}
+
+        <ConfidentialOption checked={form.confidential} onChange={(v) => update('confidential', v)} />
 
         <div>
           <p className="label">Pièces jointes</p>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FiChevronLeft, FiChevronRight, FiPlus, FiSearch, FiX } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiLock, FiPlus, FiSearch, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { api } from '../lib/api';
 import { CATEGORIES, PRIORITIES, PRIORITY_ORDER } from '../lib/constants';
@@ -30,7 +30,7 @@ const PAGE_SIZE = 20;
 const FILTER_KEYS = ['q', 'priority', 'category', 'assignee', 'scope', 'group', 'overdue'];
 
 export default function TicketList() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canCreate } = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
@@ -119,9 +119,11 @@ export default function TicketList() {
       <PageHeader
         title="Tickets"
         actions={
-          <Link to="/tickets/new" className="btn btn-primary sm:hidden">
-            <FiPlus aria-hidden="true" /> Nouveau ticket
-          </Link>
+          canCreate && (
+            <Link to="/tickets/new" className="btn btn-primary sm:hidden">
+              <FiPlus aria-hidden="true" /> Nouveau ticket
+            </Link>
+          )
         }
       >
         {isAdmin
@@ -328,6 +330,7 @@ export default function TicketList() {
                         </td>
                         <td className="max-w-[22rem] px-4 py-3">
                           <Link to={`/tickets/${t.id}`} className="font-semibold text-ink hover:text-accent-strong">
+                            {t.confidential && <FiLock className="mr-1 inline align-[-2px]" aria-label="Confidentielle" />}
                             {t.title}
                           </Link>
                           <p className="mt-0.5 truncate text-xs text-ink-mute">

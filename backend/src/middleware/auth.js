@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { computeAccess } = require('../access');
 const { HttpError, publicUser } = require('../utils');
 
 /** Jeton de session, délivré seulement après la double authentification quand elle est exigée. */
@@ -54,7 +55,7 @@ function authenticate({ db, config }) {
     if (!/^Bearer\s+/i.test(req.get('authorization') || '')) throw new HttpError(401, 'Authentification requise.');
     const session = await readSession(req, { db, config });
     if (!session) throw new HttpError(401, 'Session expirée, veuillez vous reconnecter.');
-    req.user = publicUser(session.row);
+    req.user = { ...publicUser(session.row), access: await computeAccess(db, session.row) };
     req.sessionMfa = session.mfa;
     next();
   };

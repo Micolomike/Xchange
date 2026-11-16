@@ -91,6 +91,10 @@ function validateItemInput(body, { partial = false } = {}) {
     values.priority = body.priority || 'medium';
     if (!PRIORITIES.includes(values.priority)) errors.priority = 'Priorité inconnue.';
   }
+  if (!partial || has('category')) {
+    values.category = typeof body.category === 'string' ? body.category : '';
+    if (values.category && !/^[a-z0-9_]{1,40}$/.test(values.category)) errors.category = 'Catégorie inconnue.';
+  }
   if (!partial || has('active')) values.active = body.active === undefined ? true : Boolean(body.active);
   if (!partial || has('fulfillment_group')) {
     const raw = body.fulfillment_group;

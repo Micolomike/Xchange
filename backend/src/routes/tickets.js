@@ -13,12 +13,12 @@ const {
   validateTicketInput,
 } = require('../utils');
 const { getSetting } = require('../settings');
+const { canCreate } = require('../access');
 const {
   TICKET_SELECT,
   serializeTicket,
   visibilityClause,
   MY_GROUPS_SQL,
-  userGroupIds,
   permissionsFor,
   loadVisibleTicket,
   addEvent,
@@ -77,7 +77,6 @@ async function ensureMember(db, groupId, userId) {
 
 async function loadTicketDetail(db, user, id) {
   const ticket = await loadVisibleTicket(db, user, id);
-  const groupIds = await userGroupIds(db, user.id);
 
   const comments = await db.all(
     `SELECT c.id, c.body, c.created_at, u.id AS author_id, u.username AS author_username,
@@ -128,7 +127,7 @@ async function loadTicketDetail(db, user, id) {
 
   return {
     ...ticket,
-    permissions: permissionsFor(user, ticket, groupIds),
+    permissions: permissionsFor(user, ticket),
     comments: comments.map((c) => ({
       id: c.id,
       body: c.body,
@@ -281,6 +280,7 @@ function ticketRoutes({ db }) {
   });
 
   router.post('/', async (req, res) => {
+    if (!canCreate(req.user)) throw new HttpError(403, "Votre compte ne peut pas créer de ticket. Demandez-le à un administrateur.");
     const values = validateTicketInput(req.body || {}, { partial: false, categories: await activeCategories(db) });
     if (!values.due_date) values.due_date = await defaultDueDate(db, values.priority);
     let assignedTo = null;
@@ -296,9 +296,10 @@ function ticketRoutes({ db }) {
     const now = nowIso();
     const { lastID } = await db.run(
       `INSERT INTO tickets
-        (title, description, priority, category, due_date, status, created_at, updated_at, created_by, assigned_to, assigned_group)
-       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`,
-      [values.title, values.description, values.priority, values.category, values.due_date, now, now, req.user.id, assignedTo, assignedGroup]
+        (title, description, priority, category, due_date, status, created_at, updated_at, created_by, assigned_to, assigned_group, confidential)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?)`,
+      [values.title, values.description, values.priority, values.category, values.due_date, now, now, req.user.id, assignedTo,
+        assignedGroup, values.confidential ? 1 : 0]
     );
     await addEvent(db, lastID, req.user.id, 'created', null, null, now);
     if (assignedGroup) await addEvent(db, lastID, req.user.id, 'group', null, assignedGroup, now);
@@ -314,7 +315,7 @@ function ticketRoutes({ db }) {
   router.patch('/:id', async (req, res) => {
     const id = parseId(req.params.id);
     const ticket = await loadVisibleTicket(db, req.user, id);
-    const perms = permissionsFor(req.user, ticket, await userGroupIds(db, req.user.id));
+    const perms = permissionsFor(req.user, ticket);
     const values = validateTicketInput(req.body || {}, {
       partial: true,
       categories: [...(await activeCategories(db)), ticket.category],
@@ -325,6 +326,9 @@ function ticketRoutes({ db }) {
     }
     if ('status' in values && !perms.canChangeStatus) {
       throw new HttpError(403, "Vous ne pouvez pas changer le statut de ce ticket.");
+    }
+    if ('confidential' in values && values.confidential !== ticket.confidential && !perms.canSetConfidential) {
+      throw new HttpError(403, "Seul l'auteur de la demande peut la rendre confidentielle ou non.");
     }
     if ('assigned_group' in values && values.assigned_group !== (ticket.group?.id ?? null) && !perms.canChangeGroup) {
       throw new HttpError(403, "Seuls un administrateur ou les membres du groupe peuvent changer le groupe d'affectation.");
@@ -363,6 +367,7 @@ function ticketRoutes({ db }) {
       status: ticket.status,
       assigned_to: ticket.assignee?.id ?? null,
       assigned_group: ticket.group?.id ?? null,
+      confidential: ticket.confidential,
     };
     const changes = {};
     for (const [field, value] of Object.entries(values)) {
@@ -384,6 +389,7 @@ function ticketRoutes({ db }) {
       }
     }
 
+    if ('confidential' in changes) changes.confidential = changes.confidential ? 1 : 0;
     const columns = Object.keys(changes); // uniquement des noms issus de la validation
     await db.run(`UPDATE tickets SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, [
       ...columns.map((c) => changes[c]),
@@ -392,6 +398,9 @@ function ticketRoutes({ db }) {
 
     if ('status' in changes) await addEvent(db, id, req.user.id, 'status', current.status, changes.status, now);
     if ('priority' in changes) await addEvent(db, id, req.user.id, 'priority', current.priority, changes.priority, now);
+    if ('confidential' in changes) {
+      await addEvent(db, id, req.user.id, 'confidential', null, changes.confidential ? 'oui' : 'non', now);
+    }
     if ('assigned_group' in changes) {
       await addEvent(db, id, req.user.id, 'group', current.assigned_group, changes.assigned_group, now);
     }
@@ -406,9 +415,9 @@ function ticketRoutes({ db }) {
 
   // Suppression = mise à la corbeille (restaurable par un administrateur).
   router.delete('/:id', async (req, res) => {
-    if (req.user.role !== 'admin') throw new HttpError(403, 'Seul un administrateur peut supprimer un ticket.');
     const id = parseId(req.params.id);
-    await loadVisibleTicket(db, req.user, id);
+    const ticket = await loadVisibleTicket(db, req.user, id);
+    if (!permissionsFor(req.user, ticket).canDelete) throw new HttpError(403, "Vous n'avez pas le droit de supprimer ce ticket.");
     const now = nowIso();
     await db.run('UPDATE tickets SET deleted_at = ?, deleted_by = ? WHERE id = ?', [now, req.user.id, id]);
     await addEvent(db, id, req.user.id, 'deleted', null, null, now);

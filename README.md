@@ -35,6 +35,12 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Par formulaire : rubrique, description, groupe qui traite les demandes, priorité des tickets créés, visibilité (tout le monde ou certains groupes), publication. Duplication possible.
 - L'envoi crée un ticket dont le titre reprend le nom du formulaire (et, au choix, une réponse) ; les réponses sont conservées avec le ticket, même si le formulaire est modifié ou supprimé ensuite.
 
+**Droits et visibilité (Administration > Paramètres)**
+- Matrice : une ligne « Tous les utilisateurs » et une ligne par groupe ; colonnes « Voit les tickets » (les siens, ceux de son groupe, tous), Créer, Traiter, Assigner, Modifier, Supprimer. Une personne cumule la ligne « Tous les utilisateurs » et celles de ses groupes ; les droits s'appliquent aux tickets qu'elle voit.
+- Visibilité par catégorie : les groupes cochés voient tous les tickets de la catégorie ; une catégorie réservée n'est plus visible par le droit « Tous » des autres groupes.
+- Demande confidentielle (case à cocher à la création, modifiable par l'auteur) : visible seulement par l'auteur, le responsable et les membres du groupe d'affectation, administrateurs compris ; dans la corbeille, son contenu est masqué aux autres administrateurs.
+- Chaque formulaire du catalogue peut fixer la catégorie des tickets créés.
+
 **Paramètres (Administration > Paramètres)**
 - Catégories : ajout, renommage, ordre, désactivation. Une catégorie désactivée ou retirée n'est plus proposée, mais les tickets qui l'utilisent la gardent.
 - Priorités : toujours trois niveaux, avec nom, couleur et délai par défaut (en jours), qui remplit la date limite d'un nouveau ticket quand le demandeur n'en donne pas.
@@ -158,6 +164,7 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/catalog/:id/submit` (`answers` : réponses par identifiant de question) | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/admin/catalog`, `/api/admin/catalog/:id` ; `POST /api/admin/catalog/:id/duplicate` | admin |
 | `GET` | `/api/settings` (nom, couleur, logo, catégories, priorités), `/api/settings/logo` | public |
+| `GET`, `PUT` | `/api/admin/settings/access` (droits et règles par catégorie) | admin |
 | `GET` | `/api/admin/settings` ; `PUT` `/api/admin/settings/lists`, `/api/admin/settings/appearance` ; `POST`, `DELETE` `/api/admin/settings/logo` | admin |
 | `GET`, `PUT` | `/api/admin/backup/schedule` ; `POST` `/api/admin/backup/run`, `/api/admin/backup/test-dir` | admin |
 | `GET` | `/api/admin/backup/download`, `/api/admin/backup/destinations` | admin |

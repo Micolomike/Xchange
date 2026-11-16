@@ -57,40 +57,15 @@ function serializeTicket(row) {
     deleted_by: userRef(row, 'd', row.deleted_by),
     comment_count: row.comment_count || 0,
     attachment_count: row.attachment_count || 0,
+    confidential: Boolean(row.confidential),
   };
 }
 
 const MY_GROUPS_SQL = 'SELECT group_id FROM group_members WHERE user_id = ?';
-
-/**
- * Clause SQL limitant les tickets visibles : tout pour un admin ; sinon créés par moi,
- * assignés à moi, ou affectés à un de mes groupes.
- */
-function visibilityClause(user) {
-  if (user.role === 'admin') return { sql: '1 = 1', params: [] };
-  return {
-    sql: `(t.created_by = ? OR t.assigned_to = ? OR t.assigned_group IN (${MY_GROUPS_SQL}))`,
-    params: [user.id, user.id, user.id],
-  };
-}
+const { visibilityClause, permissionsFor } = require('./access');
 
 async function userGroupIds(db, userId) {
   return (await db.all(MY_GROUPS_SQL, [userId])).map((r) => r.group_id);
-}
-
-function permissionsFor(user, ticket, groupIds = []) {
-  const isAdmin = user.role === 'admin';
-  const isCreator = ticket.creator?.id === user.id;
-  const isAssignee = ticket.assignee?.id === user.id;
-  const inGroup = Boolean(ticket.group && groupIds.includes(ticket.group.id));
-  return {
-    canEdit: isAdmin || isCreator,
-    canChangeStatus: isAdmin || isCreator || isAssignee || inGroup,
-    canAssign: isAdmin || inGroup,
-    canChangeGroup: isAdmin || inGroup,
-    canDelete: isAdmin,
-    canComment: true,
-  };
 }
 
 /** Charge un ticket non supprimé visible par l'utilisateur, ou lève 404. */

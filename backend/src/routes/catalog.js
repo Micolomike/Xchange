@@ -2,6 +2,7 @@ const express = require('express');
 const { HttpError, parseId, nowIso } = require('../utils');
 const { validateItemInput, validateSubmission, describeAnswers } = require('../catalog');
 const { addEvent, MY_GROUPS_SQL } = require('../tickets');
+const { canCreate } = require('../access');
 const { loadTicketDetail, defaultDueDate } = require('./tickets');
 
 function parseFields(text) {
@@ -32,6 +33,7 @@ async function loadItems(db, where = '1 = 1', params = []) {
     description: r.description,
     section: r.section,
     priority: r.priority,
+    category: r.category || '',
     active: Boolean(r.active),
     fulfillment_group: r.fulfillment_group && r.group_name ? { id: r.fulfillment_group, name: r.group_name } : null,
     visible_groups: vis.filter((v) => v.item_id === r.id).map((v) => ({ id: v.id, name: v.name })),
@@ -81,7 +83,9 @@ function catalogRoutes({ db }) {
 
   // Envoi d'un formulaire : crée le ticket, affecté au groupe qui traite ce formulaire.
   router.post('/:id/submit', async (req, res) => {
+    if (!canCreate(req.user)) throw new HttpError(403, "Votre compte ne peut pas créer de demande. Demandez-le à un administrateur.");
     const item = await findVisible(req.user, parseId(req.params.id, 'Formulaire'));
+    const confidential = (req.body || {}).confidential === true;
     const answers = validateSubmission(item.fields, (req.body || {}).answers || {});
 
     const titleField = item.fields.find((f) => f.inTitle);
@@ -95,9 +99,10 @@ function catalogRoutes({ db }) {
     const { lastID } = await db.run(
       `INSERT INTO tickets
         (title, description, priority, category, due_date, status, created_at, updated_at, created_by,
-         assigned_group, catalog_item, form_answers)
-       VALUES (?, ?, ?, '', ?, 'open', ?, ?, ?, ?, ?, ?)`,
-      [title, description, item.priority, due, now, now, req.user.id, group, item.id, JSON.stringify(answers)]
+         assigned_group, catalog_item, form_answers, confidential)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?)`,
+      [title, description, item.priority, item.category || '', due, now, now, req.user.id, group, item.id,
+        JSON.stringify(answers), confidential ? 1 : 0]
     );
     await addEvent(db, lastID, req.user.id, 'created', null, item.name, now);
     if (group) await addEvent(db, lastID, req.user.id, 'group', null, group, now);
@@ -145,9 +150,9 @@ function catalogAdminRoutes({ db }) {
     await checkGroups(v);
     const now = nowIso();
     const { lastID } = await db.run(
-      `INSERT INTO catalog_items (name, description, section, priority, active, fulfillment_group, fields, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [v.name, v.description, v.section, v.priority, v.active ? 1 : 0, v.fulfillment_group, JSON.stringify(v.fields), now, now]
+      `INSERT INTO catalog_items (name, description, section, priority, category, active, fulfillment_group, fields, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [v.name, v.description, v.section, v.priority, v.category, v.active ? 1 : 0, v.fulfillment_group, JSON.stringify(v.fields), now, now]
     );
     await setVisibility(lastID, v.visible_groups);
     res.status(201).json(await findItem(lastID));
@@ -158,7 +163,7 @@ function catalogAdminRoutes({ db }) {
     await findItem(id);
     const v = validateItemInput(req.body || {}, { partial: true });
     await checkGroups(v);
-    const columns = ['name', 'description', 'section', 'priority', 'active', 'fulfillment_group', 'fields'].filter((c) => c in v);
+    const columns = ['name', 'description', 'section', 'priority', 'category', 'active', 'fulfillment_group', 'fields'].filter((c) => c in v);
     const value = (c) => (c === 'active' ? (v.active ? 1 : 0) : c === 'fields' ? JSON.stringify(v.fields) : v[c]);
     await db.run(
       `UPDATE catalog_items SET ${[...columns, 'updated_at'].map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
@@ -172,9 +177,9 @@ function catalogAdminRoutes({ db }) {
     const item = await findItem(parseId(req.params.id, 'Formulaire'));
     const now = nowIso();
     const { lastID } = await db.run(
-      `INSERT INTO catalog_items (name, description, section, priority, active, fulfillment_group, fields, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)`,
-      [`${item.name} (copie)`.slice(0, 120), item.description, item.section, item.priority, item.fulfillment_group?.id ?? null,
+      `INSERT INTO catalog_items (name, description, section, priority, category, active, fulfillment_group, fields, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+      [`${item.name} (copie)`.slice(0, 120), item.description, item.section, item.priority, item.category, item.fulfillment_group?.id ?? null,
         JSON.stringify(item.fields), now, now]
     );
     await setVisibility(lastID, item.visible_groups.map((g) => g.id));

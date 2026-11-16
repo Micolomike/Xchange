@@ -29,6 +29,7 @@ describe('tickets', () => {
       canChangeGroup: false,
       canDelete: false,
       canComment: true,
+      canSetConfidential: true,
     });
 
     const t2 = await ctx.createTicket(alice, { due_date: '2030-02-01' });

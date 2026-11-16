@@ -33,6 +33,7 @@ const DEFAULTS = {
     keep: 14,
     copyDir: '',
   },
+  access: {},
   backup_state: {
     lastRunAt: null,
     lastStatus: null,

@@ -371,6 +371,15 @@ test('connexion avec un code de secours', async () => {
 
 test('paramètres : listes, délai par défaut et apparence', async () => {
   await page.goto('/admin?tab=settings');
+  // Matrice des droits : le groupe Support informatique voit tous les tickets et peut supprimer.
+  await page.getByLabel('Tickets visibles : Support informatique').selectOption('all');
+  await page.getByLabel('Supprimer : Support informatique').check();
+  await page.getByRole('button', { name: 'Enregistrer les droits' }).click();
+  await expect(page.getByText('Droits enregistrés')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Tickets visibles : Support informatique')).toHaveValue('all');
+  await expect(page.getByLabel('Supprimer : Support informatique')).toBeChecked();
+
   await page.getByRole('button', { name: 'Ajouter une catégorie' }).click();
   await page.getByLabel('Nom de la catégorie 4').fill('Matériel');
   await page.getByLabel('Nom de la priorité 1').fill('Urgente');
@@ -398,8 +407,10 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
   await page.fill('#ticket-title', 'Clavier HS');
   await page.fill('#ticket-description', 'Touches bloquées.');
   await page.selectOption('#ticket-category', { label: 'Matériel' });
+  await page.getByLabel(/Demande confidentielle/).check();
   await page.getByRole('button', { name: 'Créer le ticket' }).click();
   await expect(page.getByRole('heading', { name: 'Clavier HS' })).toBeVisible();
+  await expect(page.locator('header').getByText('Confidentielle')).toBeVisible();
   await expect(page.locator('dl').getByText('Matériel')).toBeVisible();
   await expect(page.locator('dl').getByText('Aucune')).toHaveCount(0);
 });

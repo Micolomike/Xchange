@@ -333,6 +333,189 @@ function AppearanceSection({ initial }) {
   );
 }
 
+const RIGHT_COLUMNS = [
+  { key: 'create', label: 'Créer', help: 'Faire une demande (ticket libre ou formulaire du catalogue).' },
+  { key: 'work', label: 'Traiter', help: 'Prendre en charge et changer le statut des tickets visibles.' },
+  { key: 'assign', label: 'Assigner', help: 'Choisir le responsable et transférer à un autre groupe.' },
+  { key: 'edit', label: 'Modifier', help: 'Changer le titre, la description, la priorité et la catégorie de tickets qui ne sont pas les siens.' },
+  { key: 'delete', label: 'Supprimer', help: 'Mettre des tickets à la corbeille.' },
+];
+const VIEW_LABELS = { own: 'Les siens', group: 'Ceux de son groupe', all: 'Tous' };
+
+function AccessSection({ categories }) {
+  const [access, setAccess] = useState(null);
+  const [groups, setGroups] = useState(null);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([api('/api/admin/settings/access'), api('/api/groups')])
+      .then(([a, g]) => {
+        setAccess(a);
+        setGroups(g);
+      })
+      .catch(setError);
+  }, []);
+
+  if (error) return <ErrorState error={error} />;
+  if (!access || !groups) return <Spinner />;
+
+  const setRow = (id, patch) =>
+    setAccess((a) =>
+      id === 'base' ? { ...a, base: { ...a.base, ...patch } } : { ...a, groups: { ...a.groups, [id]: { ...a.groups[id], ...patch } } }
+    );
+  const toggleCategory = (key, gid) =>
+    setAccess((a) => {
+      const list = a.categories[key] || [];
+      const next = list.includes(gid) ? list.filter((x) => x !== gid) : [...list, gid];
+      return { ...a, categories: { ...a.categories, [key]: next } };
+    });
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      setAccess(await api('/api/admin/settings/access', { method: 'PUT', body: access }));
+      toast('Droits enregistrés');
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rows = [
+    { id: 'base', name: 'Tous les utilisateurs', hint: 'Chaque compte, membre ou non d’un groupe', row: access.base },
+    ...groups.map((g) => ({ id: g.id, name: g.name, hint: `${g.members.length} membre${g.members.length > 1 ? 's' : ''}`, row: access.groups[g.id] })),
+  ];
+
+  return (
+    <form onSubmit={save} className="panel p-5 sm:p-6" noValidate aria-labelledby="set-access">
+      <h2 id="set-access" className="font-bold">
+        Droits et visibilité
+      </h2>
+      <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+        Une personne cumule les droits de « Tous les utilisateurs » et ceux de ses groupes ; ils s'appliquent à tous les
+        tickets qu'elle voit. L'auteur d'un ticket peut toujours le voir, le modifier et le commenter. Les administrateurs ont
+        tous les droits, sauf sur les demandes confidentielles dont ils ne s'occupent pas.
+      </p>
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[46rem] text-left text-sm">
+          <thead className="bg-paper text-xs text-ink-mute">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-semibold">Qui</th>
+              <th scope="col" className="px-3 py-2 font-semibold">Voit les tickets</th>
+              {RIGHT_COLUMNS.map((c) => (
+                <th key={c.key} scope="col" className="px-3 py-2 text-center font-semibold" title={c.help}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {rows.map(({ id, name, hint, row }) => (
+              <tr key={id}>
+                <th scope="row" className="px-3 py-2.5 font-normal">
+                  <span className="block font-semibold">{name}</span>
+                  <span className="block text-xs text-ink-mute">{hint}</span>
+                </th>
+                <td className="px-3 py-2.5">
+                  <select
+                    className="field py-1.5"
+                    aria-label={`Tickets visibles : ${name}`}
+                    value={row.view}
+                    onChange={(e) => setRow(id, { view: e.target.value })}
+                  >
+                    {(id === 'base' ? ['own', 'all'] : ['own', 'group', 'all']).map((v) => (
+                      <option key={v} value={v}>
+                        {VIEW_LABELS[v]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                {RIGHT_COLUMNS.map((c) => (
+                  <td key={c.key} className="px-3 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      aria-label={`${c.label} : ${name}`}
+                      checked={row[c.key]}
+                      onChange={(e) => setRow(id, { [c.key]: e.target.checked })}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <dl className="mt-3 grid gap-x-6 gap-y-1 text-xs text-ink-mute sm:grid-cols-2">
+        <div>
+          <dt className="inline font-semibold">Voit les tickets : </dt>
+          <dd className="inline">
+            les siens (créés ou assignés), ceux affectés à son groupe, ou tous sauf les catégories réservées à d'autres groupes.
+          </dd>
+        </div>
+        {RIGHT_COLUMNS.map((c) => (
+          <div key={c.key}>
+            <dt className="inline font-semibold">{c.label} : </dt>
+            <dd className="inline">{c.help}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <h3 className="mt-7 text-sm font-semibold text-ink-soft">Visibilité par catégorie</h3>
+      <p className="mt-0.5 max-w-3xl text-xs text-ink-mute">
+        Les groupes cochés voient tous les tickets de la catégorie, même ceux qui ne leur sont pas affectés. Une catégorie avec
+        au moins un groupe coché est réservée : le droit « Tous » des autres groupes ne la montre plus.
+      </p>
+      {groups.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-mute">Créez d'abord des groupes (onglet Groupes).</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-line rounded-md border border-line">
+          {categories
+            .filter((c) => c.active)
+            .map((c) => {
+              const chosen = access.categories[c.key] || [];
+              return (
+                <li key={c.key} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+                  <span className="w-40 shrink-0 font-semibold">{c.label}</span>
+                  <span className="flex flex-1 flex-wrap gap-1.5">
+                    {groups.map((g) => (
+                      <label
+                        key={g.id}
+                        className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                          chosen.includes(g.id) ? 'border-accent bg-accent-soft font-semibold text-accent-strong' : 'border-line-strong text-ink-soft'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="size-3.5"
+                          aria-label={`${c.label} visible par ${g.name}`}
+                          checked={chosen.includes(g.id)}
+                          onChange={() => toggleCategory(c.key, g.id)}
+                        />
+                        {g.name}
+                      </label>
+                    ))}
+                  </span>
+                  <span className="text-xs text-ink-mute">{chosen.length ? 'Réservée' : 'Sans restriction'}</span>
+                </li>
+              );
+            })}
+        </ul>
+      )}
+
+      <div className="mt-5 flex justify-end">
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? 'Enregistrement…' : 'Enregistrer les droits'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function SettingsPanel() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -347,6 +530,7 @@ export default function SettingsPanel() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-6">
+      <AccessSection categories={data.categories} />
       <ListsSection initial={data} />
       <AppearanceSection initial={data} />
     </div>

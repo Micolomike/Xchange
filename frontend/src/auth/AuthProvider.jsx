@@ -49,6 +49,10 @@ export default function AuthProvider({ children }) {
     setChallenge(null);
     setUser(data.user);
     setStatus('ready');
+    // Les droits (groupes, matrice) arrivent avec /me.
+    api('/api/auth/me')
+      .then(({ user: me }) => setUser(me))
+      .catch(() => {});
     return data.user;
   }, []);
 
@@ -125,6 +129,7 @@ export default function AuthProvider({ children }) {
       user,
       status,
       isAdmin: user?.role === 'admin',
+      canCreate: Boolean(user) && (user.role === 'admin' || user.access?.rights?.create !== false),
       registrationOpen,
       challenge,
       login,

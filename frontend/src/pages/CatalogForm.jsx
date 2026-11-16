@@ -4,6 +4,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { api } from '../lib/api';
 import { toast, toastError } from '../lib/notify';
 import FormRenderer from '../catalog/FormRenderer';
+import ConfidentialOption from '../components/ConfidentialOption';
 import { checkRequired } from '../catalog/fields';
 import { ErrorState, Spinner } from '../components/ui';
 
@@ -15,6 +16,7 @@ export default function CatalogForm() {
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [confidential, setConfidential] = useState(false);
 
   useEffect(() => {
     setItem(null);
@@ -54,7 +56,7 @@ export default function CatalogForm() {
       item.fields.map((f) => [f.key, f.type === 'file' ? values[f.key]?.length || 0 : values[f.key] ?? ''])
     );
     try {
-      const ticket = await api(`/api/catalog/${item.id}/submit`, { method: 'POST', body: { answers } });
+      const ticket = await api(`/api/catalog/${item.id}/submit`, { method: 'POST', body: { answers, confidential } });
       // Pièces jointes : envoyées une fois le ticket créé, champ par champ.
       const failed = [];
       for (const f of item.fields.filter((x) => x.type === 'file' && values[x.key]?.length)) {
@@ -90,6 +92,7 @@ export default function CatalogForm() {
         ) : (
           <p className="text-sm text-ink-mute">Ce formulaire n'a pas de question : envoyez-le directement.</p>
         )}
+        <ConfidentialOption checked={confidential} onChange={setConfidential} />
         <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
           <Link to="/catalogue" className="btn btn-secondary">
             Annuler
