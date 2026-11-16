@@ -4,14 +4,16 @@ import UsersPanel from './admin/UsersPanel';
 import TrashPanel from './admin/TrashPanel';
 import BackupPanel from './admin/BackupPanel';
 import GroupsPanel from './admin/GroupsPanel';
+import CatalogPanel from './admin/CatalogPanel';
 
 const TABS = [
   { value: 'users', label: 'Utilisateurs' },
   { value: 'groups', label: 'Groupes' },
+  { value: 'catalog', label: 'Catalogue' },
   { value: 'trash', label: 'Corbeille' },
   { value: 'backup', label: 'Sauvegardes' },
 ];
-const PANELS = { users: UsersPanel, groups: GroupsPanel, trash: TrashPanel, backup: BackupPanel };
+const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, trash: TrashPanel, backup: BackupPanel };
 
 export default function Admin() {
   const [params, setParams] = useSearchParams();
@@ -20,7 +22,7 @@ export default function Admin() {
 
   return (
     <div>
-      <PageHeader title="Administration">Comptes, groupes, tickets supprimés et sauvegardes.</PageHeader>
+      <PageHeader title="Administration">Comptes, groupes, catalogue de formulaires, tickets supprimés et sauvegardes.</PageHeader>
       <div className="mb-4 flex gap-1 border-b border-line" role="tablist" aria-label="Sections d'administration">
         {TABS.map((t) => (
           <button

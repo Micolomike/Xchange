@@ -61,6 +61,9 @@ export default function Navbar() {
       <NavLink to="/tickets" end className={linkClass}>
         Tickets
       </NavLink>
+      <NavLink to="/catalogue" className={linkClass}>
+        Catalogue
+      </NavLink>
       {isAdmin && (
         <NavLink to="/admin" className={linkClass}>
           Administration

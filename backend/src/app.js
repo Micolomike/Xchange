@@ -15,6 +15,7 @@ const adminRoutes = require('./routes/admin');
 const statsRoutes = require('./routes/stats');
 const backupRoutes = require('./routes/backup');
 const { groupRoutes } = require('./routes/groups');
+const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
 
 function createApp({ db, config, logger = console }) {
   const app = express();
@@ -57,6 +58,8 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/stats', auth, statsRoutes({ db, config }));
   app.use('/api/users', auth, requireAdmin, userRoutes({ db, config }));
   app.use('/api/groups', auth, groupRoutes({ db, config, requireAdmin }));
+  app.use('/api/catalog', auth, catalogRoutes({ db, config }));
+  app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

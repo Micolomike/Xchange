@@ -26,10 +26,14 @@ export default function CreateTicket() {
   const [submitting, setSubmitting] = useState(false);
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [catalogSize, setCatalogSize] = useState(0);
 
   useEffect(() => {
     if (isAdmin) api('/api/users').then(setUsers).catch(() => {});
     api('/api/groups').then(setGroups).catch(() => {});
+    api('/api/catalog')
+      .then((items) => setCatalogSize(items.length))
+      .catch(() => {});
   }, [isAdmin]);
 
   const chosenGroup = groups.find((g) => String(g.id) === form.assigned_group);
@@ -97,6 +101,15 @@ export default function CreateTicket() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Nouveau ticket">Décrivez la demande ; vous pourrez compléter et échanger ensuite.</PageHeader>
+      {catalogSize > 0 && (
+        <p className="mb-5 rounded-md bg-accent-soft/60 px-4 py-2.5 text-sm">
+          Un formulaire existe peut-être pour votre demande :{' '}
+          <Link to="/catalogue" className="font-semibold text-accent-strong hover:underline">
+            voir le catalogue
+          </Link>
+          .
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="panel space-y-5 p-5 sm:p-6" noValidate>
         <Field id="ticket-title" label="Titre" required error={errors.title}>

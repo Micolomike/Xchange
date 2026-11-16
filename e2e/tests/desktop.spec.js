@@ -212,6 +212,63 @@ test("groupes d'affectation", async () => {
   await page.goto('/admin?tab=groups');
 });
 
+test('catalogue : construire un formulaire puis l’utiliser', async () => {
+  await page.goto('/admin?tab=catalog');
+  await expect(page.getByText("Aucun formulaire pour l'instant")).toBeVisible();
+  await page.getByRole('link', { name: 'Nouveau formulaire' }).click();
+  await page.fill('#fb-name', 'Matériel en panne');
+  await page.fill('#fb-section', 'Informatique');
+  await page.fill('#fb-description', 'Écran, clavier ou imprimante qui ne fonctionne plus.');
+  await page.selectOption('#fb-group', { label: 'Support informatique' });
+  await page.selectOption('#fb-priority', 'high');
+
+  const questions = page.locator('section[aria-labelledby=fb-questions] ol > li');
+  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: /^Texte court/ }).click();
+  await questions.nth(0).getByLabel('Libellé').fill('Numéro du poste');
+  await questions.nth(0).getByLabel('Obligatoire').check();
+  await questions.nth(0).getByLabel('Ajouter la réponse au titre du ticket').check();
+
+  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: /^Boutons de choix/ }).click();
+  await questions.nth(1).getByLabel('Libellé').fill('Type de matériel');
+  await questions.nth(1).getByLabel('Choix proposés').fill('Écran\nClavier\nAutre');
+
+  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: /^Texte court/ }).click();
+  await questions.nth(2).getByLabel('Libellé').fill('Précisez le matériel');
+  await questions.nth(2).getByLabel('Obligatoire').check();
+  await questions.nth(2).getByLabel('Afficher seulement si…').check();
+  await questions.nth(2).getByLabel("Question dont dépend l'affichage").selectOption({ label: 'Type de matériel' });
+  await questions.nth(2).getByLabel('Valeur attendue').selectOption('Autre');
+
+  // L'aperçu applique la règle d'affichage.
+  const preview = page.locator('aside[aria-labelledby=fb-preview]');
+  await expect(preview.getByText('Précisez le matériel')).toHaveCount(0);
+  await preview.getByText('Autre', { exact: true }).click();
+  await expect(preview.getByText('Précisez le matériel')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Enregistrer le formulaire' }).click();
+  await expect(page).toHaveURL(/\/admin\?tab=catalog$/);
+  await expect(page.getByRole('row', { name: /Matériel en panne/ })).toContainText('Support informatique');
+
+  // Côté demandeur.
+  await page.getByRole('link', { name: 'Catalogue', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/catalogue$/);
+  await page.getByRole('link', { name: /Matériel en panne/ }).click();
+  await page.getByRole('button', { name: 'Envoyer la demande' }).click();
+  await expect(page.getByText('Ce champ est requis.')).toBeVisible();
+  await page.getByLabel('Numéro du poste').fill('PC-0042');
+  await page.getByText('Autre', { exact: true }).click();
+  await page.getByLabel('Précisez le matériel').fill('Webcam');
+  await page.getByRole('button', { name: 'Envoyer la demande' }).click();
+  await expect(page.getByRole('heading', { name: 'Matériel en panne : PC-0042' })).toBeVisible();
+  await expect(page.getByText('Webcam')).toBeVisible();
+  await expect(page.getByLabel("Groupe d'affectation")).toHaveValue(/\d+/);
+  await expect(page.getByText('a créé le ticket avec le formulaire « Matériel en panne »')).toBeVisible();
+  await page.goto('/admin');
+});
+
 test('sauvegardes : téléchargement et écriture sur un disque', async () => {
   await page.getByRole('tab', { name: 'Sauvegardes' }).click();
   await expect(page).toHaveURL(/\/admin\?tab=backup$/);

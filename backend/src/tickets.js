@@ -5,7 +5,7 @@ const TICKET_SELECT = `
     c.username AS c_username, c.firstname AS c_firstname, c.lastname AS c_lastname,
     a.username AS a_username, a.firstname AS a_firstname, a.lastname AS a_lastname,
     d.username AS d_username, d.firstname AS d_firstname, d.lastname AS d_lastname,
-    g.name AS g_name,
+    g.name AS g_name, ci.name AS ci_name,
     (SELECT COUNT(*) FROM comments WHERE ticket_id = t.id) AS comment_count,
     (SELECT COUNT(*) FROM attachments WHERE ticket_id = t.id) AS attachment_count
   FROM tickets t
@@ -13,6 +13,7 @@ const TICKET_SELECT = `
   LEFT JOIN users a ON a.id = t.assigned_to
   LEFT JOIN users d ON d.id = t.deleted_by
   LEFT JOIN user_groups g ON g.id = t.assigned_group
+  LEFT JOIN catalog_items ci ON ci.id = t.catalog_item
 `;
 
 function userRef(row, prefix, id) {
@@ -23,6 +24,16 @@ function userRef(row, prefix, id) {
     lastname: row[`${prefix}_lastname`],
   };
   return { id, username: user.username, name: displayName(user) };
+}
+
+function parseAnswers(text) {
+  if (!text) return [];
+  try {
+    const list = JSON.parse(text);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
 }
 
 function serializeTicket(row) {
@@ -41,6 +52,8 @@ function serializeTicket(row) {
     creator: userRef(row, 'c', row.created_by),
     assignee: userRef(row, 'a', row.assigned_to),
     group: row.assigned_group && row.g_name ? { id: row.assigned_group, name: row.g_name } : null,
+    form: row.form_answers ? { id: row.catalog_item || null, name: row.ci_name || null } : null,
+    answers: parseAnswers(row.form_answers),
     deleted_by: userRef(row, 'd', row.deleted_by),
     comment_count: row.comment_count || 0,
     attachment_count: row.attachment_count || 0,

@@ -14,7 +14,7 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await enterMfaCode(page, AGENT.username);
   await expect(page.getByRole('heading', { name: `Bonjour ${AGENT.firstname}` })).toBeVisible();
-  await expect(page.getByRole('link', { name: '1 ticket de vos groupes attend un responsable' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '2 tickets de vos groupes attendent un responsable' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.goto('/profile');
@@ -24,7 +24,7 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
   await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
   await page.getByRole('link', { name: 'Tickets', exact: true }).click();
   await expect(page).toHaveURL(/\/tickets$/);
-  await expect(page.getByText('7 tickets', { exact: true })).toBeVisible();
+  await expect(page.getByText('8 tickets', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole('link', { name: 'Le VPN se coupe toutes les dix minutes' }).click();

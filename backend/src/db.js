@@ -109,6 +109,25 @@ CREATE TABLE IF NOT EXISTS group_members (
   PRIMARY KEY (group_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS catalog_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  section TEXT NOT NULL DEFAULT '',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  active INTEGER NOT NULL DEFAULT 1,
+  fulfillment_group INTEGER REFERENCES user_groups(id) ON DELETE SET NULL,
+  fields TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS catalog_visibility (
+  item_id INTEGER NOT NULL REFERENCES catalog_items(id) ON DELETE CASCADE,
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (item_id, group_id)
+);
+
 CREATE TABLE IF NOT EXISTS ticket_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -139,6 +158,8 @@ const ADDED_COLUMNS = {
     deleted_at: 'TEXT',
     deleted_by: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
     assigned_group: 'INTEGER REFERENCES user_groups(id) ON DELETE SET NULL',
+    catalog_item: 'INTEGER REFERENCES catalog_items(id) ON DELETE SET NULL',
+    form_answers: 'TEXT',
   },
 };
 

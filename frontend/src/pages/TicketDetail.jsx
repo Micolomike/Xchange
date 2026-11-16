@@ -37,7 +37,7 @@ function describeEvent(e) {
   const priority = (v) => `« ${PRIORITIES[v]?.label || v} »`;
   switch (e.type) {
     case 'created':
-      return `${who} a créé le ticket`;
+      return e.to ? `${who} a créé le ticket avec le formulaire « ${e.to} »` : `${who} a créé le ticket`;
     case 'status':
       return `${who} a passé le statut de ${status(e.from)} à ${status(e.to)}`;
     case 'priority':
@@ -336,7 +336,12 @@ export default function TicketDetail() {
           <section className="panel" aria-labelledby="desc-title">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <h2 id="desc-title" className="font-bold">
-                Description
+                {ticket.answers?.length && !editing ? 'Demande' : 'Description'}
+                {ticket.form && !editing && (
+                  <span className="ml-2 text-sm font-normal text-ink-mute">
+                    formulaire « {ticket.form.name || 'supprimé'} »
+                  </span>
+                )}
               </h2>
               {perms.canEdit && !editing && (
                 <button type="button" className="btn btn-ghost px-2 py-1" onClick={() => setEditing(true)}>
@@ -353,6 +358,17 @@ export default function TicketDetail() {
                   setEditing(false);
                 }}
               />
+            ) : ticket.answers?.length ? (
+              <dl className="divide-y divide-line">
+                {ticket.answers.map((a) => (
+                  <div key={a.key} className="grid gap-1 px-5 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-4">
+                    <dt className="text-sm font-semibold text-ink-mute">{a.label}</dt>
+                    <dd className="whitespace-pre-wrap break-words text-ink">
+                      {a.type === 'date' ? formatDate(a.value) : a.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             ) : (
               <p className="whitespace-pre-wrap break-words px-5 py-4 leading-relaxed text-ink-soft">{ticket.description}</p>
             )}

@@ -28,6 +28,13 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Seul un membre du groupe peut être responsable d'un ticket affecté à ce groupe ; lors d'un transfert, le responsable qui n'est pas membre du nouveau groupe est retiré.
 - Filtres « Mes groupes », « Sans groupe » ou par groupe dans la liste ; le tableau de bord signale les tickets de mes groupes sans responsable.
 
+**Catalogue de formulaires**
+- Page « Catalogue » : les formulaires publiés, classés par rubrique, avec recherche, et une « Demande libre » quand rien ne correspond.
+- Constructeur de formulaires (Administration > Catalogue) avec aperçu en direct : texte court ou long, liste déroulante, boutons de choix, case à cocher, date, nombre, e-mail, pièce jointe ; question obligatoire, aide, exemple, ordre.
+- Règles d'affichage : une question n'apparaît que si une question précédente a une valeur donnée, est cochée, remplie ou vide. Le serveur applique les mêmes règles et ignore les réponses masquées.
+- Par formulaire : rubrique, description, groupe qui traite les demandes, priorité des tickets créés, visibilité (tout le monde ou certains groupes), publication. Duplication possible.
+- L'envoi crée un ticket dont le titre reprend le nom du formulaire (et, au choix, une réponse) ; les réponses sont conservées avec le ticket, même si le formulaire est modifié ou supprimé ensuite.
+
 **Double authentification (obligatoire par défaut)**
 - Code à 6 chiffres d'une appli d'authentification (Microsoft Authenticator, Google Authenticator, 2FAS…), norme TOTP. Chaque code ne sert qu'une fois.
 - Configuration à la première connexion (QR code ou clé à saisir), puis 10 codes de secours à usage unique, téléchargeables et renouvelables depuis « Mon compte ».
@@ -139,6 +146,9 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa` | admin |
 | `GET` | `/api/groups` (groupes et membres) | connecté |
 | `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants) | admin |
+| `GET` | `/api/catalog`, `/api/catalog/:id` (formulaires proposés à l'utilisateur) | connecté |
+| `POST` | `/api/catalog/:id/submit` (`answers` : réponses par identifiant de question) | connecté |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/admin/catalog`, `/api/admin/catalog/:id` ; `POST /api/admin/catalog/:id/duplicate` | admin |
 | `GET` | `/api/admin/backup/download`, `/api/admin/backup/destinations` | admin |
 | `POST` | `/api/admin/backup/write` | admin |
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |

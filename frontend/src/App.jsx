@@ -11,6 +11,9 @@ import TicketDetail from './pages/TicketDetail';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import MfaSetup from './pages/MfaSetup';
+import Catalog from './pages/Catalog';
+import CatalogForm from './pages/CatalogForm';
+import FormBuilder from './pages/admin/FormBuilder';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -33,7 +36,10 @@ export default function App() {
             <Route path="/tickets" element={<RequireAuth><TicketList /></RequireAuth>} />
             <Route path="/tickets/new" element={<RequireAuth><CreateTicket /></RequireAuth>} />
             <Route path="/tickets/:id" element={<RequireAuth><TicketDetail /></RequireAuth>} />
+            <Route path="/catalogue" element={<RequireAuth><Catalog /></RequireAuth>} />
+            <Route path="/catalogue/:id" element={<RequireAuth><CatalogForm /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
+            <Route path="/admin/catalogue/:id" element={<RequireAuth admin><FormBuilder /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             {/* Anciennes adresses de la première version */}
             <Route path="/create" element={<Navigate to="/tickets/new" replace />} />
