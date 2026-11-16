@@ -1,35 +1,45 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import CreateTicket from "./pages/CreateTicket";
-import TicketList from "./pages/TicketList";
-import Admin from "./pages/Admin";
-import TicketDetail from "./pages/TicketDetail"; // 🆕 Détail d'un ticket
-import Navbar from "./components/Navbar"; // Barre de navigation
-import AdminDataManager from "./pages/AdminDataManager";
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import AuthProvider from './auth/AuthProvider';
+import Navbar from './components/Navbar';
+import RequireAuth from './components/RequireAuth';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import TicketList from './pages/TicketList';
+import CreateTicket from './pages/CreateTicket';
+import TicketDetail from './pages/TicketDetail';
+import Admin from './pages/Admin';
+import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
 
-// 🔐 Import des pages d'authentification
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-
-function App() {
+export default function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gradient-to-br from-white to-indigo-50">
+    <BrowserRouter>
+      <AuthProvider>
+        <a
+          href="#contenu"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2"
+        >
+          Aller au contenu
+        </a>
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/create" element={<CreateTicket />} />
-          <Route path="/tickets" element={<TicketList />} />
-          <Route path="/tickets/:id" element={<TicketDetail />} /> {/* 🆕 Route ajoutée */}
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/data" element={<AdminDataManager />} />
-          {/* Routes d'authentification */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        </Routes>
-      </div>
-    </Router>
+        <main id="contenu" className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/tickets" element={<RequireAuth><TicketList /></RequireAuth>} />
+            <Route path="/tickets/new" element={<RequireAuth><CreateTicket /></RequireAuth>} />
+            <Route path="/tickets/:id" element={<RequireAuth><TicketDetail /></RequireAuth>} />
+            <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            {/* Anciennes adresses de la première version */}
+            <Route path="/create" element={<Navigate to="/tickets/new" replace />} />
+            <Route path="/admin/data" element={<Navigate to="/admin" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
-
-export default App;

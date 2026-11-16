@@ -1,7 +1,8 @@
 {
-  "name": "frontend",
+  "name": "xchange-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -9,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/public-sans": "^5.2.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
@@ -17,19 +19,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
-    "@tailwindcss/postcss": "^4.0.17",
-    "@tailwindcss/postcss7-compat": "^2.2.17",
+    "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.0.17",
-    "vite": "^6.2.0",
-    "vite-plugin-svgr": "^4.3.0"
+    "tailwindcss": "^4.1.0",
+    "vite": "^6.2.0"
   }
 }

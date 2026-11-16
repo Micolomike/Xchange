@@ -1,12 +1,17 @@
-# React + Vite
+# Xchange : frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface React 19 + Vite + Tailwind CSS 4. Voir le [README principal](../README.md) pour l'installation, la configuration et le déploiement.
 
-Currently, two official plugins are available:
+```bash
+npm install
+npm run dev      # http://localhost:5173, /api redirigé vers http://localhost:4000
+npm run lint
+npm run build    # sortie dans dist/
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Organisation :
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/lib/` : client API (`api.js`), libellés (`constants.js`), formats de date et de taille, notifications.
+- `src/auth/` : contexte de session (jeton JWT stocké dans le navigateur).
+- `src/components/` : barre de navigation, badges (statut, priorité, numéro de ticket), graphique, zone de dépôt de fichiers.
+- `src/pages/` : tableau de bord, liste et fiche des tickets, création, administration, compte.

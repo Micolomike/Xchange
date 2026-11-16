@@ -1,166 +1,192 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/context';
+import { api } from '../lib/api';
+import { CATEGORIES, PRIORITY_ORDER } from '../lib/constants';
+import { todayIso } from '../lib/format';
+import { toast, toastError } from '../lib/notify';
+import { PriorityBadge } from '../components/Badges';
+import FileDrop from '../components/FileDrop';
+import { Field, PageHeader } from '../components/ui';
 
 export default function CreateTicket() {
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    priority: "",
-    category: "",
-    dueDate: "",
-    attachments: null,
+    title: '',
+    description: '',
+    priority: 'medium',
+    category: '',
+    due_date: '',
+    assigned_to: '',
   });
-
+  const [files, setFiles] = useState([]);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [users, setUsers] = useState([]);
 
-  const requiredMark = <span className="text-red-500">*</span>;
+  useEffect(() => {
+    if (isAdmin) api('/api/users').then(setUsers).catch(() => {});
+  }, [isAdmin]);
+
+  const update = (name, value) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setErrors((e) => ({ ...e, [name]: undefined }));
+  };
 
   const validate = () => {
-    const newErrors = {};
-    if (!form.title.trim()) newErrors.title = "Le titre est requis.";
-    if (!form.description.trim()) newErrors.description = "La description est requise.";
-    if (!form.priority) newErrors.priority = "La priorité est requise.";
-    return newErrors;
+    const e = {};
+    if (!form.title.trim()) e.title = 'Donnez un titre court qui résume la demande.';
+    if (!form.description.trim()) e.description = 'Décrivez la demande : contexte, ce qui est attendu, ce qui a été essayé.';
+    return e;
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "file" ? files[0] : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("✅ submit lancé");
-
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      console.log("❌ Erreurs de validation :", validationErrors);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const local = validate();
+    if (Object.keys(local).length) {
+      setErrors(local);
+      document.getElementById(`ticket-${Object.keys(local)[0]}`)?.focus();
       return;
     }
-
-    const ticketData = {
-      ...form,
-      dueDate: form.dueDate || null,
-    };
-
-    console.log("📦 Données envoyées au backend :", ticketData);
-
+    setSubmitting(true);
     try {
-      const res = await fetch("https://xchange-backend-pasd.onrender.com/api/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ticketData),
-      });
+      const body = { ...form, assigned_to: form.assigned_to ? Number(form.assigned_to) : null };
+      if (!isAdmin) delete body.assigned_to;
+      const ticket = await api('/api/tickets', { method: 'POST', body });
 
-      if (res.ok) {
-        console.log("✅ Ticket créé avec succès");
-        navigate("/tickets");
-      } else {
-        const error = await res.json();
-        console.error("❌ Erreur serveur :", error);
+      if (files.length) {
+        const fd = new FormData();
+        files.forEach((f) => fd.append('files', f));
+        try {
+          await api(`/api/tickets/${ticket.id}/attachments`, { method: 'POST', body: fd });
+        } catch (err) {
+          toastError({ message: `Ticket créé, mais les fichiers n'ont pas été envoyés : ${err.message}` });
+          navigate(`/tickets/${ticket.id}`);
+          return;
+        }
       }
+      toast('Ticket créé');
+      navigate(`/tickets/${ticket.id}`);
     } catch (err) {
-      console.error("❌ Erreur réseau :", err);
+      setErrors(err.details || {});
+      toastError(err);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">🧾 Créer un ticket</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Titre */}
-        <div>
-          <label className="block font-medium">Titre {requiredMark}</label>
-          <input
-            type="text"
-            name="title"
-            value={form.title}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-          {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Nouveau ticket">Décrivez la demande ; vous pourrez compléter et échanger ensuite.</PageHeader>
+
+      <form onSubmit={handleSubmit} className="panel space-y-5 p-5 sm:p-6" noValidate>
+        <Field id="ticket-title" label="Titre" required error={errors.title}>
+          {(props) => (
+            <input
+              {...props}
+              className="field"
+              maxLength={200}
+              value={form.title}
+              onChange={(e) => update('title', e.target.value)}
+              placeholder="Ex. : impossible d'imprimer depuis le 2e étage"
+              autoFocus
+            />
+          )}
+        </Field>
+
+        <Field id="ticket-description" label="Description" required error={errors.description}>
+          {(props) => (
+            <textarea
+              {...props}
+              className="field min-h-40 resize-y"
+              maxLength={10000}
+              value={form.description}
+              onChange={(e) => update('description', e.target.value)}
+            />
+          )}
+        </Field>
+
+        <fieldset>
+          <legend className="label">Priorité</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {PRIORITY_ORDER.slice()
+              .reverse()
+              .map((p) => (
+                <label
+                  key={p}
+                  className={`flex cursor-pointer items-center justify-center rounded-md border px-3 py-2.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
+                    form.priority === p ? 'border-accent bg-accent-soft' : 'border-line-strong bg-white hover:border-accent'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="priority"
+                    value={p}
+                    checked={form.priority === p}
+                    onChange={() => update('priority', p)}
+                    className="sr-only"
+                  />
+                  <PriorityBadge priority={p} />
+                </label>
+              ))}
+          </div>
+        </fieldset>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field id="ticket-category" label="Catégorie" error={errors.category}>
+            {(props) => (
+              <select {...props} className="field" value={form.category} onChange={(e) => update('category', e.target.value)}>
+                <option value="">Aucune</option>
+                {Object.entries(CATEGORIES).map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field id="ticket-due" label="Date limite souhaitée" error={errors.due_date}>
+            {(props) => (
+              <input
+                {...props}
+                type="date"
+                className="field"
+                min={todayIso()}
+                value={form.due_date}
+                onChange={(e) => update('due_date', e.target.value)}
+              />
+            )}
+          </Field>
         </div>
 
-        {/* Description */}
+        {isAdmin && (
+          <Field id="ticket-assignee" label="Responsable" error={errors.assigned_to} hint="Vous pourrez aussi l'assigner plus tard.">
+            {(props) => (
+              <select {...props} className="field" value={form.assigned_to} onChange={(e) => update('assigned_to', e.target.value)}>
+                <option value="">Personne pour l'instant</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.username})
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
+
         <div>
-          <label className="block font-medium">Description {requiredMark}</label>
-          <textarea
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-          {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+          <p className="label">Pièces jointes</p>
+          <FileDrop files={files} onChange={setFiles} />
         </div>
 
-        {/* Priorité */}
-        <div>
-          <label className="block font-medium">Priorité {requiredMark}</label>
-          <select
-            name="priority"
-            value={form.priority}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          >
-            <option value="">-- À définir --</option>
-            <option value="low">Basse</option>
-            <option value="medium">Moyenne</option>
-            <option value="high">Haute</option>
-          </select>
-          {errors.priority && <p className="text-red-500 text-sm">{errors.priority}</p>}
+        <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+          <Link to="/tickets" className="btn btn-secondary">
+            Annuler
+          </Link>
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Création…' : 'Créer le ticket'}
+          </button>
         </div>
-
-        {/* Catégorie */}
-        <div>
-          <label className="block font-medium">Catégorie</label>
-          <select
-            name="category"
-            value={form.category}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          >
-            <option value="">-- Aucune --</option>
-            <option value="bug">🐛 Bug</option>
-            <option value="feature">🌟 Fonctionnalité</option>
-            <option value="support">🛠 Support</option>
-          </select>
-        </div>
-
-        {/* Date limite */}
-        <div>
-          <label className="block font-medium">Date limite souhaitée</label>
-          <input
-            type="date"
-            name="dueDate"
-            value={form.dueDate}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-        </div>
-
-        {/* Pièce jointe */}
-        <div>
-          <label className="block font-medium">Fichier joint</label>
-          <input
-            type="file"
-            name="attachments"
-            onChange={handleChange}
-            className="w-full"
-          />
-        </div>
-
-        {/* Bouton */}
-        <button
-          type="submit"
-          className="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-        >
-          Envoyer
-        </button>
       </form>
     </div>
   );
