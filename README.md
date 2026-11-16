@@ -69,14 +69,15 @@ Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML
 |---|---|
 | `VITE_API_URL` | URL de l'API pour le build. Définie dans `frontend/.env.production` sur `https://xchange-backend-pasd.onrender.com`. À laisser vide si le frontend et l'API partagent le même domaine. |
 
-## Déploiement sur Render
+## Déploiement
 
-**API** : service web, dossier racine `backend`, build `npm install`, démarrage `npm start`.
-- Définir `JWT_SECRET` (une longue chaîne aléatoire).
+**API sur Render** : service web, dossier racine `backend`, build `npm install`, démarrage `npm start`.
+- `JWT_SECRET` est défini dans l'onglet *Environment* du service (valeur générée par Render).
 - Le disque d'un service Render gratuit est effacé à chaque redéploiement ou mise en veille : la base SQLite et les pièces jointes repartent de zéro. Pour les conserver, ajouter un disque persistant (offre payante) monté par exemple sur `/var/data` et définir `DATA_DIR=/var/data`.
 
-**Frontend** : site statique, dossier racine `frontend`, build `npm install && npm run build`, dossier publié `dist`.
-- Ajouter une règle de réécriture `/*` vers `/index.html` (onglet *Redirects/Rewrites*) pour que les adresses comme `/tickets/12` fonctionnent au rechargement.
+**Frontend sur Vercel** : projet `xchange`, dossier racine `frontend`, préréglage Vite (build `npm run build`, sortie `dist`).
+- `frontend/vercel.json` renvoie toutes les adresses vers `index.html`, pour que `/tickets/12` fonctionne au rechargement.
+- L'URL de l'API vient de `frontend/.env.production`.
 
 ## Reprise d'une base existante
 
