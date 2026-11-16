@@ -88,6 +88,7 @@ Le dossier `deploy/windows/` installe Xchange sur un PC, de façon isolée : com
 | `installer.ps1` | Installe ou réinstalle (configuration et données conservées) |
 | `mettre-a-jour.ps1` | Sauvegarde, récupère la dernière version, recompile, redémarre |
 | `etat.ps1` | Affiche l'état : application, accès Internet, sauvegardes, journal |
+| `redemarrer.ps1` | Redémarre Xchange (après une modification de `C:\Xchange\xchange.env`) |
 | `restaurer.ps1` | Remet une sauvegarde choisie dans une liste |
 | `desinstaller.ps1` | Coupe l'accès Internet, supprime tâches et compte (`-SupprimerDonnees` pour tout effacer) |
 
