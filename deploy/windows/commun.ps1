@@ -183,6 +183,6 @@ function Afficher-FinJournal([int]$Lignes = 20) {
     if (Test-Path $journal) {
         Write-Host ''
         Write-Host "Dernières lignes du journal ($journal) :" -ForegroundColor Yellow
-        Get-Content $journal -Tail $Lignes | ForEach-Object { Write-Host "    $_" }
+        Get-Content $journal -Tail $Lignes -Encoding UTF8 | ForEach-Object { Write-Host "    $_" }
     }
 }
