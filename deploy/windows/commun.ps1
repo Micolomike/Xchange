@@ -10,7 +10,10 @@ $Donnees         = Join-Path $Racine 'donnees'
 $Sauvegardes     = Join-Path $Racine 'sauvegardes'
 $Journaux        = Join-Path $Racine 'journaux'
 $FichierEnv      = Join-Path $Racine 'xchange.env'
-$CompteService   = 'xchange'
+# Xchange tourne sous « Service local », compte intégré à Windows prévu pour les services :
+# aucun mot de passe, aucun droit d'administrateur, aucun accès aux dossiers personnels.
+$SidServiceLocal = 'S-1-5-19'
+$AncienCompte    = 'xchange'
 $Port            = 4000
 $TacheApp        = 'Xchange'
 $TacheSauvegarde = 'Xchange - sauvegarde'
@@ -126,10 +129,10 @@ function Arreter-Xchange {
     if (Get-ScheduledTask -TaskName $TacheApp -ErrorAction SilentlyContinue) {
         Stop-ScheduledTask -TaskName $TacheApp -ErrorAction SilentlyContinue
     }
-    # Le lanceur relance Node en boucle : on arrête aussi ce qui tourne encore sous le compte de service.
-    Get-Process -Name cmd, node -IncludeUserName -ErrorAction SilentlyContinue |
-        Where-Object { $_.UserName -and $_.UserName.EndsWith("\$CompteService") } |
-        Stop-Process -Force -ErrorAction SilentlyContinue
+    # Le lanceur relance Node en boucle : on arrête aussi les processus de Xchange encore présents.
+    Get-CimInstance Win32_Process -Filter "Name = 'node.exe' OR Name = 'cmd.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and ($_.CommandLine -like '*xchange.env*' -or $_.CommandLine -like '*\Xchange\app\deploy\windows\*') } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 2
 }
 
@@ -170,7 +173,7 @@ function Afficher-DiagnosticTache {
         Write-Host "Tâche « $TacheApp » : état $etat, dernier lancement $($infos.LastRunTime), code $($infos.LastTaskResult)" -ForegroundColor Yellow
     }
     if (-not (Test-Path (Join-Path $Journaux 'xchange.log'))) {
-        Write-Host "Aucun journal : la tâche n'a pas pu lancer Xchange sous le compte « $CompteService »." -ForegroundColor Yellow
+        Write-Host "Aucun journal : la tâche n'a pas pu lancer Xchange." -ForegroundColor Yellow
     }
 }
 

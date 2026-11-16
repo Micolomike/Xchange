@@ -1,6 +1,6 @@
 @echo off
 rem Sauvegarde de Xchange (base de donnees et fichiers joints).
-rem Utilise par la tache planifiee "Xchange - sauvegarde", sous le compte de service xchange.
+rem Utilise par la tache planifiee "Xchange - sauvegarde", sous le compte Service local de Windows.
 setlocal
 set "RACINE=%~dp0..\..\.."
 cd /d "%~dp0..\..\backend"

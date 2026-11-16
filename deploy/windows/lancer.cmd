@@ -1,6 +1,6 @@
 @echo off
 rem Lance Xchange et le relance automatiquement s'il s'arrete.
-rem Utilise par la tache planifiee "Xchange", sous le compte de service xchange.
+rem Utilise par la tache planifiee "Xchange", sous le compte Service local de Windows.
 setlocal
 set "RACINE=%~dp0..\..\.."
 set "JOURNAL=%RACINE%\journaux\xchange.log"

@@ -1,7 +1,7 @@
 ﻿#Requires -Version 5.1
 <#
-  Désinstalle Xchange de ce PC : coupe l'accès Internet, supprime les tâches planifiées
-  et le compte « xchange ». Les données sont conservées, sauf avec -SupprimerDonnees.
+  Désinstalle Xchange de ce PC : coupe l'accès Internet et supprime les tâches planifiées.
+  Les données sont conservées, sauf avec -SupprimerDonnees.
 
   Terminal administrateur :
     powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\desinstaller.ps1
@@ -36,15 +36,6 @@ Arreter-Xchange
 foreach ($nom in @($TacheApp, $TacheSauvegarde)) {
     Unregister-ScheduledTask -TaskName $nom -Confirm:$false -ErrorAction SilentlyContinue
 }
-Ecrire-Ok 'fait'
-
-Ecrire-Etape "Suppression du compte « $CompteService »"
-Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue |
-    Where-Object { $_.LocalPath -like "*\$CompteService" } |
-    Remove-CimInstance -ErrorAction SilentlyContinue
-Remove-LocalUser -Name $CompteService -ErrorAction SilentlyContinue
-Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList' `
-    -Name $CompteService -ErrorAction SilentlyContinue
 Ecrire-Ok 'fait'
 
 if ($SupprimerDonnees) {

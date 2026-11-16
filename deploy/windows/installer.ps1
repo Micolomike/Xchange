@@ -1,7 +1,7 @@
 ﻿#Requires -Version 5.1
 <#
   Installe Xchange sur ce PC, de façon isolée :
-   - un compte Windows dédié « xchange », sans droits administrateur et invisible à l'écran de connexion ;
+   - exécution sous « Service local », compte intégré à Windows sans mot de passe ni droits administrateur ;
    - C:\Xchange accessible seulement aux administrateurs et à ce compte ;
    - Xchange n'écoute que sur 127.0.0.1 (ce PC) : Internet n'y accède que par le tunnel Tailscale ;
    - démarrage automatique avec Windows, sauvegarde chaque nuit à 3 h 30.
@@ -71,39 +71,32 @@ if (Test-Path $FichierEnv) {
     Ecrire-Ok "créée : $FichierEnv (secret de session généré)"
 }
 
-Ecrire-Etape "Compte Windows dédié « $CompteService » (sans droits administrateur)"
-$motDePasse = Nouveau-MotDePasse
-$motDePasseSecurise = ConvertTo-SecureString $motDePasse -AsPlainText -Force
-if (Get-LocalUser -Name $CompteService -ErrorAction SilentlyContinue) {
-    Set-LocalUser -Name $CompteService -Password $motDePasseSecurise -PasswordNeverExpires $true
-    Enable-LocalUser -Name $CompteService
-    Ecrire-Ok 'compte existant, nouveau mot de passe aléatoire'
-} else {
-    New-LocalUser -Name $CompteService -Password $motDePasseSecurise -FullName 'Xchange (service)' `
-        -Description 'Compte de service Xchange (sans droits admin)' `
-        -PasswordNeverExpires -UserMayNotChangePassword -AccountNeverExpires | Out-Null
-    Ecrire-Ok 'compte créé'
+Ecrire-Etape 'Compte d''exécution : « Service local » de Windows'
+# Les versions précédentes de ce script créaient un compte « xchange » : on le retire.
+if (Get-LocalUser -Name $AncienCompte -ErrorAction SilentlyContinue) {
+    Arreter-Xchange
+    Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue |
+        Where-Object { $_.LocalPath -like "*\$AncienCompte" } | Remove-CimInstance -ErrorAction SilentlyContinue
+    Remove-LocalUser -Name $AncienCompte
+    Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList' `
+        -Name $AncienCompte -ErrorAction SilentlyContinue
+    Ecrire-Ok "ancien compte « $AncienCompte » supprimé"
 }
-try { Add-LocalGroupMember -Group (Get-LocalGroup -SID $SidUtilisateurs) -Member $CompteService } catch { }
-try { Remove-LocalGroupMember -Group (Get-LocalGroup -SID $SidAdmins) -Member $CompteService } catch { }
-$cleMasquage = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList'
-New-Item -Path $cleMasquage -Force | Out-Null
-New-ItemProperty -Path $cleMasquage -Name $CompteService -Value 0 -PropertyType DWord -Force | Out-Null
-Ecrire-Ok 'membre du seul groupe Utilisateurs, masqué de l''écran de connexion'
+Ecrire-Ok 'compte intégré à Windows, sans mot de passe ni droits administrateur'
 
 Ecrire-Etape "Droits d'accès sur $Racine"
-# Seuls les administrateurs, le système et le compte de service y accèdent ; le compte de service
+# Seuls les administrateurs, le système et Service local y accèdent ; Service local
 # ne peut écrire que dans les données, les sauvegardes et les journaux.
-& icacls.exe $Racine /inheritance:r /grant:r "*${SidAdmins}:(OI)(CI)F" "*${SidSystem}:(OI)(CI)F" "${env:COMPUTERNAME}\${CompteService}:(OI)(CI)RX" /Q | Out-Null
+& icacls.exe $Racine /inheritance:r /grant:r "*${SidAdmins}:(OI)(CI)F" "*${SidSystem}:(OI)(CI)F" "*${SidServiceLocal}:(OI)(CI)RX" /Q | Out-Null
 if ($LASTEXITCODE -ne 0) { Arreter-Sur-Erreur "impossible de régler les droits de $Racine." }
 foreach ($dossier in @($Donnees, $Sauvegardes, $Journaux)) {
-    & icacls.exe $dossier /grant:r "${env:COMPUTERNAME}\${CompteService}:(OI)(CI)M" /Q | Out-Null
+    & icacls.exe $dossier /grant:r "*${SidServiceLocal}:(OI)(CI)M" /Q | Out-Null
     if ($LASTEXITCODE -ne 0) { Arreter-Sur-Erreur "impossible de régler les droits de $dossier." }
 }
-Ecrire-Ok 'accès réservé aux administrateurs et au compte de service'
+Ecrire-Ok 'accès réservé aux administrateurs et à Service local'
 
 Ecrire-Etape 'Démarrage automatique et sauvegarde quotidienne'
-$utilisateurTache = "$env:COMPUTERNAME\$CompteService"
+$principal = New-ScheduledTaskPrincipal -UserId $SidServiceLocal -LogonType ServiceAccount -RunLevel Limited
 $dossierBackend = Join-Path $App 'backend'
 
 $lanceur = Join-Path $App 'deploy\windows\lancer.cmd'
@@ -113,8 +106,7 @@ $parametres = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew `
     -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $TacheApp -Action $action -Trigger $declencheur -Settings $parametres `
-    -User $utilisateurTache -Password $motDePasse -RunLevel Limited `
-    -Description 'Xchange : démarre avec Windows, sous le compte xchange.' -Force | Out-Null
+    -Principal $principal -Description 'Xchange : démarre avec Windows, sous Service local.' -Force | Out-Null
 Ecrire-Ok "tâche « $TacheApp » : démarrage avec Windows, même sans session ouverte"
 
 $sauvegarde = Join-Path $App 'deploy\windows\sauvegarder.cmd'
@@ -123,13 +115,9 @@ $declencheurSauvegarde = New-ScheduledTaskTrigger -Daily -At '03:30'
 $parametresSauvegarde = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 1)
 Register-ScheduledTask -TaskName $TacheSauvegarde -Action $actionSauvegarde -Trigger $declencheurSauvegarde `
-    -Settings $parametresSauvegarde -User $utilisateurTache -Password $motDePasse -RunLevel Limited `
+    -Settings $parametresSauvegarde -Principal $principal `
     -Description 'Xchange : sauvegarde de la base et des fichiers joints.' -Force | Out-Null
 Ecrire-Ok "tâche « $TacheSauvegarde » : chaque nuit à 3 h 30 (ou au démarrage suivant si le PC était éteint)"
-
-# Le mot de passe n'est plus utile : il n'est stocké que par le Planificateur de tâches.
-$motDePasse = $null
-$motDePasseSecurise = $null
 
 Ecrire-Etape 'Démarrage de Xchange'
 Demarrer-Xchange
