@@ -41,9 +41,10 @@ async function readSession(req, { db, config }) {
     return null;
   }
   if (payload.typ !== 'session') return null;
-  if (config.mfaRequired && !payload.mfa) return null;
   const row = await db.get('SELECT * FROM users WHERE id = ?', [payload.sub]);
   if (!row || (row.token_version || 0) !== payload.tv) return null;
+  // Session sans code : refusée quand la double authentification est obligatoire, sauf compte dispensé.
+  if (config.mfaRequired && !payload.mfa && !row.mfa_exempt) return null;
   return { row, mfa: Boolean(payload.mfa) };
 }
 

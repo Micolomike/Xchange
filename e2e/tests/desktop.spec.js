@@ -177,6 +177,14 @@ test('corbeille puis administration des comptes', async () => {
   await expect(page.getByText(`Double authentification de ${USER.username} réinitialisée`)).toBeVisible();
   await expect(page.getByRole('button', { name: `Réinitialiser la double authentification de ${USER.username}` })).toBeDisabled();
 
+  // Dispense puis retour à l'obligation, depuis la table des utilisateurs.
+  await page.getByRole('button', { name: `Dispenser ${AGENT.username} de la double authentification` }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('row', { name: new RegExp(AGENT.username) })).toContainText('Dispensé');
+  await page.getByRole('button', { name: `Exiger la double authentification pour ${AGENT.username}` }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByRole('row', { name: new RegExp(AGENT.username) })).toContainText('À configurer');
+
   await page.getByRole('tab', { name: 'Corbeille' }).click();
   await expect(page.getByText('Commande de deux claviers')).toBeVisible();
   await page.getByRole('button', { name: 'Restaurer' }).click();

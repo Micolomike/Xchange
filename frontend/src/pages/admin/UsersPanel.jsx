@@ -160,6 +160,35 @@ export default function UsersPanel() {
     }
   };
 
+  const setExempt = async (u, exempt) => {
+    const ok = await confirmAction(
+      exempt
+        ? {
+            title: `Dispenser ${u.username} de la double authentification ?`,
+            text:
+              (u.role === 'admin'
+                ? "Attention : c'est un compte administrateur, accessible depuis Internet avec son seul mot de passe. "
+                : '') +
+              "Il se connectera avec son seul mot de passe. Sa configuration actuelle est effacée et ses sessions sont fermées. Conseillez-lui un mot de passe long.",
+            confirmText: 'Dispenser',
+            danger: true,
+          }
+        : {
+            title: `Exiger à nouveau la double authentification pour ${u.username} ?`,
+            text: 'Ses sessions sont fermées ; il configurera une appli à sa prochaine connexion.',
+            confirmText: 'Exiger',
+          }
+    );
+    if (!ok) return;
+    try {
+      await api(`/api/users/${u.id}/mfa-exempt`, { method: 'POST', body: { exempt } });
+      toast(exempt ? `${u.username} est dispensé de double authentification` : `Double authentification exigée pour ${u.username}`);
+      load();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
   const remove = async (u) => {
     const ok = await confirmAction({
       title: `Supprimer le compte de ${u.username} ?`,
@@ -257,9 +286,23 @@ export default function UsersPanel() {
                 <td className="whitespace-nowrap px-5 py-3">
                   {u.mfa_enabled ? (
                     <span className="font-semibold text-resolved">Activée</span>
+                  ) : u.mfa_exempt ? (
+                    <span className="font-semibold text-progress">Dispensé</span>
                   ) : (
                     <span className="text-ink-mute">À configurer</span>
                   )}
+                  <button
+                    type="button"
+                    className="block text-xs font-semibold text-accent hover:underline"
+                    onClick={() => setExempt(u, !u.mfa_exempt)}
+                    aria-label={
+                      u.mfa_exempt
+                        ? `Exiger la double authentification pour ${u.username}`
+                        : `Dispenser ${u.username} de la double authentification`
+                    }
+                  >
+                    {u.mfa_exempt ? 'Exiger' : 'Dispenser'}
+                  </button>
                 </td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.created_count}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.assigned_active_count}</td>

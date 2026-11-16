@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { AGENT, enterMfaCode, expectNoHorizontalOverflow, trackPageErrors } from './helpers.js';
+import { AGENT, completeMfaSetup, expectNoHorizontalOverflow, trackPageErrors } from './helpers.js';
 
 // S'exécute après le projet « ordinateur », dont il réutilise les comptes et les tickets.
 test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', async ({ page }) => {
@@ -12,7 +12,9 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
   await page.fill('#login-username', AGENT.username);
   await page.fill('#login-password', AGENT.password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await enterMfaCode(page, AGENT.username);
+  // Sa double authentification a été réinitialisée (dispense puis obligation) : il la reconfigure.
+  await completeMfaSetup(page, AGENT.username);
+  await expectNoHorizontalOverflow(page);
   await expect(page.getByRole('heading', { name: `Bonjour ${AGENT.firstname}` })).toBeVisible();
   await expect(page.getByRole('link', { name: '2 tickets de vos groupes attendent un responsable' })).toBeVisible();
   await expectNoHorizontalOverflow(page);

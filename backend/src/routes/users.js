@@ -124,6 +124,21 @@ function userRoutes({ db }) {
     res.json({ success: true });
   });
 
+  // Dispense de double authentification (personnes sans smartphone) : la configuration existante
+  // est effacée et les sessions fermées. Retirer la dispense ferme aussi les sessions : la personne
+  // configurera son appli à sa prochaine connexion.
+  router.post('/:id/mfa-exempt', async (req, res) => {
+    const id = parseId(req.params.id);
+    const row = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+    if (!row) throw new HttpError(404, 'Utilisateur introuvable.');
+    const exempt = (req.body || {}).exempt;
+    if (typeof exempt !== 'boolean') throw new HttpError(400, 'Indiquez exempt : true ou false.');
+    if (exempt) await resetMfa(db, row);
+    else await db.run('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [id]);
+    await db.run('UPDATE users SET mfa_exempt = ? WHERE id = ?', [exempt ? 1 : 0, id]);
+    res.json(publicUser(await db.get('SELECT * FROM users WHERE id = ?', [id])));
+  });
+
   router.delete('/:id', async (req, res) => {
     const id = parseId(req.params.id);
     if (id === req.user.id) throw new HttpError(400, 'Vous ne pouvez pas supprimer votre propre compte.');

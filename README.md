@@ -39,6 +39,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Code à 6 chiffres d'une appli d'authentification (Microsoft Authenticator, Google Authenticator, 2FAS…), norme TOTP. Chaque code ne sert qu'une fois.
 - Configuration à la première connexion (QR code ou clé à saisir), puis 10 codes de secours à usage unique, téléchargeables et renouvelables depuis « Mon compte ».
 - Un administrateur peut réinitialiser la double authentification d'un compte (téléphone perdu). Sur le PC serveur : `node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js <nom>` depuis `C:\Xchange\app\backend`, si plus aucun administrateur ne peut se connecter.
+- Un administrateur peut dispenser un compte de double authentification (Administration > Utilisateurs, « Dispenser »), par exemple pour une personne sans smartphone : elle se connecte avec son seul mot de passe. « Exiger » annule la dispense ; dans les deux cas, ses sessions sont fermées.
 - 10 codes faux de suite bloquent la vérification 15 minutes, comme pour le mot de passe.
 
 **Sauvegardes à la demande (Administration > Sauvegardes)**
@@ -143,7 +144,7 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `DELETE` | `/api/attachments/:id` | selon droits |
 | `GET` | `/api/stats` | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/users`, `/api/users/:id` | admin |
-| `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa` | admin |
+| `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa`, `/api/users/:id/mfa-exempt` (`exempt` : true ou false) | admin |
 | `GET` | `/api/groups` (groupes et membres) | connecté |
 | `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants) | admin |
 | `GET` | `/api/catalog`, `/api/catalog/:id` (formulaires proposés à l'utilisateur) | connecté |

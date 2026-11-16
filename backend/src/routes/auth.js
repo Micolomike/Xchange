@@ -55,7 +55,7 @@ function authRoutes({ db, config, authenticate }) {
   /** Réponse après un mot de passe correct : session, ou étape de double authentification. */
   function afterPassword(row) {
     if (row.mfa_enabled) return { mfaRequired: true, mfaToken: signChallenge(row, config, 'mfa'), user: publicUser(row) };
-    if (config.mfaRequired) {
+    if (config.mfaRequired && !row.mfa_exempt) {
       return { mfaSetupRequired: true, setupToken: signChallenge(row, config, 'setup'), user: publicUser(row) };
     }
     return { token: signToken(row, config, { mfa: false }), user: publicUser(row) };

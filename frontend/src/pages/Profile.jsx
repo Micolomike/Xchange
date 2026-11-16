@@ -45,7 +45,11 @@ function MfaSection({ user }) {
       </h2>
       {!user.mfa_enabled ? (
         <div className="space-y-3">
-          <p className="text-sm text-ink-soft">Pas encore activée sur ce compte.</p>
+          <p className="text-sm text-ink-soft">
+            {user.mfa_exempt
+              ? 'Un administrateur vous en a dispensé : le mot de passe suffit. Vous pouvez quand même l’activer.'
+              : 'Pas encore activée sur ce compte.'}
+          </p>
           <Link to="/double-authentification" className="btn btn-primary">
             Activer la double authentification
           </Link>

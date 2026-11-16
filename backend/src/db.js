@@ -148,6 +148,7 @@ const ADDED_COLUMNS = {
     mfa_secret: 'TEXT',
     mfa_pending_secret: 'TEXT',
     mfa_last_step: 'INTEGER NOT NULL DEFAULT 0',
+    mfa_exempt: 'INTEGER NOT NULL DEFAULT 0',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",

@@ -135,6 +135,31 @@ describe('double authentification (obligatoire)', () => {
     assert.equal((await ctx.api.post(`/api/users/${row.id}/reset-mfa`).set(bearer(carla.token))).status, 401);
   });
 
+  test('dispense par un admin : connexion sans code, puis dispense retirée', async () => {
+    const erin = await enroll('erin');
+    const users = await ctx.api.get('/api/users').set(bearer(secrets.adminSession));
+    const id = users.body.find((u) => u.username === 'erin').id;
+    assert.equal((await ctx.api.post(`/api/users/${id}/mfa-exempt`).set(bearer(erin.token)).send({ exempt: true })).status, 403);
+
+    const res = await ctx.api.post(`/api/users/${id}/mfa-exempt`).set(bearer(secrets.adminSession)).send({ exempt: true });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.mfa_exempt, true);
+    assert.equal(res.body.mfa_enabled, false);
+    // Ancienne session fermée ; la nouvelle connexion ne demande pas de code et fonctionne.
+    assert.equal((await ctx.api.get('/api/auth/me').set(bearer(erin.token))).status, 401);
+    const direct = await login('erin');
+    assert.ok(direct.token);
+    assert.equal(direct.mfaRequired, undefined);
+    assert.equal((await ctx.api.get('/api/tickets').set(bearer(direct.token))).status, 200);
+
+    // Dispense retirée : session fermée et configuration exigée à nouveau.
+    await ctx.api.post(`/api/users/${id}/mfa-exempt`).set(bearer(secrets.adminSession)).send({ exempt: false }).expect(200);
+    assert.equal((await ctx.api.get('/api/tickets').set(bearer(direct.token))).status, 401);
+    assert.equal((await login('erin')).mfaSetupRequired, true);
+    const bad = await ctx.api.post(`/api/users/${id}/mfa-exempt`).set(bearer(secrets.adminSession)).send({ exempt: 'oui' });
+    assert.equal(bad.status, 400);
+  });
+
   test('trop de codes faux bloquent la vérification', async () => {
     await enroll('dave');
     const a = await login('dave');
