@@ -254,7 +254,7 @@ test('catalogue : construire un formulaire puis l’utiliser', async () => {
 
   // Côté demandeur.
   await page.getByRole('link', { name: 'Catalogue', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/catalogue$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Catalogue' })).toBeVisible();
   await page.getByRole('link', { name: /Matériel en panne/ }).click();
   await page.getByRole('button', { name: 'Envoyer la demande' }).click();
   await expect(page.getByText('Ce champ est requis.')).toBeVisible();
