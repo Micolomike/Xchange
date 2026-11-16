@@ -63,6 +63,7 @@ function serializeTicket(row) {
 
 const MY_GROUPS_SQL = 'SELECT group_id FROM group_members WHERE user_id = ?';
 const { visibilityClause, permissionsFor } = require('./access');
+const { currentImpersonatorId } = require('./requestContext');
 
 async function userGroupIds(db, userId) {
   return (await db.all(MY_GROUPS_SQL, [userId])).map((r) => r.group_id);
@@ -80,10 +81,12 @@ async function loadVisibleTicket(db, user, id, { includeDeleted = false } = {}) 
 }
 
 async function addEvent(db, ticketId, actorId, type, fromValue = null, toValue = null, at = new Date().toISOString()) {
+  // impersonator_id : administrateur qui agissait à la place de l'utilisateur, le cas échéant.
   await db.run(
-    `INSERT INTO ticket_events (ticket_id, actor_id, type, from_value, to_value, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [ticketId, actorId, type, fromValue == null ? null : String(fromValue), toValue == null ? null : String(toValue), at]
+    `INSERT INTO ticket_events (ticket_id, actor_id, type, from_value, to_value, created_at, impersonator_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [ticketId, actorId, type, fromValue == null ? null : String(fromValue), toValue == null ? null : String(toValue), at,
+      currentImpersonatorId()]
   );
 }
 

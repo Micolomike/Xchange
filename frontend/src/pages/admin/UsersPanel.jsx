@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FiEdit2, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
+import { FiEdit2, FiEye, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import { useAuth } from '../../auth/context';
 import { api } from '../../lib/api';
 import { ROLES } from '../../lib/constants';
-import { formatDate } from '../../lib/format';
+import { formatDate, formatDateTime } from '../../lib/format';
 import { confirmAction, showInfo, toast, toastError } from '../../lib/notify';
 import { Avatar } from '../../components/Badges';
 import { ErrorState, Field, Spinner } from '../../components/ui';
@@ -100,15 +100,34 @@ function UserForm({ initial, onCancel, onSaved }) {
 }
 
 export default function UsersPanel() {
-  const { user: me } = useAuth();
+  const { user: me, impersonate } = useAuth();
+  const [log, setLog] = useState([]);
   const [users, setUsers] = useState(null);
   const [error, setError] = useState(null);
   const [formFor, setFormFor] = useState(null); // null, {} (création) ou un utilisateur
 
   const load = useCallback(() => {
     setError(null);
+    api('/api/users/impersonations')
+      .then(setLog)
+      .catch(() => {});
     return api('/api/users').then(setUsers).catch(setError);
   }, []);
+
+  const actAs = async (u) => {
+    const ok = await confirmAction({
+      title: `Vous mettre à la place de ${u.name} ?`,
+      text:
+        "Vous verrez Xchange comme cette personne pendant une heure au plus et pourrez agir pour elle. Chaque action portera la mention « fait par » votre nom, la personne verra cet accès dans « Mon compte », et ses demandes confidentielles resteront masquées.",
+      confirmText: 'Me mettre à sa place',
+    });
+    if (!ok) return;
+    try {
+      await impersonate(u);
+    } catch (err) {
+      toastError(err);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -308,6 +327,16 @@ export default function UsersPanel() {
                 <td className="px-5 py-3 text-right tabular-nums">{u.assigned_active_count}</td>
                 <td className="whitespace-nowrap px-5 py-3 text-ink-mute">{formatDate(u.created_at)}</td>
                 <td className="whitespace-nowrap px-5 py-3 text-right">
+                  <button
+                    type="button"
+                    className="btn btn-ghost px-2"
+                    onClick={() => actAs(u)}
+                    disabled={u.role === 'admin' || u.id === me.id}
+                    aria-label={`Se mettre à la place de ${u.username}`}
+                    title={u.role === 'admin' ? "Impossible pour un administrateur" : 'Se mettre à sa place'}
+                  >
+                    <FiEye aria-hidden="true" />
+                  </button>
                   <button type="button" className="btn btn-ghost px-2" onClick={() => setFormFor(u)} aria-label={`Modifier ${u.username}`} title="Modifier">
                     <FiEdit2 aria-hidden="true" />
                   </button>
@@ -346,6 +375,19 @@ export default function UsersPanel() {
           </tbody>
         </table>
       </div>
+      {log.length > 0 && (
+        <details className="border-t border-line px-5 py-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-ink-soft">Journal des prises de contrôle ({log.length})</summary>
+          <ul className="mt-2 space-y-1 text-ink-soft">
+            {log.map((l) => (
+              <li key={l.id}>
+                {formatDateTime(l.started_at)} : {l.admin} à la place de {l.target}
+                {l.ended_at ? `, jusqu'à ${formatDateTime(l.ended_at)}` : ', sans retour explicite (expire après 1 h)'}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

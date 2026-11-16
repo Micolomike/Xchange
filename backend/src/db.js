@@ -140,6 +140,14 @@ CREATE TABLE IF NOT EXISTS group_requests (
   decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS impersonations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  target_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  started_at TEXT NOT NULL,
+  ended_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -179,6 +187,12 @@ const ADDED_COLUMNS = {
     catalog_item: 'INTEGER REFERENCES catalog_items(id) ON DELETE SET NULL',
     form_answers: 'TEXT',
     confidential: 'INTEGER NOT NULL DEFAULT 0',
+  },
+  ticket_events: {
+    impersonator_id: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
+  },
+  comments: {
+    impersonator_id: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
   },
   user_groups: {
     joinable: 'INTEGER NOT NULL DEFAULT 1',

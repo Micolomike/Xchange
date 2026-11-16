@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthProvider from './auth/AuthProvider';
 import SettingsProvider from './settings/SettingsProvider';
 import Navbar from './components/Navbar';
+import ImpersonationBanner from './components/ImpersonationBanner';
 import RequireAuth from './components/RequireAuth';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -28,6 +29,7 @@ export default function App() {
         >
           Aller au contenu
         </a>
+        <ImpersonationBanner />
         <Navbar />
         <main id="contenu" className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
           <Routes>

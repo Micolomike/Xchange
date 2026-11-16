@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiShield, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
+import { formatDateTime } from '../lib/format';
 import { api } from '../lib/api';
 import RecoveryCodes from '../components/RecoveryCodes';
 import { ROLES } from '../lib/constants';
@@ -224,6 +225,34 @@ function GroupsSection() {
   );
 }
 
+/** Transparence : les prises de contrôle de ce compte par un administrateur. */
+function AdminAccessSection() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    api('/api/auth/impersonations')
+      .then(setRows)
+      .catch(() => {});
+  }, []);
+  if (!rows.length) return null;
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="admin-access-title">
+      <h2 id="admin-access-title" className="font-bold">
+        Accès à votre compte par un administrateur
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">
+        Pour vous dépanner, un administrateur peut voir Xchange à votre place ; ses actions portent alors son nom.
+      </p>
+      <ul className="mt-3 space-y-1 text-sm text-ink-soft">
+        {rows.map((r) => (
+          <li key={r.started_at}>
+            {formatDateTime(r.started_at)} : {r.admin}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, updateProfile } = useAuth();
   const [info, setInfo] = useState({ firstname: user.firstname, lastname: user.lastname, email: user.email });
@@ -275,6 +304,7 @@ export default function Profile() {
         {user.username}, {ROLES[user.role].toLowerCase()}
       </PageHeader>
 
+      {!user.impersonator && (
       <form onSubmit={saveInfo} className="panel mb-6 space-y-4 p-5 sm:p-6" noValidate>
         <h2 className="font-bold">Informations</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -294,10 +324,13 @@ export default function Profile() {
           </button>
         </div>
       </form>
+      )}
 
       <GroupsSection />
-      <MfaSection user={user} />
+      {!user.impersonator && <AdminAccessSection />}
+      {!user.impersonator && <MfaSection user={user} />}
 
+      {!user.impersonator && (
       <form onSubmit={savePassword} className="panel space-y-4 p-5 sm:p-6" noValidate>
         <h2 className="font-bold">Mot de passe</h2>
         <Field id="p-current" label="Mot de passe actuel" required error={pwdErrors.currentPassword}>
@@ -344,6 +377,7 @@ export default function Profile() {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

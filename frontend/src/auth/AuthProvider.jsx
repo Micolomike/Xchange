@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, setUnauthorizedHandler, tokenStore } from '../lib/api';
+import { api, impersonation, setUnauthorizedHandler, tokenStore } from '../lib/api';
 import { AuthContext } from './context';
 
 export default function AuthProvider({ children }) {
@@ -12,6 +12,11 @@ export default function AuthProvider({ children }) {
   const [challenge, setChallenge] = useState(null);
 
   const clearSession = useCallback(() => {
+    // Fin (ou expiration) d'une prise de contrôle : retour à la session de l'administrateur.
+    if (impersonation.restore()) {
+      window.location.assign('/admin');
+      return;
+    }
     tokenStore.clear();
     setUser(null);
     setChallenge(null);
@@ -123,6 +128,23 @@ export default function AuthProvider({ children }) {
 
   const cancelChallenge = useCallback(() => setChallenge(null), []);
 
+  const impersonate = useCallback(async (target) => {
+    const { token } = await api(`/api/users/${target.id}/impersonate`, { method: 'POST' });
+    impersonation.start(token);
+    window.location.assign('/');
+  }, []);
+
+  const stopImpersonating = useCallback(async () => {
+    await api('/api/auth/impersonate/stop', { method: 'POST' }).catch(() => {});
+    if (impersonation.restore()) window.location.assign('/admin');
+  }, []);
+
+  // Se déconnecter pendant une prise de contrôle ramène à la session de l'administrateur.
+  const logout = useCallback(() => {
+    if (impersonation.active()) stopImpersonating();
+    else clearSession();
+  }, [clearSession, stopImpersonating]);
+
   const updateProfile = useCallback(
     async (body) => openSession(await api('/api/auth/me', { method: 'PUT', body })),
     [openSession]
@@ -144,7 +166,9 @@ export default function AuthProvider({ children }) {
       confirmMfaSetup,
       finishMfaSetup: openSession,
       cancelChallenge,
-      logout: clearSession,
+      logout,
+      impersonate,
+      stopImpersonating,
       updateProfile,
       retry: loadSession,
     }),
@@ -161,7 +185,9 @@ export default function AuthProvider({ children }) {
       confirmMfaSetup,
       openSession,
       cancelChallenge,
-      clearSession,
+      logout,
+      impersonate,
+      stopImpersonating,
       updateProfile,
       loadSession,
     ]

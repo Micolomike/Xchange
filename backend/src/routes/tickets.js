@@ -80,8 +80,9 @@ async function loadTicketDetail(db, user, id) {
 
   const comments = await db.all(
     `SELECT c.id, c.body, c.created_at, u.id AS author_id, u.username AS author_username,
-            u.firstname AS author_firstname, u.lastname AS author_lastname
-     FROM comments c LEFT JOIN users u ON u.id = c.author_id
+            u.firstname AS author_firstname, u.lastname AS author_lastname,
+            i.id AS imp_id, i.username AS imp_username, i.firstname AS imp_firstname, i.lastname AS imp_lastname
+     FROM comments c LEFT JOIN users u ON u.id = c.author_id LEFT JOIN users i ON i.id = c.impersonator_id
      WHERE c.ticket_id = ? ORDER BY c.created_at ASC, c.id ASC`,
     [id]
   );
@@ -94,8 +95,9 @@ async function loadTicketDetail(db, user, id) {
   );
   const events = await db.all(
     `SELECT e.id, e.type, e.from_value, e.to_value, e.created_at, u.id AS actor_id,
-            u.username AS actor_username, u.firstname AS actor_firstname, u.lastname AS actor_lastname
-     FROM ticket_events e LEFT JOIN users u ON u.id = e.actor_id
+            u.username AS actor_username, u.firstname AS actor_firstname, u.lastname AS actor_lastname,
+            i.id AS imp_id, i.username AS imp_username, i.firstname AS imp_firstname, i.lastname AS imp_lastname
+     FROM ticket_events e LEFT JOIN users u ON u.id = e.actor_id LEFT JOIN users i ON i.id = e.impersonator_id
      WHERE e.ticket_id = ? ORDER BY e.created_at ASC, e.id ASC`,
     [id]
   );
@@ -133,6 +135,7 @@ async function loadTicketDetail(db, user, id) {
       body: c.body,
       created_at: toIso(c.created_at),
       author: userSummary(c, 'author_'),
+      on_behalf_by: userSummary(c, 'imp_')?.name || null,
       canDelete: user.role === 'admin' || c.author_id === user.id,
     })),
     attachments: attachments.map((a) => ({
@@ -151,6 +154,7 @@ async function loadTicketDetail(db, user, id) {
       to: label(e, e.to_value),
       created_at: toIso(e.created_at),
       actor: userSummary(e, 'actor_'),
+      on_behalf_by: userSummary(e, 'imp_')?.name || null,
     })),
   };
 }
@@ -433,8 +437,8 @@ function ticketRoutes({ db }) {
 
     const now = nowIso();
     const { lastID } = await db.run(
-      'INSERT INTO comments (ticket_id, author_id, body, created_at) VALUES (?, ?, ?, ?)',
-      [id, req.user.id, body, now]
+      'INSERT INTO comments (ticket_id, author_id, body, created_at, impersonator_id) VALUES (?, ?, ?, ?, ?)',
+      [id, req.user.id, body, now, req.user.impersonator?.id ?? null]
     );
     await db.run('UPDATE tickets SET updated_at = ? WHERE id = ?', [now, id]);
     res.status(201).json({
@@ -442,6 +446,7 @@ function ticketRoutes({ db }) {
       body,
       created_at: now,
       author: { id: req.user.id, username: req.user.username, name: req.user.name },
+      on_behalf_by: req.user.impersonator?.name || null,
       canDelete: true,
     });
   });

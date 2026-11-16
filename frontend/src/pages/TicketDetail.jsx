@@ -445,6 +445,9 @@ export default function TicketDetail() {
                     <span className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-white bg-line-strong ring-1 ring-line-strong" />
                     <p className="text-ink-soft">
                       {describeEvent(item.data)}
+                      {item.data.on_behalf_by && (
+                        <span className="text-ink-mute"> (fait par {item.data.on_behalf_by})</span>
+                      )}
                       <time dateTime={item.at} className="ml-2 text-xs text-ink-mute" title={formatDateTime(item.at)}>
                         {formatRelative(item.at)}
                       </time>
@@ -456,6 +459,9 @@ export default function TicketDetail() {
                       <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
                         <Avatar user={item.data.author || { name: '?', username: '?' }} />
                         <span className="font-semibold">{item.data.author?.name || 'Utilisateur supprimé'}</span>
+                        {item.data.on_behalf_by && (
+                          <span className="text-xs text-ink-mute">écrit par {item.data.on_behalf_by}</span>
+                        )}
                         <time dateTime={item.at} className="text-xs text-ink-mute" title={formatDateTime(item.at)}>
                           {formatRelative(item.at)}
                         </time>

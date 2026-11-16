@@ -22,6 +22,11 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Le premier compte créé devient administrateur. Le dernier administrateur ne peut être ni supprimé ni rétrogradé.
 - Changer ou réinitialiser un mot de passe ferme les autres sessions de l'utilisateur.
 
+**Se mettre à la place d'un utilisateur (administrateurs)**
+- Depuis Administration > Utilisateurs (icône œil) : l'administrateur voit et utilise Xchange comme la personne, pendant une heure au plus, avec un bandeau « Revenir à mon compte ».
+- Les actions sont enregistrées au nom de la personne avec la mention « fait par » l'administrateur ; un journal garde chaque prise de contrôle, visible aussi par la personne dans « Mon compte ».
+- Limites : jamais vers un autre administrateur ; demandes confidentielles masquées ; mot de passe, informations du compte et double authentification non modifiables ; le jeton tombe si l'administrateur perd son rôle ou change de mot de passe.
+
 **Groupes d'affectation**
 - Un administrateur crée des groupes (Administration > Groupes) et choisit leurs membres.
 - Un ticket peut être affecté à un groupe dès sa création, par n'importe quel utilisateur. Les membres du groupe le voient, le prennent en charge, changent son statut, l'assignent à l'un d'eux ou le transfèrent à un autre groupe.
@@ -165,6 +170,8 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa`, `/api/users/:id/mfa-exempt` (`exempt` : true ou false) | admin |
 | `GET` | `/api/groups` (groupes et membres) | connecté |
 | `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants, `joinable`) | admin |
+| `POST` | `/api/users/:id/impersonate` ; `GET` `/api/users/impersonations` | admin |
+| `POST` | `/api/auth/impersonate/stop` ; `GET` `/api/auth/impersonations` (accès à mon compte) | connecté |
 | `GET` | `/api/groups/self` ; `POST`, `DELETE` `/api/groups/:id/requests` ; `POST` `/api/groups/:id/leave` | connecté |
 | `GET` | `/api/groups/requests` ; `POST` `/api/groups/requests/:id/approve`, `/api/groups/requests/:id/reject` | admin |
 | `GET` | `/api/catalog`, `/api/catalog/:id` (formulaires proposés à l'utilisateur) | connecté |

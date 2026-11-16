@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { computeAccess } = require('../access');
+const { runWithContext } = require('../requestContext');
 const { HttpError, publicUser } = require('../utils');
 
 /** Jeton de session, délivré seulement après la double authentification quand elle est exigée. */
@@ -7,6 +8,18 @@ function signToken(user, config, { mfa = true } = {}) {
   return jwt.sign({ sub: user.id, tv: user.token_version || 0, typ: 'session', mfa }, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
   });
+}
+
+/**
+ * Jeton d'un administrateur qui se met à la place d'un utilisateur : session de l'utilisateur,
+ * marquée par l'administrateur (imp) et révoquée si l'un des deux change de mot de passe ou de rôle.
+ */
+function signImpersonationToken(target, admin, config) {
+  return jwt.sign(
+    { sub: target.id, tv: target.token_version || 0, typ: 'session', mfa: true, imp: admin.id, itv: admin.token_version || 0 },
+    config.jwtSecret,
+    { expiresIn: '1h' }
+  );
 }
 
 /** Jeton intermédiaire : « mfa » (saisir le code, 5 min) ou « setup » (configurer l'appli, 15 min). */
@@ -46,7 +59,13 @@ async function readSession(req, { db, config }) {
   if (!row || (row.token_version || 0) !== payload.tv) return null;
   // Session sans code : refusée quand la double authentification est obligatoire, sauf compte dispensé.
   if (config.mfaRequired && !payload.mfa && !row.mfa_exempt) return null;
-  return { row, mfa: Boolean(payload.mfa) };
+  let impersonator = null;
+  if (payload.imp) {
+    impersonator = await db.get('SELECT * FROM users WHERE id = ?', [payload.imp]);
+    if (!impersonator || impersonator.role !== 'admin' || (impersonator.token_version || 0) !== payload.itv) return null;
+    if (row.role === 'admin') return null;
+  }
+  return { row, mfa: Boolean(payload.mfa), impersonator };
 }
 
 /** Vérifie le jeton de session et recharge l'utilisateur (rôle à jour, compte supprimé = accès coupé). */
@@ -57,8 +76,18 @@ function authenticate({ db, config }) {
     if (!session) throw new HttpError(401, 'Session expirée, veuillez vous reconnecter.');
     req.user = { ...publicUser(session.row), access: await computeAccess(db, session.row) };
     req.sessionMfa = session.mfa;
-    next();
+    if (session.impersonator) {
+      const admin = publicUser(session.impersonator);
+      req.user.impersonator = { id: admin.id, username: admin.username, name: admin.name };
+    }
+    runWithContext({ impersonatorId: session.impersonator?.id ?? null }, () => next());
   };
+}
+
+/** Actions personnelles (mot de passe, double authentification) : jamais à la place de quelqu'un. */
+function forbidImpersonation(req, res, next) {
+  if (req.user?.impersonator) throw new HttpError(403, "Impossible pendant que vous êtes à la place d'un utilisateur.");
+  next();
 }
 
 function requireAdmin(req, res, next) {
@@ -66,4 +95,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { signToken, signChallenge, verifyChallenge, readSession, authenticate, requireAdmin };
+module.exports = {
+  signToken,
+  signChallenge,
+  signImpersonationToken,
+  verifyChallenge,
+  readSession,
+  authenticate,
+  requireAdmin,
+  forbidImpersonation,
+};

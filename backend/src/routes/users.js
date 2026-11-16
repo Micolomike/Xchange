@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { HttpError, publicUser, validateUserInput, parseId, nowIso } = require('../utils');
+const { HttpError, publicUser, validateUserInput, parseId, nowIso, displayName } = require('../utils');
+const { signImpersonationToken } = require('../middleware/auth');
 
 function generatePassword(length = 12) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -25,7 +26,7 @@ async function countAdmins(db) {
 }
 
 /** Gestion des comptes, réservée aux administrateurs. */
-function userRoutes({ db }) {
+function userRoutes({ db, config }) {
   const router = express.Router();
 
   router.get('/', async (req, res) => {
@@ -137,6 +138,32 @@ function userRoutes({ db }) {
     else await db.run('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [id]);
     await db.run('UPDATE users SET mfa_exempt = ? WHERE id = ?', [exempt ? 1 : 0, id]);
     res.json(publicUser(await db.get('SELECT * FROM users WHERE id = ?', [id])));
+  });
+
+  // Se mettre à la place d'un utilisateur (non administrateur) pendant une heure au plus.
+  router.post('/:id/impersonate', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === req.user.id) throw new HttpError(400, 'Vous êtes déjà sur votre propre compte.');
+    const target = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+    if (!target) throw new HttpError(404, 'Utilisateur introuvable.');
+    if (target.role === 'admin') throw new HttpError(403, "Impossible de se mettre à la place d'un autre administrateur.");
+    const admin = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    await db.run('INSERT INTO impersonations (admin_id, target_id, started_at) VALUES (?, ?, ?)', [admin.id, target.id, nowIso()]);
+    res.json({ token: signImpersonationToken(target, admin, config), user: publicUser(target) });
+  });
+
+  router.get('/impersonations', async (req, res) => {
+    const rows = await db.all(
+      `SELECT i.id, i.started_at, i.ended_at,
+         a.username AS a_username, a.firstname AS a_firstname, a.lastname AS a_lastname,
+         t.username AS t_username, t.firstname AS t_firstname, t.lastname AS t_lastname
+       FROM impersonations i
+       LEFT JOIN users a ON a.id = i.admin_id
+       LEFT JOIN users t ON t.id = i.target_id
+       ORDER BY i.started_at DESC LIMIT 50`
+    );
+    const name = (r, p) => (r[`${p}_username`] ? displayName({ username: r[`${p}_username`], firstname: r[`${p}_firstname`], lastname: r[`${p}_lastname`] }) : 'Compte supprimé');
+    res.json(rows.map((r) => ({ id: r.id, started_at: r.started_at, ended_at: r.ended_at, admin: name(r, 'a'), target: name(r, 't') })));
   });
 
   router.delete('/:id', async (req, res) => {

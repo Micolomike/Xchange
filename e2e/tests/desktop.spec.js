@@ -389,6 +389,24 @@ test("validation d'une demande d'adhésion", async () => {
   await expect(page.getByRole('row', { name: /Support informatique/ })).toContainText('2 membres');
 });
 
+test('se mettre à la place d’un utilisateur', async () => {
+  await page.goto('/admin');
+  await page.getByRole('button', { name: `Se mettre à la place de ${USER.username}` }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByText('Vous êtes à la place de')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Administration' })).toHaveCount(0);
+
+  await page.goto(`/tickets/${ids[0]}`);
+  await page.fill('#comment', 'Je regarde avec toi, Inès.');
+  await page.getByRole('button', { name: 'Commenter' }).click();
+  await expect(page.getByText(`écrit par ${ADMIN.firstname} ${ADMIN.lastname}`)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Revenir à mon compte' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByText('Vous êtes à la place de')).toHaveCount(0);
+  await expect(page.getByText('Journal des prises de contrôle (1)')).toBeVisible();
+});
+
 test('paramètres : listes, délai par défaut et apparence', async () => {
   await page.goto('/admin?tab=settings');
   // Matrice des droits : le groupe Support informatique voit tous les tickets et peut supprimer.

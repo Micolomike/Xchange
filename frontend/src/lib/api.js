@@ -34,6 +34,38 @@ export const tokenStore = {
   },
 };
 
+// Prise de contrôle (impersonate) : la session de l'administrateur est mise de côté.
+const ADMIN_TOKEN_KEY = 'xchange.adminToken';
+export const impersonation = {
+  active() {
+    try {
+      return Boolean(localStorage.getItem(ADMIN_TOKEN_KEY));
+    } catch {
+      return false;
+    }
+  },
+  start(token) {
+    try {
+      localStorage.setItem(ADMIN_TOKEN_KEY, tokenStore.get());
+    } catch {
+      /* rien */
+    }
+    tokenStore.set(token);
+  },
+  /** Reprend la session de l'administrateur ; renvoie false s'il n'y en avait pas. */
+  restore() {
+    try {
+      const admin = localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!admin) return false;
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      tokenStore.set(admin);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+
 let unauthorizedHandler = null;
 export function setUnauthorizedHandler(fn) {
   unauthorizedHandler = fn;

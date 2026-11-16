@@ -86,6 +86,13 @@ const placeholders = (list) => list.map(() => '?').join(',');
 
 /** Clause SQL des tickets visibles par l'utilisateur (alias de table : t). */
 function visibilityClause(user) {
+  const base = baseVisibility(user);
+  // Administrateur à la place d'un utilisateur : les demandes confidentielles restent masquées.
+  if (user.impersonator) return { sql: `(${base.sql} AND t.confidential = 0)`, params: base.params };
+  return base;
+}
+
+function baseVisibility(user) {
   const a = user.access || { groupIds: [], viewGroupIds: [], scopeAll: false, grantedCategories: [], hiddenCategories: [] };
   if (user.role === 'admin') {
     if (!user.id) return { sql: '1 = 1', params: [] };

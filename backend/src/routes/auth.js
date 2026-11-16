@@ -1,9 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
-const { HttpError, publicUser, validateUserInput, nowIso } = require('../utils');
+const { displayName, HttpError, publicUser, validateUserInput, nowIso } = require('../utils');
 const QRCode = require('qrcode');
-const { signToken, signChallenge, verifyChallenge, readSession } = require('../middleware/auth');
+const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
 const mfa = require('../mfa');
 const { requestGroups } = require('./groups');
 
@@ -82,6 +82,7 @@ function authRoutes({ db, config, authenticate }) {
     if (body.setupToken) return verifyChallenge(body.setupToken, 'setup', { db, config });
     const session = await readSession(req, { db, config });
     if (!session) throw new HttpError(401, 'Cette étape a expiré : reconnectez-vous.');
+    if (session.impersonator) throw new HttpError(403, "Impossible pendant que vous êtes à la place d'un utilisateur.");
     return session.row;
   }
 
@@ -212,12 +213,34 @@ function authRoutes({ db, config, authenticate }) {
     res.json({ token: signToken(updated, config, { mfa: true }), user: publicUser(updated), recoveryCodes });
   });
 
+  // Fin d'une prise de contrôle : le navigateur reprend ensuite la session de l'administrateur.
+  router.post('/impersonate/stop', authenticate, async (req, res) => {
+    if (!req.user.impersonator) throw new HttpError(400, "Vous n'êtes pas à la place d'un utilisateur.");
+    await db.run(
+      `UPDATE impersonations SET ended_at = ?
+       WHERE id = (SELECT id FROM impersonations WHERE admin_id = ? AND target_id = ? AND ended_at IS NULL ORDER BY id DESC LIMIT 1)`,
+      [nowIso(), req.user.impersonator.id, req.user.id]
+    );
+    res.json({ success: true });
+  });
+
+  // Transparence : chaque utilisateur voit quand un administrateur a utilisé son compte.
+  router.get('/impersonations', authenticate, forbidImpersonation, async (req, res) => {
+    const rows = await db.all(
+      `SELECT i.started_at, i.ended_at, u.username, u.firstname, u.lastname
+       FROM impersonations i LEFT JOIN users u ON u.id = i.admin_id
+       WHERE i.target_id = ? ORDER BY i.started_at DESC LIMIT 20`,
+      [req.user.id]
+    );
+    res.json(rows.map((r) => ({ started_at: r.started_at, ended_at: r.ended_at, admin: r.username ? displayName(r) : 'Administrateur supprimé' })));
+  });
+
   router.get('/me', authenticate, async (req, res) => {
     res.json({ user: req.user, recoveryCodesLeft: await recoveryCodesLeft(req.user.id) });
   });
 
   // Nouveaux codes de secours (les anciens deviennent inutilisables) : exige un code de l'appli.
-  router.post('/mfa/recovery-codes', authenticate, async (req, res) => {
+  router.post('/mfa/recovery-codes', authenticate, forbidImpersonation, async (req, res) => {
     const row = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
     if (!row.mfa_enabled) throw new HttpError(400, "La double authentification n'est pas activée.");
     const key = `mfa:${row.id}`;
@@ -232,7 +255,7 @@ function authRoutes({ db, config, authenticate }) {
     res.json({ recoveryCodes: await newRecoveryCodes(row.id) });
   });
 
-  router.put('/me', authenticate, async (req, res) => {
+  router.put('/me', authenticate, forbidImpersonation, async (req, res) => {
     const body = req.body || {};
     const { role, username, ...editable } = body; // ni le rôle ni l'identifiant ne sont modifiables ici
     const values = validateUserInput(editable, { partial: true });
