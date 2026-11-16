@@ -104,9 +104,16 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |
 | `POST` | `/api/admin/trash/:id/restore` | admin |
 
-## Tests
+## Tests et intégration continue
 
 ```bash
 cd backend && npm test      # 31 tests : authentification, droits, tickets, pièces jointes, admin, migration
 cd frontend && npm run lint && npm run build
+
+# Parcours navigateur (Playwright) : démarre l'API sur une base jetable et le frontend compilé
+cd e2e && npm install && npx playwright install chromium && npm test
 ```
+
+Les tests navigateur couvrent l'inscription du premier administrateur, la création d'un ticket avec pièce jointe, les commentaires, le changement de statut, le téléchargement, la recherche et les filtres, le tableau de bord, la corbeille, la réinitialisation de mot de passe, les droits d'un utilisateur simple, et l'affichage sur mobile (aucun défilement horizontal).
+
+GitHub Actions (`.github/workflows/ci.yml`) lance les trois niveaux de tests à chaque push et pull request. Render et Vercel attendent leur succès avant de déployer : un commit qui casse un test n'arrive pas en production.

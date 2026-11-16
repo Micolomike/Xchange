@@ -22,3 +22,7 @@ database/*.db-shm
 database/uploads/
 *.imported.json
 electron-app/
+
+# Tests navigateur
+e2e/test-results/
+e2e/playwright-report/

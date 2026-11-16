@@ -1,0 +1,13 @@
+{
+  "name": "xchange-e2e",
+  "private": true,
+  "description": "Parcours navigateur de bout en bout (Playwright) : API locale + frontend compilé",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}
