@@ -7,6 +7,7 @@ export default function AuthProvider({ children }) {
   // loading : vérification du jeton en cours ; error : serveur injoignable ; ready : état connu.
   const [status, setStatus] = useState(() => (tokenStore.get() ? 'loading' : 'ready'));
   const [registrationOpen, setRegistrationOpen] = useState(true);
+  const [joinableGroups, setJoinableGroups] = useState([]);
   // Étape intermédiaire après le mot de passe : { kind: 'mfa' | 'setup', token, user }.
   const [challenge, setChallenge] = useState(null);
 
@@ -40,7 +41,10 @@ export default function AuthProvider({ children }) {
     setUnauthorizedHandler(clearSession);
     loadSession();
     api('/api/auth/config', { auth: false })
-      .then((cfg) => setRegistrationOpen(cfg.registrationOpen))
+      .then((cfg) => {
+        setRegistrationOpen(cfg.registrationOpen);
+        setJoinableGroups(cfg.joinableGroups || []);
+      })
       .catch(() => {});
   }, [clearSession, loadSession]);
 
@@ -131,6 +135,7 @@ export default function AuthProvider({ children }) {
       isAdmin: user?.role === 'admin',
       canCreate: Boolean(user) && (user.role === 'admin' || user.access?.rights?.create !== false),
       registrationOpen,
+      joinableGroups,
       challenge,
       login,
       register,
@@ -147,6 +152,7 @@ export default function AuthProvider({ children }) {
       user,
       status,
       registrationOpen,
+      joinableGroups,
       challenge,
       login,
       register,

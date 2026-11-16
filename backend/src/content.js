@@ -6,7 +6,7 @@
 const { nowIso } = require('./utils');
 const { getSetting, setSetting } = require('./settings');
 
-const CONTENT_VERSION = 2;
+const CONTENT_VERSION = 3;
 
 const CATEGORIES = [
   ['informatique', 'Informatique et internet'],
@@ -620,6 +620,8 @@ async function applyContent(db, { logger = console } = {}) {
   const added = { categories: 0, groups: 0, forms: 0, rights: 0, rules: 0 };
   if (version < 1) await applyV1(db, now, added);
   if (version < 2) await applyV2(db, now, added, { previousVersion: version });
+  // Version 3 : les Coordinateurs (droits étendus) ne sont pas ouverts aux demandes d'adhésion.
+  if (version < 3) await db.run("UPDATE user_groups SET joinable = 0 WHERE name = 'Coordinateurs' COLLATE NOCASE");
   await setSetting(db, 'content_version', CONTENT_VERSION);
   logger.info(
     `Contenu mis à jour (version ${CONTENT_VERSION}) : ${added.categories} catégorie(s), ${added.groups} groupe(s), ` +

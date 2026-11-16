@@ -5,6 +5,7 @@ const { HttpError, publicUser, validateUserInput, nowIso } = require('../utils')
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession } = require('../middleware/auth');
 const mfa = require('../mfa');
+const { requestGroups } = require('./groups');
 
 // Haché factice : rend le temps de réponse identique que l'utilisateur existe ou non.
 const DUMMY_HASH = bcrypt.hashSync('xchange-dummy-password', 10);
@@ -94,8 +95,12 @@ function authRoutes({ db, config, authenticate }) {
       })
     : (req, res, next) => next();
 
-  router.get('/config', (req, res) => {
-    res.json({ registrationOpen: config.allowRegistration });
+  router.get('/config', async (req, res) => {
+    // Groupes ouverts aux demandes, proposés dès l'inscription.
+    const joinableGroups = config.allowRegistration
+      ? await db.all('SELECT id, name, description FROM user_groups WHERE joinable = 1 ORDER BY name COLLATE NOCASE')
+      : [];
+    res.json({ registrationOpen: config.allowRegistration, joinableGroups });
   });
 
   router.post('/register', limiter, async (req, res) => {
@@ -116,6 +121,12 @@ function authRoutes({ db, config, authenticate }) {
       [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso()]
     );
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
+    // Groupes choisis à l'inscription : des demandes à valider par un administrateur.
+    const wanted = Array.isArray(req.body.groups) ? req.body.groups.filter((id) => Number.isInteger(Number(id))) : [];
+    if (wanted.length) {
+      const open = (await db.all('SELECT id FROM user_groups WHERE joinable = 1')).map((g) => g.id);
+      await requestGroups(db, row.id, wanted.map(Number).filter((id) => open.includes(id)), '');
+    }
     res.status(201).json(afterPassword(row));
   });
 

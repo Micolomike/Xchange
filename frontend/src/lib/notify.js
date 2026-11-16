@@ -39,3 +39,19 @@ export async function confirmAction({ title, text, confirmText, danger = false }
 export function showInfo({ title, html, icon = 'info' }) {
   return Swal.fire({ title, html, icon, confirmButtonText: 'Fermer', confirmButtonColor: accent() });
 }
+
+/** Demande un texte court (motif de refus…) ; renvoie { isConfirmed, value }. */
+export function promptText({ title, label, confirmText }) {
+  return Swal.fire({
+    title,
+    input: 'text',
+    inputLabel: label,
+    inputAttributes: { maxlength: '500' },
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: 'Annuler',
+    reverseButtons: true,
+    confirmButtonColor: '#c22f2f',
+    cancelButtonColor: '#5b6573',
+  });
+}

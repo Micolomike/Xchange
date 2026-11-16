@@ -6,7 +6,8 @@ import { Logo } from '../components/Navbar';
 import { toast } from '../lib/notify';
 
 export default function Register() {
-  const { user, register, registrationOpen, challenge } = useAuth();
+  const { user, register, registrationOpen, challenge, joinableGroups } = useAuth();
+  const [wantedGroups, setWantedGroups] = useState([]);
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -54,7 +55,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       const { confirmPassword: _ignored, ...payload } = form;
-      const next = await register(payload);
+      const next = await register({ ...payload, groups: wantedGroups });
       toast(next.user.role === 'admin' ? 'Compte créé : vous êtes administrateur' : 'Compte créé');
       navigate(next.kind === 'setup' ? '/double-authentification' : '/', { replace: true });
     } catch (err) {
@@ -97,6 +98,36 @@ export default function Register() {
           <Field id="reg-confirm" label="Confirmer le mot de passe" required error={errors.confirmPassword}>
             {input('confirmPassword', { type: 'password', autoComplete: 'new-password' })}
           </Field>
+          {joinableGroups.length > 0 && (
+            <fieldset>
+              <legend className="label">Groupes d'entraide à rejoindre (facultatif)</legend>
+              <p className="-mt-0.5 mb-2 text-xs text-ink-mute">
+                Pour aider les autres dans un domaine. Un administrateur valide chaque demande ; vous pourrez en changer dans
+                « Mon compte ».
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {joinableGroups.map((g) => (
+                  <label
+                    key={g.id}
+                    title={g.description}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
+                      wantedGroups.includes(g.id) ? 'border-accent bg-accent-soft text-accent-strong' : 'border-line-strong'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      checked={wantedGroups.includes(g.id)}
+                      onChange={() =>
+                        setWantedGroups((list) => (list.includes(g.id) ? list.filter((x) => x !== g.id) : [...list, g.id]))
+                      }
+                    />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {error && !Object.keys(errors).some((k) => errors[k]) && (
             <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
               {error}

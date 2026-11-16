@@ -198,7 +198,7 @@ test("groupes d'affectation", async () => {
   await page.fill('#g-name', 'Support informatique');
   await page.fill('#g-description', 'Postes, réseau et imprimantes');
   await page.getByPlaceholder('Filtrer par nom').fill('kar');
-  await page.getByRole('checkbox').check();
+  await page.locator('fieldset').getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Créer le groupe' }).click();
   const row = page.getByRole('row', { name: /Support informatique/ });
   await expect(row).toContainText('1 membre');
@@ -352,6 +352,14 @@ test('un utilisateur simple a des droits restreints', async () => {
   await page.goto(`/tickets/${ids[0]}`);
   await expect(page.getByRole('button', { name: 'Modifier' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mettre à la corbeille' })).toHaveCount(0);
+
+  // Demande pour rejoindre un groupe d'entraide, à valider par un administrateur.
+  await page.goto('/profile');
+  const groupRow = page.locator('section[aria-labelledby=groups-title] li', { hasText: 'Support informatique' });
+  await groupRow.getByRole('button', { name: 'Demander à rejoindre' }).click();
+  await groupRow.getByLabel("Un mot pour l'administrateur (facultatif)").fill('Je dépanne déjà toute la famille');
+  await groupRow.getByRole('button', { name: 'Envoyer la demande' }).click();
+  await expect(groupRow.getByText('Demande en attente')).toBeVisible();
 });
 
 test('connexion avec un code de secours', async () => {
@@ -367,6 +375,18 @@ test('connexion avec un code de secours', async () => {
   await page.getByRole('button', { name: 'Valider' }).click();
   await expect(page.getByText('il vous en reste 9')).toBeVisible();
   await expect(page.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
+});
+
+test("validation d'une demande d'adhésion", async () => {
+  await page.goto('/');
+  await page.getByRole('link', { name: "1 demande d'adhésion à un groupe à valider" }).click();
+  await expect(page).toHaveURL(/\/admin\?tab=groups$/);
+  const card = page.locator('section[aria-labelledby=req-title]');
+  await expect(card).toContainText('souhaite rejoindre Support informatique');
+  await expect(card).toContainText('Je dépanne déjà toute la famille');
+  await card.getByRole('button', { name: 'Accepter' }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByRole('row', { name: /Support informatique/ })).toContainText('2 membres');
 });
 
 test('paramètres : listes, délai par défaut et apparence', async () => {

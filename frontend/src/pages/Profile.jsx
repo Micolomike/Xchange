@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiShield } from 'react-icons/fi';
+import { FiShield, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { api } from '../lib/api';
 import RecoveryCodes from '../components/RecoveryCodes';
@@ -100,6 +100,130 @@ function MfaSection({ user }) {
   );
 }
 
+function GroupsSection() {
+  const [groups, setGroups] = useState(null);
+  const [asking, setAsking] = useState(null); // id du groupe dont on rédige la demande
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () =>
+    api('/api/groups/self')
+      .then(setGroups)
+      .catch(() => setGroups([]));
+  useEffect(() => {
+    load();
+  }, []);
+
+  const act = async (fn, done) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast(done);
+      setAsking(null);
+      setMessage('');
+      await load();
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!groups || groups.length === 0) return null;
+
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="groups-title">
+      <h2 id="groups-title" className="flex items-center gap-2 font-bold">
+        <FiUsers aria-hidden="true" /> Mes groupes d'entraide
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">
+        Rejoindre un groupe, c'est proposer son aide dans ce domaine : vous verrez et traiterez ses demandes. Un administrateur
+        valide chaque demande.
+      </p>
+      <ul className="mt-4 divide-y divide-line rounded-md border border-line">
+        {groups.map((g) => {
+          const pending = g.request?.status === 'pending';
+          const rejected = !g.member && g.request?.status === 'rejected';
+          return (
+            <li key={g.id} className="px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{g.name}</span>
+                  {g.description && <span className="block text-xs text-ink-mute">{g.description}</span>}
+                  {rejected && (
+                    <span className="block text-xs text-danger">
+                      Demande refusée{g.request.reason ? ` : ${g.request.reason}` : ''}
+                    </span>
+                  )}
+                </span>
+                {g.member ? (
+                  <>
+                    <span className="text-sm font-semibold text-resolved">Membre</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost px-2 py-1 text-sm"
+                      disabled={busy}
+                      onClick={() => act(() => api(`/api/groups/${g.id}/leave`, { method: 'POST' }), `Vous avez quitté ${g.name}`)}
+                    >
+                      Quitter
+                    </button>
+                  </>
+                ) : pending ? (
+                  <>
+                    <span className="text-sm font-semibold text-progress">Demande en attente</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost px-2 py-1 text-sm"
+                      disabled={busy}
+                      onClick={() => act(() => api(`/api/groups/${g.id}/requests`, { method: 'DELETE' }), 'Demande annulée')}
+                    >
+                      Annuler
+                    </button>
+                  </>
+                ) : g.joinable && asking !== g.id ? (
+                  <button type="button" className="btn btn-secondary px-3 py-1.5 text-sm" onClick={() => setAsking(g.id)}>
+                    Demander à rejoindre
+                  </button>
+                ) : null}
+              </div>
+              {asking === g.id && (
+                <form
+                  className="mt-3 flex flex-wrap items-end gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    act(
+                      () => api(`/api/groups/${g.id}/requests`, { method: 'POST', body: { message } }),
+                      'Demande envoyée aux administrateurs'
+                    );
+                  }}
+                >
+                  <label className="min-w-0 flex-1">
+                    <span className="label">Un mot pour l'administrateur (facultatif)</span>
+                    <input
+                      className="field"
+                      value={message}
+                      maxLength={500}
+                      placeholder="Ce que vous savez faire dans ce domaine"
+                      onChange={(e) => setMessage(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                  <button type="submit" className="btn btn-primary" disabled={busy}>
+                    Envoyer la demande
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setAsking(null)}>
+                    Annuler
+                  </button>
+                </form>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, updateProfile } = useAuth();
   const [info, setInfo] = useState({ firstname: user.firstname, lastname: user.lastname, email: user.email });
@@ -171,6 +295,7 @@ export default function Profile() {
         </div>
       </form>
 
+      <GroupsSection />
       <MfaSection user={user} />
 
       <form onSubmit={savePassword} className="panel space-y-4 p-5 sm:p-6" noValidate>

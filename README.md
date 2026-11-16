@@ -26,6 +26,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Un administrateur crée des groupes (Administration > Groupes) et choisit leurs membres.
 - Un ticket peut être affecté à un groupe dès sa création, par n'importe quel utilisateur. Les membres du groupe le voient, le prennent en charge, changent son statut, l'assignent à l'un d'eux ou le transfèrent à un autre groupe.
 - Seul un membre du groupe peut être responsable d'un ticket affecté à ce groupe ; lors d'un transfert, le responsable qui n'est pas membre du nouveau groupe est retiré.
+- Demandes d'adhésion : un utilisateur demande à rejoindre un groupe « ouvert aux demandes » depuis « Mon compte » ou dès l'inscription (avec un mot facultatif) ; un administrateur accepte ou refuse (avec motif) dans Administration > Groupes, et le tableau de bord signale les demandes en attente. Chacun peut quitter un groupe ou annuler sa demande. Un groupe peut être réservé « sur invitation » (Coordinateurs par défaut).
 - Filtres « Mes groupes », « Sans groupe » ou par groupe dans la liste ; le tableau de bord signale les tickets de mes groupes sans responsable.
 
 **Catalogue de formulaires**
@@ -163,7 +164,9 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/users`, `/api/users/:id` | admin |
 | `POST` | `/api/users/:id/reset-password`, `/api/users/:id/reset-mfa`, `/api/users/:id/mfa-exempt` (`exempt` : true ou false) | admin |
 | `GET` | `/api/groups` (groupes et membres) | connecté |
-| `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants) | admin |
+| `POST`, `PATCH`, `DELETE` | `/api/groups`, `/api/groups/:id` (`members` : liste des identifiants, `joinable`) | admin |
+| `GET` | `/api/groups/self` ; `POST`, `DELETE` `/api/groups/:id/requests` ; `POST` `/api/groups/:id/leave` | connecté |
+| `GET` | `/api/groups/requests` ; `POST` `/api/groups/requests/:id/approve`, `/api/groups/requests/:id/reject` | admin |
 | `GET` | `/api/catalog`, `/api/catalog/:id` (formulaires proposés à l'utilisateur) | connecté |
 | `POST` | `/api/catalog/:id/submit` (`answers` : réponses par identifiant de question) | connecté |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/admin/catalog`, `/api/admin/catalog/:id` ; `POST /api/admin/catalog/:id/duplicate` | admin |

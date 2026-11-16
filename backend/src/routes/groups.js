@@ -17,6 +17,7 @@ function validateGroupInput(body, { partial }) {
     if (description.length > 500) errors.description = '500 caractères maximum.';
     values.description = description;
   }
+  if (has('joinable')) values.joinable = Boolean(body.joinable);
   if (has('members')) {
     const list = Array.isArray(body.members) ? body.members : null;
     if (!list || list.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
@@ -48,17 +49,145 @@ async function listGroups(db) {
     id: g.id,
     name: g.name,
     description: g.description,
+    joinable: Boolean(g.joinable),
     created_at: g.created_at,
     active_count: g.active_count,
     members: byGroup.get(g.id),
   }));
 }
 
+/** Demandes d'adhésion, avec le nom du groupe et de la personne. */
+async function listRequests(db, where = '1 = 1', params = []) {
+  const rows = await db.all(
+    `SELECT r.*, g.name AS group_name, u.username, u.firstname, u.lastname,
+       d.username AS d_username, d.firstname AS d_firstname, d.lastname AS d_lastname
+     FROM group_requests r
+     JOIN user_groups g ON g.id = r.group_id
+     JOIN users u ON u.id = r.user_id
+     LEFT JOIN users d ON d.id = r.decided_by
+     WHERE ${where} ORDER BY r.created_at DESC, r.id DESC`,
+    params
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    message: r.message,
+    reason: r.reason,
+    created_at: r.created_at,
+    decided_at: r.decided_at,
+    group: { id: r.group_id, name: r.group_name },
+    user: { id: r.user_id, username: r.username, name: displayName(r) },
+    decided_by: r.d_username
+      ? { username: r.d_username, name: displayName({ username: r.d_username, firstname: r.d_firstname, lastname: r.d_lastname }) }
+      : null,
+  }));
+}
+
+/** Crée des demandes d'adhésion (groupes ouverts, pas déjà membre, pas déjà en attente). */
+async function requestGroups(db, userId, groupIds, message = '') {
+  const created = [];
+  for (const id of [...new Set(groupIds.map(Number))]) {
+    const group = await db.get('SELECT id, joinable FROM user_groups WHERE id = ?', [id]);
+    if (!group) throw new HttpError(404, 'Groupe introuvable.');
+    if (!group.joinable) throw new HttpError(403, "Ce groupe n'accepte pas de demandes : un administrateur y ajoute les membres.");
+    if (await db.get('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', [id, userId])) {
+      throw new HttpError(409, 'Vous faites déjà partie de ce groupe.');
+    }
+    if (await db.get("SELECT 1 FROM group_requests WHERE group_id = ? AND user_id = ? AND status = 'pending'", [id, userId])) {
+      throw new HttpError(409, 'Une demande est déjà en attente pour ce groupe.');
+    }
+    const { lastID } = await db.run(
+      'INSERT INTO group_requests (group_id, user_id, message, created_at) VALUES (?, ?, ?, ?)',
+      [id, userId, message, nowIso()]
+    );
+    created.push(lastID);
+  }
+  return created;
+}
+
+const cleanMessage = (v) => {
+  const m = typeof v === 'string' ? v.trim() : '';
+  if (m.length > 500) throw new HttpError(400, 'Message trop long (500 caractères maximum).', { message: '500 caractères maximum.' });
+  return m;
+};
+
 function groupRoutes({ db, requireAdmin }) {
   const router = express.Router();
 
   router.get('/', async (req, res) => {
     res.json(await listGroups(db));
+  });
+
+  // Pour « Mon compte » : chaque groupe, avec mon appartenance et ma dernière demande.
+  router.get('/self', async (req, res) => {
+    const groups = await listGroups(db);
+    const mine = await listRequests(db, 'r.user_id = ?', [req.user.id]);
+    res.json(
+      groups
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          description: g.description,
+          joinable: g.joinable,
+          member: g.members.some((m) => m.id === req.user.id),
+          request: mine.find((r) => r.group.id === g.id) || null,
+        }))
+        .filter((g) => g.joinable || g.member)
+    );
+  });
+
+  router.post('/:id/requests', async (req, res) => {
+    const id = parseId(req.params.id, 'Groupe');
+    const [requestId] = await requestGroups(db, req.user.id, [id], cleanMessage((req.body || {}).message));
+    res.status(201).json((await listRequests(db, 'r.id = ?', [requestId]))[0]);
+  });
+
+  router.delete('/:id/requests', async (req, res) => {
+    const id = parseId(req.params.id, 'Groupe');
+    const { changes } = await db.run(
+      "UPDATE group_requests SET status = 'cancelled', decided_at = ? WHERE group_id = ? AND user_id = ? AND status = 'pending'",
+      [nowIso(), id, req.user.id]
+    );
+    if (!changes) throw new HttpError(404, 'Aucune demande en attente pour ce groupe.');
+    res.json({ success: true });
+  });
+
+  router.post('/:id/leave', async (req, res) => {
+    const id = parseId(req.params.id, 'Groupe');
+    const { changes } = await db.run('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [id, req.user.id]);
+    if (!changes) throw new HttpError(404, 'Vous ne faites pas partie de ce groupe.');
+    res.json({ success: true });
+  });
+
+  // Validation par un administrateur.
+  router.get('/requests', requireAdmin, async (req, res) => {
+    const status = req.query.status === 'all' ? null : 'pending';
+    res.json(await listRequests(db, status ? 'r.status = ?' : "r.status <> 'cancelled'", status ? [status] : []));
+  });
+
+  async function decide(req, approve) {
+    const rid = parseId(req.params.rid, 'Demande');
+    const row = await db.get('SELECT * FROM group_requests WHERE id = ?', [rid]);
+    if (!row) throw new HttpError(404, 'Demande introuvable.');
+    if (row.status !== 'pending') throw new HttpError(409, 'Cette demande a déjà été traitée.');
+    const reason = approve ? '' : cleanMessage((req.body || {}).reason);
+    await db.run('UPDATE group_requests SET status = ?, reason = ?, decided_at = ?, decided_by = ? WHERE id = ?', [
+      approve ? 'approved' : 'rejected',
+      reason,
+      nowIso(),
+      req.user.id,
+      rid,
+    ]);
+    if (approve) await db.run('INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?, ?)', [row.group_id, row.user_id]);
+    return (await listRequests(db, 'r.id = ?', [rid]))[0];
+  }
+
+  router.post('/requests/:rid/approve', requireAdmin, async (req, res) => {
+    res.json(await decide(req, true));
+  });
+
+  router.post('/requests/:rid/reject', requireAdmin, async (req, res) => {
+    res.json(await decide(req, false));
   });
 
   async function ensureUniqueName(name, exceptId = 0) {
@@ -91,9 +220,10 @@ function groupRoutes({ db, requireAdmin }) {
   router.post('/', requireAdmin, async (req, res) => {
     const values = validateGroupInput(req.body || {}, { partial: false });
     await ensureUniqueName(values.name);
-    const { lastID } = await db.run('INSERT INTO user_groups (name, description, created_at) VALUES (?, ?, ?)', [
+    const { lastID } = await db.run('INSERT INTO user_groups (name, description, joinable, created_at) VALUES (?, ?, ?, ?)', [
       values.name,
       values.description,
+      values.joinable === false ? 0 : 1,
       nowIso(),
     ]);
     if (values.members) await setMembers(lastID, values.members);
@@ -109,6 +239,7 @@ function groupRoutes({ db, requireAdmin }) {
       await db.run('UPDATE user_groups SET name = ? WHERE id = ?', [values.name, id]);
     }
     if ('description' in values) await db.run('UPDATE user_groups SET description = ? WHERE id = ?', [values.description, id]);
+    if ('joinable' in values) await db.run('UPDATE user_groups SET joinable = ? WHERE id = ?', [values.joinable ? 1 : 0, id]);
     if (values.members) await setMembers(id, values.members);
     res.json(await findGroup(id));
   });
@@ -125,4 +256,4 @@ function groupRoutes({ db, requireAdmin }) {
   return router;
 }
 
-module.exports = { groupRoutes, listGroups };
+module.exports = { groupRoutes, listGroups, requestGroups };

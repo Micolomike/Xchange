@@ -194,6 +194,13 @@ export default function Dashboard() {
                 );
               })}
             </ul>
+            {isAdmin && stats.pendingGroupRequests > 0 && (
+              <div className="border-t border-line px-4 py-3 text-sm">
+                <Link to="/admin?tab=groups" className="font-semibold text-accent hover:underline">
+                  {plural(stats.pendingGroupRequests, "demande d'adhésion à un groupe à valider", "demandes d'adhésion à des groupes à valider")}
+                </Link>
+              </div>
+            )}
             {isAdmin && stats.unassigned > 0 && (
               <div className="border-t border-line px-4 py-3 text-sm">
                 <Link to="/tickets?assignee=unassigned&status=active" className="font-semibold text-accent hover:underline">

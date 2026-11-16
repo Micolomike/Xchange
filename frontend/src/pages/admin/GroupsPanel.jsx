@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiEdit2, FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../lib/api';
-import { plural } from '../../lib/format';
-import { confirmAction, toast, toastError } from '../../lib/notify';
+import { formatRelative, plural } from '../../lib/format';
+import { confirmAction, promptText, toast, toastError } from '../../lib/notify';
 import { Avatar } from '../../components/Badges';
 import { EmptyState, ErrorState, Field, Spinner } from '../../components/ui';
 
@@ -11,6 +11,7 @@ function GroupForm({ initial, users, onCancel, onSaved }) {
   const editing = Boolean(initial.id);
   const [name, setName] = useState(initial.name || '');
   const [description, setDescription] = useState(initial.description || '');
+  const [joinable, setJoinable] = useState(initial.joinable !== false);
   const [members, setMembers] = useState(() => new Set((initial.members || []).map((m) => m.id)));
   const [filter, setFilter] = useState('');
   const [errors, setErrors] = useState({});
@@ -34,7 +35,7 @@ function GroupForm({ initial, users, onCancel, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { name, description, members: [...members] };
+      const body = { name, description, joinable, members: [...members] };
       await api(editing ? `/api/groups/${initial.id}` : '/api/groups', { method: editing ? 'PATCH' : 'POST', body });
       toast(editing ? 'Groupe modifié' : 'Groupe créé');
       onSaved();
@@ -77,6 +78,15 @@ function GroupForm({ initial, users, onCancel, onSaved }) {
               />
             )}
           </Field>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 size-4" checked={joinable} onChange={(e) => setJoinable(e.target.checked)} />
+            <span>
+              Ouvert aux demandes
+              <span className="block text-xs text-ink-mute">
+                Les utilisateurs peuvent demander à rejoindre ce groupe ; un administrateur valide.
+              </span>
+            </span>
+          </label>
         </div>
 
         <fieldset>
@@ -141,6 +151,72 @@ function MemberList({ members }) {
   );
 }
 
+function RequestsCard({ onChange }) {
+  const [requests, setRequests] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => api('/api/groups/requests').then(setRequests).catch(() => setRequests([])), []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const decide = async (r, approve) => {
+    let reason = '';
+    if (!approve) {
+      const { value, isConfirmed } = await promptText({
+        title: `Refuser la demande de ${r.user.name} ?`,
+        label: 'Motif (facultatif), visible par la personne',
+        confirmText: 'Refuser',
+      });
+      if (!isConfirmed) return;
+      reason = value || '';
+    }
+    setBusy(true);
+    try {
+      await api(`/api/groups/requests/${r.id}/${approve ? 'approve' : 'reject'}`, { method: 'POST', body: { reason } });
+      toast(approve ? `${r.user.name} rejoint ${r.group.name}` : 'Demande refusée');
+      await load();
+      onChange();
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!requests || requests.length === 0) return null;
+  return (
+    <section className="panel mb-6 border-accent" aria-labelledby="req-title">
+      <h2 id="req-title" className="border-b border-line px-5 py-3 font-bold">
+        Demandes d'adhésion à valider <span className="text-ink-mute">({requests.length})</span>
+      </h2>
+      <ul className="divide-y divide-line">
+        {requests.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+            <Avatar user={r.user} size="lg" />
+            <span className="min-w-0 flex-1">
+              <span className="block">
+                <span className="font-semibold">{r.user.name}</span> souhaite rejoindre{' '}
+                <span className="font-semibold">{r.group.name}</span>
+              </span>
+              {r.message && <span className="block text-sm italic text-ink-soft">« {r.message} »</span>}
+              <span className="block text-xs text-ink-mute">{formatRelative(r.created_at)}</span>
+            </span>
+            <span className="flex gap-2">
+              <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => decide(r, false)}>
+                Refuser
+              </button>
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => decide(r, true)}>
+                Accepter
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function GroupsPanel() {
   const [groups, setGroups] = useState(null);
   const [users, setUsers] = useState([]);
@@ -185,6 +261,8 @@ export default function GroupsPanel() {
   if (!groups) return <Spinner />;
 
   return (
+    <>
+    <RequestsCard onChange={load} />
     <div className="panel">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <p className="max-w-xl text-sm text-ink-mute">
@@ -239,7 +317,10 @@ export default function GroupsPanel() {
               {groups.map((g) => (
                 <tr key={g.id}>
                   <td className="max-w-md px-5 py-3">
-                    <span className="block font-semibold">{g.name}</span>
+                    <span className="block font-semibold">
+                      {g.name}
+                      {!g.joinable && <span className="ml-2 text-xs font-normal text-ink-mute">sur invitation</span>}
+                    </span>
                     {g.description && <span className="block text-xs text-ink-mute">{g.description}</span>}
                   </td>
                   <td className="px-5 py-3">
@@ -281,5 +362,6 @@ export default function GroupsPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -91,6 +91,10 @@ function statsRoutes({ db }) {
       assignedToMe: counts.assigned_to_me || 0,
       createdByMeActive: counts.created_by_me_active || 0,
       groupQueue: counts.group_queue || 0,
+      pendingGroupRequests:
+        req.user.role === 'admin'
+          ? (await db.get("SELECT COUNT(*) AS n FROM group_requests WHERE status = 'pending'")).n
+          : 0,
       avgResolutionHours: avgHours == null ? null : Math.round(avgHours * 10) / 10,
       trend: days.map((d) => ({ date: d, created: created.get(d) || 0, resolved: resolved.get(d) || 0 })),
       recent: recent.map(serializeTicket),

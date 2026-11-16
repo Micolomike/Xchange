@@ -128,6 +128,18 @@ CREATE TABLE IF NOT EXISTS catalog_visibility (
   PRIMARY KEY (item_id, group_id)
 );
 
+CREATE TABLE IF NOT EXISTS group_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  decided_at TEXT,
+  decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -168,6 +180,9 @@ const ADDED_COLUMNS = {
     form_answers: 'TEXT',
     confidential: 'INTEGER NOT NULL DEFAULT 0',
   },
+  user_groups: {
+    joinable: 'INTEGER NOT NULL DEFAULT 1',
+  },
   catalog_items: {
     category: "TEXT NOT NULL DEFAULT ''",
   },
@@ -183,6 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_events_ticket ON ticket_events(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_group ON tickets(assigned_group);
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_requests_status ON group_requests(status);
 CREATE INDEX IF NOT EXISTS idx_recovery_user ON mfa_recovery_codes(user_id);
 `;
 
