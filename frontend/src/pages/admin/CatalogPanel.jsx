@@ -94,8 +94,8 @@ export default function CatalogPanel() {
     <div className="panel">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <p className="max-w-xl text-sm text-ink-mute">
-          Chaque formulaire publié apparaît dans le catalogue ; une demande envoyée crée un ticket avec les réponses, affecté au
-          groupe choisi.
+          Chaque formulaire (record producer) publié apparaît dans le catalogue. Une fois envoyé, il crée une demande : ses variables
+          alimentent les champs associés, ses valeurs fixées complètent la demande, et toutes les réponses sont gardées.
         </p>
         <span className="flex gap-2">
           <Link to="/catalogue" className="btn btn-secondary">

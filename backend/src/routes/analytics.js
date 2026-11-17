@@ -76,12 +76,38 @@ function analyticsRoutes({ db, mailer }) {
       categories: categories.map((c) => ({ key: c.key, label: c.label })),
       groups: groups.map((g) => ({ ...g, mine: mine.includes(g.id) })),
       forms,
+      // Champs personnalisés de la table des demandes (colonnes, regroupements, filtres).
+      fields: (await db.all('SELECT name, label, type, options FROM ticket_fields WHERE active = 1 ORDER BY position, id')).map((f) => {
+        const kind = R.FIELD_KINDS[f.type];
+        return { key: f.name, label: f.label, kind, options: f.type === 'yesno' ? ['Oui', 'Non'] : parseJson(f.options, []), groupable: ['choice', 'user', 'group'].includes(kind) };
+      }),
       templates: Object.entries(D.TEMPLATES).map(([key, t]) => ({ key, name: t.name, description: t.description, widgets: t.widgets.length })),
       frequencies: S.FREQUENCIES,
       widths: D.WIDTHS,
       heights: D.HEIGHTS,
       limits: { users: S.MAX_USERS, groups: S.MAX_GROUPS, widgets: D.MAX_WIDGETS },
     });
+  });
+
+  // Variables d'un formulaire (record producer), disponibles quand le rapport porte sur ce seul formulaire.
+  router.get('/forms/:id/variables', async (req, res) => {
+    const id = parseId(req.params.id, 'Formulaire');
+    const item = await db.get('SELECT id, name, fields FROM catalog_items WHERE id = ?', [id]);
+    if (!item) throw new HttpError(404, 'Formulaire introuvable.');
+    const variables = parseJson(item.fields, [])
+      .filter((v) => R.VAR_KINDS[v.type])
+      .map((v) => {
+        const kind = R.VAR_KINDS[v.type];
+        return {
+          key: `var_${id}_${v.key}`,
+          label: v.label,
+          kind,
+          options: v.type === 'yesno' || v.type === 'checkbox' ? ['Oui', 'Non'] : v.options || [],
+          groupable: kind === 'choice',
+          mapTo: v.mapTo || null,
+        };
+      });
+    res.json({ form: { id: item.id, name: item.name }, variables });
   });
 
   // Essai d'une définition (éditeur de rapport, bloc de tableau de bord).
@@ -206,7 +232,7 @@ function analyticsRoutes({ db, mailer }) {
   router.get('/reports/:id/run', async (req, res) => {
     const r = await loadReport(req, parseId(req.params.id, 'Rapport'));
     const ctx = await R.definitionContext(db);
-    const def = R.validateDefinition(parseJson(r.definition, {}), ctx);
+    const def = R.validateDefinition(parseJson(r.definition, {}), { ...ctx, lenient: true });
     const filters = D.validateFilters({ period: req.query.period || undefined, group: req.query.group || undefined }, ctx);
     res.json({ result: await R.runReport(db, def, req.user, { overrides: D.overridesFor(def, filters) }) });
   });
@@ -215,7 +241,7 @@ function analyticsRoutes({ db, mailer }) {
   async function exportReport(req, res, format) {
     const r = await loadReport(req, parseId(req.params.id, 'Rapport'));
     const ctx = await R.definitionContext(db);
-    const def = R.validateDefinition(parseJson(r.definition, {}), ctx);
+    const def = R.validateDefinition(parseJson(r.definition, {}), { ...ctx, lenient: true });
     const filters = D.validateFilters({ period: req.query.period || undefined, group: req.query.group || undefined }, ctx);
     // Une liste exportée contient toutes ses lignes (500 au plus).
     const full = def.type === 'list' ? { ...def, limit: 500 } : def;
@@ -535,7 +561,7 @@ function analyticsRoutes({ db, mailer }) {
     const data = {};
     for (const w of widgets) {
       try {
-        const def = R.validateDefinition(w.definition, ctx);
+        const def = R.validateDefinition(w.definition, { ...ctx, lenient: true });
         data[w.id] = { result: await R.runReport(db, def, req.user, { overrides: D.overridesFor(def, filters) }) };
       } catch (err) {
         data[w.id] = { error: err.message };

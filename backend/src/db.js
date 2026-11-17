@@ -353,6 +353,41 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+-- Dictionnaire de la table des demandes : champs personnalisés (les champs système sont décrits dans le code).
+CREATE TABLE IF NOT EXISTS ticket_fields (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  type TEXT NOT NULL,
+  options TEXT NOT NULL DEFAULT '[]',
+  help TEXT NOT NULL DEFAULT '',
+  write_access TEXT NOT NULL DEFAULT 'handlers',
+  active INTEGER NOT NULL DEFAULT 1,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Valeurs des champs personnalisés, une ligne par demande et par champ.
+CREATE TABLE IF NOT EXISTS ticket_field_values (
+  ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  field_id INTEGER NOT NULL REFERENCES ticket_fields(id) ON DELETE CASCADE,
+  value TEXT NOT NULL,
+  PRIMARY KEY (ticket_id, field_id)
+);
+
+-- Réponses aux variables d'un formulaire (record producer), une ligne par variable.
+CREATE TABLE IF NOT EXISTS ticket_variables (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  item_id INTEGER REFERENCES catalog_items(id) ON DELETE SET NULL,
+  var_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  type TEXT NOT NULL,
+  value TEXT NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS ticket_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
@@ -423,11 +458,15 @@ const ADDED_COLUMNS = {
   },
   catalog_items: {
     category: "TEXT NOT NULL DEFAULT ''",
+    field_values: "TEXT NOT NULL DEFAULT '{}'",
   },
 };
 
 const INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
+CREATE INDEX IF NOT EXISTS idx_ticket_variables_ticket ON ticket_variables(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_variables_item ON ticket_variables(item_id, var_key);
+CREATE INDEX IF NOT EXISTS idx_ticket_field_values_field ON ticket_field_values(field_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by);
 CREATE INDEX IF NOT EXISTS idx_tickets_assigned_to ON tickets(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_tickets_deleted_at ON tickets(deleted_at);

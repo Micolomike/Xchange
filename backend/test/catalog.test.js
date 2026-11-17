@@ -71,7 +71,7 @@ describe('catalogue de formulaires', () => {
       });
     assert.equal(bad.status, 400);
     assert.ok(bad.body.details.name && bad.body.details.priority);
-    for (const part of ['libellé est requis', 'deux choix', 'en double', 'type de champ inconnu', 'placé avant']) {
+    for (const part of ['libellé est requis', 'deux choix', 'en double', 'type de champ inconnu', 'placée avant']) {
       assert.ok(bad.body.details.fields.includes(part), `erreur attendue : ${part}`);
     }
 

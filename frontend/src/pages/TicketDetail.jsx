@@ -20,6 +20,7 @@ import { SlaDetail } from '../components/Sla';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Avatar, PriorityBadge, StatusBadge, TicketStub } from '../components/Badges';
 import FileDrop from '../components/FileDrop';
+import TicketFieldsPanel from '../components/TicketFieldsPanel';
 import { ImageThumb, ImageViewer } from '../components/AttachmentImage';
 import { forgetImage, isImageAttachment } from '../lib/images';
 import { ErrorState, Field, Spinner } from '../components/ui';
@@ -63,6 +64,16 @@ function describeEvent(e) {
       return `${who} a joint « ${e.to} »`;
     case 'attachment_removed':
       return `${who} a retiré « ${e.from} »`;
+    case 'field': {
+      let c = {};
+      try {
+        c = JSON.parse(e.to || '{}');
+      } catch {
+        /* ancien format */
+      }
+      if (c.to == null) return `${who} a vidé « ${c.label} »`;
+      return c.from == null ? `${who} a renseigné « ${c.label} » : ${c.to}` : `${who} a changé « ${c.label} » de ${c.from} à ${c.to}`;
+    }
     case 'deleted':
       return `${who} a mis le ticket à la corbeille`;
     case 'restored':
@@ -437,6 +448,8 @@ export default function TicketDetail() {
               <p className="whitespace-pre-wrap break-words px-5 py-4 leading-relaxed text-ink-soft">{ticket.description}</p>
             )}
           </section>
+
+          <TicketFieldsPanel ticket={ticket} onSaved={setTicket} />
 
           <section className="panel" aria-labelledby="files-title">
             <h2 id="files-title" className="border-b border-line px-5 py-3 font-bold">

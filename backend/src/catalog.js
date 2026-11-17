@@ -15,7 +15,7 @@ const MAX_OPTIONS = 50;
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
 function validateField(raw, index, previous) {
-  const where = `Champ ${index + 1}`;
+  const where = `Variable ${index + 1}`;
   const errors = [];
   const field = {
     key: str(raw.key),
@@ -24,15 +24,19 @@ function validateField(raw, index, previous) {
     required: Boolean(raw.required),
     help: str(raw.help),
     placeholder: str(raw.placeholder),
-    inTitle: Boolean(raw.inTitle),
   };
+  // Champ de la demande alimenté par cette variable (« Map to field »). « inTitle » : ancien réglage.
+  const mapTo = str(raw.mapTo) || (raw.inTitle ? 'title' : '');
+  if (mapTo) {
+    if (!/^(title|description|priority|category|due_date|confidential|u_[a-z0-9_]{1,37})$/.test(mapTo)) errors.push(`${where} : champ associé inconnu.`);
+    else field.mapTo = mapTo;
+  }
   if (!KEY_RE.test(field.key)) errors.push(`${where} : identifiant technique invalide.`);
   if (!field.label) errors.push(`${where} : le libellé est requis.`);
   else if (field.label.length > 200) errors.push(`${where} : libellé trop long (200 caractères maximum).`);
   if (!FIELD_TYPES.includes(field.type)) errors.push(`${where} : type de champ inconnu.`);
   if (field.help.length > 500) errors.push(`${where} : aide trop longue (500 caractères maximum).`);
   if (field.placeholder.length > 200) field.placeholder = field.placeholder.slice(0, 200);
-  if (field.inTitle && field.type !== 'text') field.inTitle = false;
 
   if (CHOICE_TYPES.includes(field.type)) {
     const options = Array.isArray(raw.options) ? [...new Set(raw.options.map(str).filter(Boolean))] : [];
@@ -48,7 +52,7 @@ function validateField(raw, index, previous) {
     const source = previous.find((f) => f.key === raw.condition.field);
     const op = raw.condition.op;
     if (!source) {
-      errors.push(`« ${field.label || where} » : la règle d'affichage doit porter sur un champ placé avant lui.`);
+      errors.push(`« ${field.label || where} » : la règle d'affichage doit porter sur une variable placée avant elle.`);
     } else if (!CONDITION_OPS.includes(op)) {
       errors.push(`« ${field.label || where} » : règle d'affichage inconnue.`);
     } else {
@@ -108,20 +112,24 @@ function validateItemInput(body, { partial = false } = {}) {
       errors.visible_groups = 'Liste de groupes invalide.';
     } else values.visible_groups = [...new Set(list.map(Number))];
   }
+  if (!partial || has('field_values')) {
+    const fv = body.field_values == null ? {} : body.field_values;
+    if (typeof fv !== 'object' || Array.isArray(fv) || Object.keys(fv).length > 100) errors.field_values = 'Valeurs fixées invalides.';
+    else values.field_values = fv;
+  }
   if (!partial || has('fields')) {
     const list = Array.isArray(body.fields) ? body.fields : null;
-    if (!list) errors.fields = 'Liste de champs invalide.';
-    else if (list.length > MAX_FIELDS) errors.fields = `${MAX_FIELDS} champs maximum.`;
+    if (!list) errors.fields = 'Liste de variables invalide.';
+    else if (list.length > MAX_FIELDS) errors.fields = `${MAX_FIELDS} variables au plus.`;
     else {
       const fields = [];
       const problems = [];
       for (const [i, raw] of list.entries()) {
         const { field, errors: e } = validateField(raw || {}, i, fields);
-        if (fields.some((f) => f.key === field.key)) problems.push(`Champ ${i + 1} : identifiant en double.`);
+        if (fields.some((f) => f.key === field.key)) problems.push(`Variable ${i + 1} : nom technique en double.`);
         problems.push(...e);
         fields.push(field);
       }
-      if (fields.filter((f) => f.inTitle).length > 1) problems.push('Un seul champ peut compléter le titre du ticket.');
       if (problems.length) errors.fields = problems.join(' ');
       values.fields = fields;
     }

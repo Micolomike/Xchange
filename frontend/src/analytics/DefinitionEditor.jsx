@@ -4,6 +4,7 @@ import { Spinner } from '../components/ui';
 import { MultiPick } from './common';
 import { CHART_LABELS, TYPE_LABELS, defaultDefinition } from './labels';
 import { ResultView } from './Charts';
+import FieldFilters from './FieldFilters';
 
 const PERIOD_FIELDS = { created: 'date de création', updated: 'dernière mise à jour', resolved: 'date de résolution' };
 
@@ -34,6 +35,23 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
   const set = (patch) => onChange({ ...def, ...patch });
   const setF = (patch) => onChange({ ...def, filters: { ...f, ...patch } });
   const [preview, setPreview] = useState({ loading: true });
+  // Variables du formulaire quand le rapport porte sur ce seul formulaire.
+  const formId = f.form?.length === 1 && f.form[0] !== 'none' ? f.form[0] : null;
+  const [vars, setVars] = useState({ form: null, list: [] });
+  useEffect(() => {
+    if (!formId) return undefined;
+    let alive = true;
+    api(`/api/analytics/forms/${formId}/variables`)
+      .then((r) => alive && setVars({ form: formId, list: r.variables.map((v) => ({ ...v, variable: true })) }))
+      .catch(() => alive && setVars({ form: formId, list: [] }));
+    return () => {
+      alive = false;
+    };
+  }, [formId]);
+  const variables = formId && vars.form === formId ? vars.list : [];
+  const extra = [...(meta.fields || []), ...variables];
+  const extraLabel = (x) => `${x.variable ? 'Variable' : 'Champ'} : ${x.label}`;
+  const columnEntries = [...Object.entries(meta.columns), ...extra.map((x) => [x.key, extraLabel(x)])];
 
   useEffect(() => {
     let alive = true;
@@ -53,7 +71,7 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
   }, [def]);
 
   const changeType = (type) => onChange({ ...defaultDefinition(type, meta), filters: { ...defaultDefinition(type, meta).filters, ...f, period: f.period } });
-  const dims = Object.entries(meta.dimensions);
+  const dims = [...Object.entries(meta.dimensions), ...extra.filter((x) => x.groupable).map((x) => [x.key, extraLabel(x)])];
   const id = (s) => `${idPrefix}-${s}`;
   const periodOptions = Object.entries(meta.periods);
 
@@ -140,12 +158,12 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
             <MultiPick
               label="Colonnes"
               allLabel="Par défaut"
-              options={Object.entries(meta.columns).map(([k, l]) => ({ key: k, label: l }))}
+              options={columnEntries.map(([k, l]) => ({ key: k, label: l }))}
               value={def.columns}
               onChange={(columns) => set({ columns })}
             />
             <div className="grid gap-3 sm:grid-cols-3">
-              <Select id={id('sort')} label="Trier par" value={def.sort?.field} onChange={(v) => set({ sort: { ...def.sort, field: v } })} options={Object.entries(meta.columns)} />
+              <Select id={id('sort')} label="Trier par" value={def.sort?.field} onChange={(v) => set({ sort: { ...def.sort, field: v } })} options={columnEntries} />
               <Select id={id('dir')} label="Ordre" value={def.sort?.dir} onChange={(v) => set({ sort: { ...def.sort, dir: v } })} options={[['desc', 'Décroissant'], ['asc', 'Croissant']]} />
               <Select id={id('lim')} label="Lignes" value={String(def.limit)} onChange={(v) => set({ limit: Number(v) })} options={[10, 25, 50, 100, 250, 500].map((n) => [String(n), String(n)])} />
             </div>
@@ -229,6 +247,13 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={Boolean(f.overdue)} onChange={(e) => setF({ overdue: e.target.checked })} /> En retard seulement
           </label>
+          {(extra.length > 0 || f.fields?.length > 0) && (
+            <div className="space-y-1.5 border-t border-line pt-3">
+              <p className="text-sm font-semibold">Champs et variables</p>
+              <FieldFilters idPrefix={idPrefix} value={f.fields || []} onChange={(fields) => setF({ fields })} available={extra} groups={meta.groups} />
+              {!formId && <p className="text-xs text-ink-mute">Pour utiliser les variables d’un formulaire, choisissez ce seul formulaire dans « Formulaire ».</p>}
+            </div>
+          )}
           <p className="text-xs text-ink-mute">« Moi » et « Mes groupes » désignent la personne qui consulte, ou le créateur pour un envoi par e-mail.</p>
         </fieldset>
       </div>

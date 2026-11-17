@@ -70,7 +70,7 @@
     <li><span class="n">2</span>Les comptes<span class="d">Création, rôles, mots de passe, double authentification, prise de contrôle</span></li>
     <li><span class="n">3</span>Les groupes<span class="d">Membres, demandes d'adhésion, groupes sur invitation</span></li>
     <li><span class="n">4</span>Droits et visibilité<span class="d">Matrice, règles par catégorie, demandes confidentielles</span></li>
-    <li><span class="n">5</span>Le catalogue de formulaires<span class="d">Constructeur, règles d'affichage, publication</span></li>
+    <li><span class="n">5</span>Record producers<span class="d">Formulaires, table des champs, table des variables, mappage</span></li>
     <li><span class="n">6</span>Le suivi des demandes<span class="d">Statuts, affectation, corbeille</span></li>
     <li><span class="n">7</span>Délais (SLA)<span class="d">Engagements par priorité, temps ouvré, alertes, tableau de bord</span></li>
     <li><span class="n">8</span>Assistant et discussions<span class="d">Assistant guidé, discussions en direct, signalements</span></li>
@@ -96,7 +96,7 @@
     <li>Un administrateur doit utiliser la double authentification : il ne peut pas la refuser (voir chapitre 13).</li>
     <li>Vos actions sont tracées : prises de contrôle, réponses aux demandes RGPD, dispenses de double authentification, modifications de la charte.</li>
   </ul>
-  <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient neuf onglets : Utilisateurs, Groupes, Catalogue, SLA, Signalements, Corbeille, Sauvegardes, Paramètres et Journal système. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
+  <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient neuf onglets : Utilisateurs, Groupes, Record producers, SLA, Signalements, Corbeille, Sauvegardes, Paramètres et Journal système. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
 </section>
 
 <!-- 2 -->
@@ -172,8 +172,40 @@
 
 <!-- 5 -->
 <section class="chapter">
-  <h2><span class="num">5</span>Le catalogue de formulaires</h2>
-  <p class="path">Administration &gt; Catalogue</p>
+  <h2><span class="num">5</span>Record producers</h2>
+  <p class="path">Administration &gt; Record producers</p>
+  <p>Le module fonctionne comme dans ServiceNow : chaque formulaire du catalogue est un <strong>record producer</strong> qui crée un enregistrement dans la table des demandes. Il a trois volets : <strong>Formulaires</strong>, <strong>Table des champs</strong> et <strong>Table des variables</strong>. Un formulaire ne peut alimenter que la table des demandes.</p>
+  <h3>Champs et variables</h3>
+  <ul>
+    <li>Un <strong>champ</strong> est une colonne de la table des demandes. Les champs système (titre, description, statut, priorité, catégorie, échéance, confidentielle, groupe, responsable…) existent toujours. Les <strong>champs personnalisés</strong>, au nom technique en « u_ », sont ceux que vous ajoutez.</li>
+    <li>Une <strong>variable</strong> est une question d'un formulaire. Toutes les réponses sont gardées avec la demande, une ligne par variable.</li>
+    <li>Une variable peut être <strong>associée à un champ</strong> (« Map to field ») : à l'envoi, sa réponse est recopiée dans ce champ. Un champ est reportable pour toutes les demandes ; une variable seule ne l'est que dans un rapport qui porte sur son seul formulaire.</li>
+  </ul>
+  <h3>La table des champs</h3>
+  <figure><img src="img/record-champs.png" alt=""><figcaption>Les champs personnalisés, avec le nombre de demandes renseignées et les formulaires qui les utilisent.</figcaption></figure>
+  <ul>
+    <li>Types : texte court ou long, liste de choix, nombre, date, Oui / Non, référence à un utilisateur, référence à un groupe.</li>
+    <li>Le nom technique est proposé à partir du libellé et ne change plus après la création, pas plus que le type. Le libellé, l'aide, les choix et le droit de modification restent modifiables.</li>
+    <li><strong>Qui peut le modifier sur une demande</strong> : les personnes qui la traitent (responsable, droit « traiter » ou « assigner », administrateurs), ou aussi l'auteur et le droit « modifier », ou les administrateurs seulement. Toute personne qui voit la demande voit le champ, dans « Informations complémentaires ». Chaque changement est inscrit dans l'historique de la demande.</li>
+    <li>Un champ désactivé disparaît des demandes, des formulaires et des nouveaux rapports, mais garde ses valeurs. La suppression efface toutes les valeurs : elle est refusée tant qu'un formulaire utilise le champ. Un choix encore utilisé par un formulaire ne peut pas être retiré.</li>
+    <li>Les champs système sont listés pour information, avec ceux qu'une variable peut alimenter.</li>
+  </ul>
+  <h3>Associer une variable à un champ</h3>
+  <figure><img src="img/record-mappage.png" alt=""><figcaption>Une variable « Boutons de choix » qui alimente le champ personnalisé « Lieu d'intervention ».</figcaption></figure>
+  <p>Dans chaque variable, « Alimente le champ de la demande » ne propose que les champs compatibles avec son type, et un même champ ne peut être alimenté que par une variable du formulaire. À l'enregistrement, Xchange vérifie aussi :</p>
+  <ul>
+    <li><strong>Titre</strong> : texte, liste, boutons ou e-mail ; le titre devient « Nom du formulaire : réponse ».</li>
+    <li><strong>Description</strong> : la réponse passe en tête, avant le récapitulatif de toutes les réponses.</li>
+    <li><strong>Priorité</strong> et <strong>Catégorie</strong> : liste ou boutons dont chaque choix porte exactement le nom d'une priorité ou d'une catégorie.</li>
+    <li><strong>Échéance</strong> : une date. <strong>Confidentielle</strong> : Oui / Non ou case à cocher.</li>
+    <li><strong>Champ personnalisé de type liste</strong> : chaque choix de la variable doit exister dans le champ. Nombre vers nombre, date vers date, Oui / Non ou case vers Oui / Non ; un champ texte accepte presque tout. Aucune variable ne peut alimenter une référence à un utilisateur ou à un groupe : utilisez une valeur fixée.</li>
+  </ul>
+  <p>Le <strong>nom technique</strong> d'une variable est tiré de son libellé ; il sert aux règles d'affichage et aux rapports, et ne change plus une fois le formulaire enregistré.</p>
+  <h3>Valeurs fixées et résumé</h3>
+  <p>« Valeurs fixées des champs » écrit une valeur dans un champ personnalisé de chaque demande créée, comme un modèle. Une variable associée au même champ la remplace quand elle est remplie. « Ce que crée ce formulaire » résume, champ par champ, d'où vient la valeur de la demande créée.</p>
+  <h3>La table des variables</h3>
+  <p>Toutes les variables de tous les formulaires : ordre, libellé, nom technique, type, champ associé et nombre de réponses, avec une recherche et des filtres par formulaire et par mappage.</p>
+  <h3>Les formulaires</h3>
   <figure><img src="img/catalogue.png" alt=""><figcaption>Les formulaires, par rubrique, avec leur groupe et leur état de publication.</figcaption></figure>
   <p>Un formulaire guide la personne avec des questions adaptées et crée une demande déjà rangée : bon groupe, bonne catégorie, bonne priorité.</p>
   <h3>Le constructeur</h3>
@@ -188,7 +220,7 @@
   <h3>Ce que voient les utilisateurs</h3>
   <figure><img src="img/catalogue-demandeur.png" alt=""><figcaption>La page Catalogue : les rubriques à gauche, une rubrique à la fois à droite.</figcaption></figure>
   <p>Le menu de gauche liste les rubriques avec leur nombre de formulaires (en pastilles sur téléphone). « Les plus demandés » apparaît en tête dès que des formulaires ont été envoyés : ce sont les 6 plus utilisés des trois derniers mois. La recherche porte sur tout le catalogue. Une rubrique sert de regroupement : évitez les rubriques d'un seul formulaire quand elles peuvent être fusionnées.</p>
-  <div class="note"><strong>Bon à savoir</strong>Les réponses sont enregistrées avec la demande : modifier ou supprimer un formulaire ne change pas les demandes déjà envoyées.</div>
+  <div class="note"><strong>Bon à savoir</strong>Les réponses sont enregistrées avec la demande : modifier ou supprimer un formulaire ne change pas les demandes déjà envoyées. Les réponses envoyées avant la version 3.0 ont été rangées dans la table des variables au premier démarrage, et l'ancienne case « ajouter la réponse au titre » est devenue une association au champ Titre.</div>
 </section>
 
 <!-- 6 -->
@@ -251,7 +283,7 @@
   <h2><span class="num">8</span>Assistant et discussions</h2>
   <h3>L'assistant guidé</h3>
   <p>Le bouton « Besoin d'aide ? », en bas à droite de chaque page, ouvre un assistant <strong>sans intelligence artificielle</strong> : la personne décrit son besoin en quelques mots, l'assistant propose les réponses de la foire aux questions et les formulaires du catalogue qui correspondent. Choisir un formulaire l'ouvre avec la description déjà remplie.</p>
-  <p class="path">Administration &gt; Catalogue &gt; Besoins non trouvés</p>
+  <p class="path">Administration &gt; Record producers &gt; Formulaires &gt; Besoins non trouvés</p>
   <p>Quand rien ne correspond, ou que la personne indique qu'aucune proposition ne convient, sa phrase est gardée <strong>sans son nom</strong> pendant 90 jours dans cette carte. Elle montre les formulaires qui manquent, ou les mots à ajouter dans la description d'un formulaire existant. « Vider la liste » l'efface ; sinon la purge RGPD l'efface avec les journaux.</p>
 
   <h3>Les discussions</h3>
@@ -293,7 +325,8 @@
     <li>Partage : privé, avec des groupes, ou avec tout le monde. Seul le créateur modifie ; les autres peuvent « Dupliquer » pour avoir leur propre copie.</li>
     <li>« Exporter » télécharge les données au choix en Excel (.xlsx, dates et nombres reconnus, filtres prêts), en CSV (séparateur point-virgule) ou en JSON (pour un autre logiciel). Chaque graphique a aussi un bouton pour afficher ses valeurs en tableau.</li>
     <li>« Moi » et « Mes groupes » dans les filtres désignent la personne qui regarde.</li>
-  </ul>
+    <li><strong>Champs et variables</strong> : les champs personnalisés actifs sont proposés partout (colonne, regroupement pour les listes de choix, les Oui / Non et les références, filtre). Quand « Formulaire » ne contient que ce formulaire, ses variables le sont aussi, préfixées « Variable : ». Un rapport enregistré dont un champ a disparu perd simplement cette colonne ou ce filtre.</li>
+</ul>
 
   <h3>Les envois programmés</h3>
   <figure><img src="img/envoi-programme.png" alt=""><figcaption>Programmer un envoi : fréquence, heure, destinataires.</figcaption></figure>
@@ -533,7 +566,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <li>Ranger une sauvegarde téléchargée hors du PC.</li>
     <li>Regarder le journal des envois d'e-mails (filtre « Échecs seulement ») et la prochaine purge RGPD.</li>
     <li>Vérifier que chaque groupe utilisé a des membres actifs.</li>
-    <li>Lire les besoins non trouvés par l'assistant (Catalogue) : formulaire à créer ou description à compléter.</li>
+    <li>Lire les besoins non trouvés par l'assistant (Record producers) : formulaire à créer ou description à compléter.</li>
     <li>Relire la liste des administrateurs : chacun en a-t-il encore besoin ?</li>
     <li>Vérifier que les délais (SLA) restent réalistes au vu du taux de respect.</li>
   </ul>

@@ -16,6 +16,7 @@ const statsRoutes = require('./routes/stats');
 const backupRoutes = require('./routes/backup');
 const { groupRoutes } = require('./routes/groups');
 const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
+const { ticketFieldRoutes, ticketFieldAdminRoutes, variableAdminRoutes } = require('./routes/ticketFields');
 const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings');
 const { legalPublicRoutes, rgpdAdminRoutes } = require('./routes/rgpd');
 const { assistantRoutes, assistantAdminRoutes } = require('./routes/assistant');
@@ -110,6 +111,9 @@ function createApp({ db, config, logger = console, syslog = createSystemLog({ db
   app.use('/api/groups', auth, groupRoutes({ db, config, requireAdmin, notifier }));
   app.use('/api/catalog', auth, catalogRoutes({ db, config, notifier }));
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
+  app.use('/api/ticket-fields', auth, ticketFieldRoutes({ db }));
+  app.use('/api/admin/ticket-fields', auth, requireAdmin, ticketFieldAdminRoutes({ db }));
+  app.use('/api/admin/variables', auth, requireAdmin, variableAdminRoutes({ db }));
   app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config, mailer, notifier }));
   app.use('/api/admin/rgpd', auth, requireAdmin, rgpdAdminRoutes({ db, config, notifier }));
   // Guide de l'administrateur (PDF généré depuis docs/admin/guide.html, réservé aux administrateurs).

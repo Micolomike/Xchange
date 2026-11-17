@@ -35,9 +35,13 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Demandes d'adhésion : un utilisateur demande à rejoindre un groupe « ouvert aux demandes » depuis « Mon compte » ou dès l'inscription (avec un mot facultatif) ; un administrateur accepte ou refuse (avec motif) dans Administration > Groupes, et le tableau de bord signale les demandes en attente. Chacun peut quitter un groupe ou annuler sa demande. Un groupe peut être réservé « sur invitation » (Coordinateurs par défaut).
 - Filtres « Mes groupes », « Sans groupe » ou par groupe dans la liste ; le tableau de bord signale les tickets de mes groupes sans responsable.
 
-**Catalogue de formulaires**
+**Record producers (catalogue de formulaires)**
+- Modèle ServiceNow : chaque formulaire est un record producer qui crée une demande. Administration > Record producers : Formulaires, Table des champs, Table des variables.
+- Table des champs : champs système de la table des demandes (lecture) et champs personnalisés `u_…` (texte, liste, nombre, date, Oui / Non, référence utilisateur ou groupe), avec droit de modification par champ ; affichés sur la demande (« Informations complémentaires »), historisés, reportables.
+- Variables (questions) associables à un champ (« Map to field ») avec contrôle de compatibilité (type, choix, priorités, catégories) ; valeurs fixées par formulaire ; résumé « Ce que crée ce formulaire ».
+- Table des variables : toutes les réponses gardées une ligne par variable (`ticket_variables`), reportables quand un rapport porte sur un seul formulaire.
 - Page « Catalogue » : les formulaires publiés, classés par rubrique, avec recherche, et une « Demande libre » quand rien ne correspond.
-- Constructeur de formulaires (Administration > Catalogue) avec aperçu en direct : texte court ou long, liste déroulante, boutons de choix, case à cocher, date, nombre, e-mail, pièce jointe ; question obligatoire, aide, exemple, ordre.
+- Constructeur de formulaires (Administration > Record producers) avec aperçu en direct : texte court ou long, liste déroulante, boutons de choix, case à cocher, date, nombre, e-mail, pièce jointe ; question obligatoire, aide, exemple, ordre.
 - Règles d'affichage : une question n'apparaît que si une question précédente a une valeur donnée, est cochée, remplie ou vide. Le serveur applique les mêmes règles et ignore les réponses masquées.
 - Par formulaire : rubrique, description, groupe qui traite les demandes, priorité des tickets créés, visibilité (tout le monde ou certains groupes), publication. Duplication possible.
 - L'envoi crée un ticket dont le titre reprend le nom du formulaire (et, au choix, une réponse) ; les réponses sont conservées avec le ticket, même si le formulaire est modifié ou supprimé ensuite.
@@ -113,7 +117,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 
 **Assistant guidé** (sans intelligence artificielle)
 - Bouton « Besoin d'aide ? » sur chaque page : quelques mots suffisent pour obtenir les réponses de la foire aux questions et les formulaires du catalogue qui correspondent ; le formulaire choisi s'ouvre avec la description déjà remplie.
-- Les besoins restés sans réponse sont gardés sans nom pendant 90 jours (Administration > Catalogue, « Besoins non trouvés ») pour compléter le catalogue.
+- Les besoins restés sans réponse sont gardés sans nom pendant 90 jours (Administration > Record producers, « Besoins non trouvés ») pour compléter le catalogue.
 
 **Discussions en direct** (menu « Discussions »)
 - Salon général, salon de chaque groupe (réservé à ses membres), messages privés à deux et conversations de groupe libres (nom, jusqu'à 50 participants, ajout, renommage, départ). Messages reçus en direct (flux SSE), compteur de non lus dans la barre de navigation, suppression de ses propres messages.

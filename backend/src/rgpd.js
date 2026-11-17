@@ -2,6 +2,7 @@
  * RGPD : anonymisation d'un compte, export des données d'une personne, purge des données trop anciennes.
  */
 const { logUserEvent } = require('./systemLog');
+const { loadCustomFields, loadTicketFieldValues } = require('./ticketFields');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -135,8 +136,11 @@ async function exportUser(db, id) {
      FROM tickets t LEFT JOIN user_groups g ON g.id = t.assigned_group WHERE t.created_by = ? ORDER BY t.id`,
     [id]
   );
+  const customFields = await loadCustomFields(db);
   for (const t of tickets) {
     t.confidential = Boolean(t.confidential);
+    // Champs personnalisés renseignés (valeur lisible).
+    t.custom_fields = (await loadTicketFieldValues(db, t.id, customFields)).filter((f) => f.value != null).map((f) => ({ field: f.label, value: f.display }));
     try {
       t.form_answers = t.form_answers ? JSON.parse(t.form_answers) : null;
     } catch {

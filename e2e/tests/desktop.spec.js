@@ -246,6 +246,17 @@ test("groupes d'affectation", async () => {
 });
 
 test('catalogue : construire un formulaire puis l’utiliser', async () => {
+  // Table des champs : un champ personnalisé que le formulaire alimentera.
+  await page.goto('/admin?tab=catalog&section=fields');
+  await page.getByRole('button', { name: 'Nouveau champ' }).click();
+  const fd = page.getByRole('dialog', { name: 'Nouveau champ de la table des demandes' });
+  await fd.getByLabel('Libellé').fill('Matériel concerné');
+  await expect(fd.getByLabel('Nom technique')).toHaveValue('u_materiel_concerne');
+  await fd.getByLabel('Type').selectOption('select');
+  await fd.getByLabel('Choix').fill('Écran\nClavier\nAutre');
+  await fd.getByRole('button', { name: 'Créer le champ' }).click();
+  await expect(page.getByRole('row', { name: /Matériel concerné/ })).toContainText('u_materiel_concerne');
+
   await page.goto('/admin?tab=catalog');
   await expect(page.getByText("Aucun formulaire pour l'instant")).toBeVisible();
   await page.getByRole('link', { name: 'Nouveau formulaire' }).click();
@@ -256,22 +267,24 @@ test('catalogue : construire un formulaire puis l’utiliser', async () => {
   await page.selectOption('#fb-priority', 'high');
 
   const questions = page.locator('section[aria-labelledby=fb-questions] ol > li');
-  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: 'Ajouter une variable' }).click();
   await page.getByRole('button', { name: /^Texte court/ }).click();
   await questions.nth(0).getByLabel('Libellé').fill('Numéro du poste');
   await questions.nth(0).getByLabel('Obligatoire').check();
-  await questions.nth(0).getByLabel('Ajouter la réponse au titre du ticket').check();
+  await questions.nth(0).getByLabel('Alimente le champ de la demande').selectOption({ label: 'Titre' });
+  await expect(questions.nth(0).getByLabel('Nom technique')).toHaveValue('numero_du_poste');
 
-  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: 'Ajouter une variable' }).click();
   await page.getByRole('button', { name: /^Boutons de choix/ }).click();
   await questions.nth(1).getByLabel('Libellé').fill('Type de matériel');
   await questions.nth(1).getByLabel('Choix proposés').fill('Écran\nClavier\nAutre');
+  await questions.nth(1).getByLabel('Alimente le champ de la demande').selectOption('u_materiel_concerne');
 
-  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: 'Ajouter une variable' }).click();
   await page.getByRole('button', { name: /^Oui \/ Non/ }).click();
   await questions.nth(2).getByLabel('Libellé').fill('Anomalie bloquante');
 
-  await page.getByRole('button', { name: 'Ajouter une question' }).click();
+  await page.getByRole('button', { name: 'Ajouter une variable' }).click();
   await page.getByRole('button', { name: /^Texte court/ }).click();
   await questions.nth(3).getByLabel('Libellé').fill('Précisez le matériel');
   await questions.nth(3).getByLabel('Obligatoire').check();
@@ -302,9 +315,15 @@ test('catalogue : construire un formulaire puis l’utiliser', async () => {
   await page.getByRole('button', { name: 'Envoyer la demande' }).click();
   await expect(page.getByRole('heading', { name: 'Matériel en panne : PC-0042' })).toBeVisible();
   await expect(page.getByText('Webcam')).toBeVisible();
+  const extra = page.locator('section[aria-labelledby=fields-title]');
+  await expect(extra.getByText('Matériel concerné')).toBeVisible();
+  await expect(extra.getByText('Autre', { exact: true })).toBeVisible();
   await expect(page.locator('dl').getByText('Anomalie bloquante')).toBeVisible();
   await expect(page.getByLabel("Groupe d'affectation")).toHaveValue(/\d+/);
   await expect(page.getByText('a créé le ticket avec le formulaire « Matériel en panne »')).toBeVisible();
+  // Table des variables : le mappage apparaît.
+  await page.goto('/admin?tab=catalog&section=variables');
+  await expect(page.getByRole('row', { name: /Type de matériel/ })).toContainText('u_materiel_concerne');
   await page.goto('/admin');
 });
 
@@ -481,7 +500,7 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
   await page.getByRole('button', { name: 'Créer le ticket' }).click();
   await expect(page.getByRole('heading', { name: 'Clavier HS' })).toBeVisible();
   await expect(page.locator('header').getByText('Confidentielle')).toBeVisible();
-  await expect(page.locator('dl').getByText('Matériel')).toBeVisible();
+  await expect(page.locator('dl').getByText('Matériel', { exact: true })).toBeVisible();
   await expect(page.locator('dl').getByText('Aucune')).toHaveCount(0);
 });
 

@@ -141,6 +141,140 @@ const COLUMNS = {
   sla_resolution_due: { label: 'Résolution attendue avant', sql: 't.sla_resolution_due' },
 };
 const DEFAULT_COLUMNS = ['id', 'title', 'status', 'priority', 'group', 'assignee', 'created_at'];
+
+// ---------------------------------------------------------------------------------------------------
+// Champs personnalisés (u_…) et variables d'un formulaire (var_<formulaire>_<variable>)
+
+const VAR_RE = /^var_(\d+)_([a-z0-9_]{1,40})$/;
+const VAR_KINDS = { text: 'text', textarea: 'text', email: 'text', select: 'choice', radio: 'choice', yesno: 'choice', checkbox: 'choice', number: 'number', date: 'date' };
+const FIELD_KINDS = { text: 'text', textarea: 'text', select: 'choice', yesno: 'choice', number: 'number', date: 'date', user: 'user', group: 'group' };
+const MAX_FIELD_FILTERS = 10;
+
+const parseList = (text) => {
+  try {
+    const v = JSON.parse(text);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Champs personnalisés et variables connus, pour valider et calculer un rapport. */
+async function loadExtensions(db) {
+  const fields = (await db.all('SELECT id, name, label, type, options, active FROM ticket_fields ORDER BY position, id')).map((f) => ({
+    ...f,
+    options: parseList(f.options),
+    active: Boolean(f.active),
+  }));
+  const items = await db.all('SELECT id, name, fields FROM catalog_items');
+  const variables = new Map(items.map((it) => [it.id, { name: it.name, vars: parseList(it.fields).filter((v) => VAR_KINDS[v.type]) }]));
+  return { fields: new Map(fields.map((f) => [f.name, f])), variables };
+}
+
+/** Un seul formulaire choisi dans les filtres : ses variables sont disponibles. */
+const singleForm = (filters) => (filters?.form?.length === 1 && filters.form[0] !== 'none' ? Number(filters.form[0]) : null);
+
+/**
+ * Description d'une colonne étendue : libellé, nature (text, choice, number, date, user, group),
+ * expression SQL de la valeur brute et de la valeur affichée. null si la clé est inconnue ici.
+ */
+function extEntry(key, ext, filters) {
+  if (!ext || typeof key !== 'string') return null;
+  if (key.startsWith('u_')) {
+    const f = ext.fields.get(key);
+    if (!f) return null;
+    const value = `(SELECT fv.value FROM ticket_field_values fv WHERE fv.ticket_id = t.id AND fv.field_id = ${Number(f.id)})`;
+    return describe(f.label, FIELD_KINDS[f.type], f.type === 'yesno' ? ['Oui', 'Non'] : f.options, value, { field: true, active: f.active });
+  }
+  const m = VAR_RE.exec(key);
+  if (!m) return null;
+  const itemId = Number(m[1]);
+  if (singleForm(filters) !== itemId) return null;
+  const v = ext.variables.get(itemId)?.vars.find((x) => x.key === m[2]);
+  if (!v) return null;
+  // La clé est contrôlée par l'expression régulière : lettres minuscules, chiffres et « _ » seulement.
+  const value = `(SELECT tv.value FROM ticket_variables tv WHERE tv.ticket_id = t.id AND tv.var_key = '${m[2]}' LIMIT 1)`;
+  const options = v.type === 'yesno' || v.type === 'checkbox' ? ['Oui', 'Non'] : v.options || [];
+  return describe(v.label, VAR_KINDS[v.type], options, value, { variable: true, active: true });
+}
+
+function describe(label, kind, options, value, extra) {
+  const num = `CAST(REPLACE(${value}, ',', '.') AS REAL)`;
+  const display =
+    kind === 'number'
+      ? num
+      : kind === 'user'
+        ? `(SELECT ${PERSON('xu')} FROM users xu WHERE xu.id = CAST(${value} AS INTEGER))`
+        : kind === 'group'
+          ? `(SELECT xg.name FROM user_groups xg WHERE xg.id = CAST(${value} AS INTEGER))`
+          : value;
+  return { label, kind, options, value, sql: display, sortSql: kind === 'number' ? num : display, groupable: ['choice', 'user', 'group'].includes(kind), ...extra };
+}
+
+const columnOf = (c, ext, filters) => COLUMNS[c] || extEntry(c, ext, filters);
+function dimensionOf(d, ext, filters) {
+  if (DIMENSIONS[d]) return DIMENSIONS[d];
+  const e = extEntry(d, ext, filters);
+  if (!e || !e.groupable) return null;
+  return { label: e.label, key: `COALESCE(${e.value}, '')`, name: e.kind === 'user' || e.kind === 'group' ? e.sql : null, ext: e };
+}
+
+/** Filtres sur les champs personnalisés et les variables : [{ key, op, values | value | min | max }]. */
+function cleanFieldFilters(raw, ext, filters) {
+  const out = [];
+  for (const r of list(raw).slice(0, MAX_FIELD_FILTERS + 1)) {
+    if (!r || typeof r !== 'object') continue;
+    const e = extEntry(r.key, ext, filters);
+    if (!e) throw new HttpError(400, VAR_RE.test(r.key || '') ? 'Un filtre porte sur une variable : choisissez son formulaire, et lui seul, dans « Formulaire ».' : 'Un filtre porte sur un champ qui n’existe plus.');
+    const op = r.op;
+    if (op === 'empty' || op === 'filled') {
+      out.push({ key: r.key, op });
+      continue;
+    }
+    if (op === 'in' && ['choice', 'user', 'group'].includes(e.kind)) {
+      const values = [...new Set(list(r.values).map(String))].slice(0, 50);
+      if (e.kind === 'choice' && values.some((v) => !e.options.includes(v))) throw new HttpError(400, `Filtre « ${e.label} » : valeur inconnue.`);
+      if (e.kind !== 'choice' && values.some((v) => !/^\d+$/.test(v))) throw new HttpError(400, `Filtre « ${e.label} » : valeur invalide.`);
+      if (values.length) out.push({ key: r.key, op, values });
+      continue;
+    }
+    if (op === 'contains' && e.kind === 'text') {
+      const value = typeof r.value === 'string' ? r.value.trim().slice(0, 100) : '';
+      if (value) out.push({ key: r.key, op, value });
+      continue;
+    }
+    if (op === 'range' && (e.kind === 'number' || e.kind === 'date')) {
+      const ok = (v) => (e.kind === 'number' ? /^-?\d+([.,]\d+)?$/.test(String(v)) : /^\d{4}-\d{2}-\d{2}$/.test(String(v)));
+      const min = r.min === '' || r.min == null ? null : String(r.min);
+      const max = r.max === '' || r.max == null ? null : String(r.max);
+      if ((min != null && !ok(min)) || (max != null && !ok(max))) throw new HttpError(400, `Filtre « ${e.label} » : ${e.kind === 'number' ? 'nombre' : 'date'} invalide.`);
+      if (min != null || max != null) out.push({ key: r.key, op, min: min?.replace(',', '.') ?? null, max: max?.replace(',', '.') ?? null });
+      continue;
+    }
+    throw new HttpError(400, `Filtre « ${e.label} » : opération impossible pour ce type.`);
+  }
+  if (out.length > MAX_FIELD_FILTERS) throw new HttpError(400, `${MAX_FIELD_FILTERS} filtres sur les champs au plus.`);
+  return out;
+}
+
+/**
+ * Retire d'une définition enregistrée les colonnes et filtres dont le champ ou la variable n'existe plus
+ * (champ supprimé, formulaire modifié). Un regroupement sur un champ disparu est une erreur explicite.
+ */
+function pruneDefinition(def, ext) {
+  const f = def.filters || {};
+  const out = { ...def, filters: { ...f } };
+  if (f.fields?.length) out.filters.fields = f.fields.filter((x) => extEntry(x.key, ext, f));
+  if (def.type === 'list') {
+    out.columns = def.columns.filter((c) => columnOf(c, ext, f));
+    if (!out.columns.length) out.columns = DEFAULT_COLUMNS;
+    if (!columnOf(def.sort.field, ext, f)) out.sort = { field: 'created_at', dir: def.sort.dir };
+  }
+  for (const k of ['dimension', 'split']) {
+    if (def[k] && !dimensionOf(def[k], ext, f)) throw new HttpError(400, 'Ce rapport regroupe selon un champ ou une variable qui n’existe plus. Modifiez-le.');
+  }
+  return out;
+}
 const CHARTS = {
   list: ['table'],
   summary: ['bar', 'hbar', 'donut', 'stacked', 'table'],
@@ -255,21 +389,36 @@ function validateDefinition(raw, ctx) {
   const type = raw.type || 'list';
   if (!TYPES.includes(type)) throw new HttpError(400, 'Type de rapport inconnu.');
   const def = { type, filters: cleanFilters(raw.filters, ctx) };
+  // Rapport enregistré (lenient) : un filtre dont le champ a disparu est ignoré au lieu de bloquer.
+  const known = ctx.lenient ? list(raw.filters?.fields).filter((x) => extEntry(x?.key, ctx.ext, def.filters)) : raw.filters?.fields;
+  const fieldFilters = cleanFieldFilters(known, ctx.ext, def.filters);
+  if (fieldFilters.length) def.filters.fields = fieldFilters;
+  const ext = ctx.ext;
+  const filt = def.filters;
   const chart = raw.chart || CHARTS[type][0];
   if (!CHARTS[type].includes(chart)) throw new HttpError(400, "Ce type d'affichage ne convient pas à ce rapport.");
   def.chart = chart;
   if (type === 'list') {
-    const cols = list(raw.columns).filter((c) => COLUMNS[c]);
-    def.columns = cols.length ? [...new Set(cols)] : DEFAULT_COLUMNS;
-    const sort = raw.sort?.field && COLUMNS[raw.sort.field] ? raw.sort.field : 'created_at';
+    const cols = list(raw.columns).filter((c) => columnOf(c, ext, filt));
+    def.columns = cols.length ? [...new Set(cols)].slice(0, 40) : DEFAULT_COLUMNS;
+    const sort = raw.sort?.field && columnOf(raw.sort.field, ext, filt) ? raw.sort.field : 'created_at';
     def.sort = { field: sort, dir: raw.sort?.dir === 'asc' ? 'asc' : 'desc' };
     def.limit = Math.min(Math.max(Number(raw.limit) || 100, 1), MAX_ROWS);
   }
   if (type === 'summary') {
-    if (!DIMENSIONS[raw.dimension]) throw new HttpError(400, 'Choisissez par quoi regrouper.');
+    if (!dimensionOf(raw.dimension, ext, filt)) {
+      throw new HttpError(
+        400,
+        VAR_RE.test(raw.dimension || '')
+          ? 'Pour regrouper selon une variable, choisissez son formulaire, et lui seul, dans « Formulaire ».'
+          : /^u_/.test(raw.dimension || '')
+            ? 'Ce rapport regroupe selon un champ qui n’existe plus. Modifiez-le.'
+            : 'Choisissez par quoi regrouper.'
+      );
+    }
     def.dimension = raw.dimension;
     if (raw.split) {
-      if (!DIMENSIONS[raw.split] || raw.split === raw.dimension) throw new HttpError(400, 'Second regroupement invalide.');
+      if (!dimensionOf(raw.split, ext, filt) || raw.split === raw.dimension) throw new HttpError(400, 'Second regroupement invalide.');
       def.split = raw.split;
     }
     if (def.chart === 'stacked' && !def.split) throw new HttpError(400, 'Un graphique empilé demande un second regroupement.');
@@ -296,6 +445,7 @@ async function definitionContext(db) {
     categoryKeys: (await getSetting(db, 'categories')).map((c) => c.key),
     groupIds: (await db.all('SELECT id FROM user_groups')).map((g) => g.id),
     formIds: (await db.all('SELECT id FROM catalog_items')).map((f) => f.id),
+    ext: await loadExtensions(db),
   };
 }
 
@@ -315,7 +465,7 @@ const isoOf = (d) => (d ? d.toISOString() : null);
  * Clause WHERE d'une définition pour une personne : demandes non supprimées, visibles par elle, filtres.
  * `window` remplace la période des filtres (comparaisons, tendances).
  */
-function whereClause(def, actor, { window, dateField, skipPeriod = false, overrides = {} } = {}) {
+function whereClause(def, actor, { window, dateField, skipPeriod = false, overrides = {}, ext = null } = {}) {
   const f = { ...def.filters, ...overrides };
   const vis = visibilityClause(actor);
   const parts = ['t.deleted_at IS NULL', vis.sql];
@@ -371,6 +521,29 @@ function whereClause(def, actor, { window, dateField, skipPeriod = false, overri
     parts.push(`${st.sql} IN (${values.map(() => '?').join(', ')})`);
     params.push(...st.params, ...values);
   }
+  for (const ff of f.fields || []) {
+    const e = extEntry(ff.key, ext, f);
+    if (!e) continue;
+    if (ff.op === 'empty') parts.push(`COALESCE(${e.value}, '') = ''`);
+    else if (ff.op === 'filled') parts.push(`COALESCE(${e.value}, '') <> ''`);
+    else if (ff.op === 'in') {
+      parts.push(`${e.value} IN (${ff.values.map(() => '?').join(', ')})`);
+      params.push(...ff.values);
+    } else if (ff.op === 'contains') {
+      parts.push(`${e.value} LIKE ? ESCAPE '\\'`);
+      params.push(`%${ff.value.replace(/[%_\\]/g, (c) => `\\${c}`)}%`);
+    } else if (ff.op === 'range') {
+      const v = e.kind === 'number' ? e.sortSql : e.value;
+      if (ff.min != null) {
+        parts.push(`${v} >= ?`);
+        params.push(e.kind === 'number' ? Number(ff.min) : ff.min);
+      }
+      if (ff.max != null) {
+        parts.push(`${v} <= ?`);
+        params.push(e.kind === 'number' ? Number(ff.max) : ff.max);
+      }
+    }
+  }
   if (f.confidential === 'exclude') parts.push('t.confidential = 0');
   if (f.confidential === 'only') parts.push('t.confidential = 1');
   if (f.q) {
@@ -415,7 +588,13 @@ async function labelMaps(db) {
   };
 }
 
-function dimensionLabel(dim, key, name, labels) {
+function dimensionLabel(dim, key, name, labels, desc) {
+  if (desc?.ext) {
+    if (key == null || key === '') return 'Non renseigné';
+    if (desc.ext.kind === 'user') return name || 'Compte supprimé';
+    if (desc.ext.kind === 'group') return name || 'Groupe supprimé';
+    return String(key);
+  }
   if (dim === 'status' || dim === 'priority' || dim === 'category') return labels[dim](key);
   if (dim === 'group') return Number(key) ? name || 'Groupe supprimé' : 'Sans groupe';
   if (dim === 'assignee') return Number(key) ? name || 'Compte supprimé' : 'Personne';
@@ -444,8 +623,10 @@ const round = (v, d = 0) => (v == null ? null : Math.round(v * 10 ** d) / 10 ** 
 
 async function runList(db, def, actor, opts) {
   const w = whereClause(def, actor, opts);
-  const cols = def.columns.map((c) => `${COLUMNS[c].sql} AS "${c}"`).join(', ');
-  const order = `${COLUMNS[def.sort.field].sql} ${def.sort.dir === 'asc' ? 'ASC' : 'DESC'}, t.id DESC`;
+  const col = (c) => columnOf(c, opts.ext, def.filters);
+  // Alias de colonne : la clé est sûre (colonne connue, champ « u_… » ou variable contrôlée).
+  const cols = def.columns.map((c) => `${col(c).sql} AS "${c}"`).join(', ');
+  const order = `${col(def.sort.field).sortSql || col(def.sort.field).sql} ${def.sort.dir === 'asc' ? 'ASC' : 'DESC'}, t.id DESC`;
   const total = (await db.get(`SELECT COUNT(*) AS n ${FROM} WHERE ${w.sql}`, w.params)).n;
   const sel = withToday(`SELECT t.id AS _id, ${cols}`);
   const ord = withToday(order);
@@ -453,7 +634,7 @@ async function runList(db, def, actor, opts) {
   const labels = await labelMaps(db);
   return {
     type: 'list',
-    columns: def.columns.map((c) => ({ key: c, label: COLUMNS[c].label })),
+    columns: def.columns.map((c) => ({ key: c, label: col(c).label, ...(col(c).kind ? { kind: col(c).kind } : {}) })),
     rows: rows.map((r) => {
       const out = { id: r._id };
       for (const c of def.columns) {
@@ -473,8 +654,8 @@ async function runList(db, def, actor, opts) {
 
 async function runSummary(db, def, actor, opts) {
   const w = whereClause(def, actor, opts);
-  const dim = DIMENSIONS[def.dimension];
-  const split = def.split ? DIMENSIONS[def.split] : null;
+  const dim = dimensionOf(def.dimension, opts.ext, def.filters);
+  const split = def.split ? dimensionOf(def.split, opts.ext, def.filters) : null;
   const sel = withToday(
     `SELECT ${dim.key} AS k, ${dim.name || 'NULL'} AS kn${split ? `, ${split.key} AS s, ${split.name || 'NULL'} AS sn` : ''},
        ${METRICS[def.metric].sql} AS v, COUNT(*) AS c, SUM(CASE WHEN t.resolved_at IS NOT NULL THEN 1 ELSE 0 END) AS rc`
@@ -483,7 +664,7 @@ async function runSummary(db, def, actor, opts) {
   const labels = await labelMaps(db);
   const cats = new Map();
   for (const r of rows) {
-    const e = cats.get(String(r.k)) || { key: r.k, label: dimensionLabel(def.dimension, r.k, r.kn, labels), total: 0 };
+    const e = cats.get(String(r.k)) || { key: r.k, label: dimensionLabel(def.dimension, r.k, r.kn, labels, dim), total: 0 };
     e.total += r.c;
     cats.set(String(r.k), e);
   }
@@ -517,7 +698,7 @@ async function runSummary(db, def, actor, opts) {
     for (const r of rows) {
       const sk = String(r.s);
       if (!ser.has(sk)) {
-        ser.set(sk, { key: r.s, label: dimensionLabel(def.split, r.s, r.sn, labels), values: categories.map(() => 0), weights: categories.map(() => 0), total: 0 });
+        ser.set(sk, { key: r.s, label: dimensionLabel(def.split, r.s, r.sn, labels, split), values: categories.map(() => 0), weights: categories.map(() => 0), total: 0 });
       }
       const s = ser.get(sk);
       const i = catIndex(r.k);
@@ -644,8 +825,10 @@ async function runHeatmap(db, def, actor, opts) {
  * Calcule un rapport pour une personne. `overrides` : filtres imposés par un tableau de bord
  * (période, groupe), qui remplacent ceux du rapport.
  */
-async function runReport(db, def, actor, { overrides = {} } = {}) {
-  const opts = { overrides };
+async function runReport(db, rawDef, actor, { overrides = {} } = {}) {
+  const ext = await loadExtensions(db);
+  const def = pruneDefinition(rawDef, ext);
+  const opts = { overrides, ext };
   const result =
     def.type === 'list'
       ? await runList(db, def, actor, opts)
@@ -665,7 +848,8 @@ async function runReport(db, def, actor, { overrides = {} } = {}) {
  */
 async function recipientCanSee(db, def, creator, recipient) {
   if (recipient.id === creator.id) return true;
-  const w = whereClause(def, creator, def.type === 'trend' || def.type === 'kpi' ? { skipPeriod: true } : {});
+  const ext = await loadExtensions(db);
+  const w = whereClause(def, creator, { ...(def.type === 'trend' || def.type === 'kpi' ? { skipPeriod: true } : {}), ext });
   const vis = visibilityClause(recipient);
   // COALESCE : une comparaison avec une valeur vide (NULL) ne doit pas faire passer une demande pour visible.
   const hidden = await db.get(`SELECT COUNT(*) AS n ${FROM} WHERE ${w.sql} AND NOT COALESCE(${vis.sql}, 0)`, [...w.params, ...vis.params]);
@@ -711,6 +895,10 @@ function reportExport(format, result, { name, baseName }) {
 }
 
 module.exports = {
+  loadExtensions,
+  extEntry,
+  VAR_KINDS,
+  FIELD_KINDS,
   resultTable,
   reportExport,
   SLA_STATE_LABELS,

@@ -16,6 +16,7 @@ const {
 } = require('../utils');
 const { getSetting } = require('../settings');
 const { canCreate } = require('../access');
+const { loadCustomFields, loadTicketFieldValues, canWriteField, normalizeValue, setFieldValue } = require('../ticketFields');
 const {
   TICKET_SELECT,
   serializeTicket,
@@ -129,9 +130,27 @@ async function loadTicketDetail(db, user, id) {
   const groupOf = (v) => (v ? groupNames.get(Number(v)) || 'Groupe supprimé' : null);
   const label = (e, v) => (e.type === 'assignee' ? nameOf(v) : e.type === 'group' ? groupOf(v) : v);
 
+  // Champs personnalisés (dictionnaire de la table) et variables du formulaire d'origine.
+  const perms = permissionsFor(user, ticket);
+  const custom = await loadTicketFieldValues(db, id, await loadCustomFields(db));
+  const variables = await db.all('SELECT var_key AS key, label, type, value FROM ticket_variables WHERE ticket_id = ? ORDER BY position, id', [id]);
+
   return {
     ...ticket,
-    permissions: permissionsFor(user, ticket),
+    permissions: perms,
+    fields: custom.map((f) => ({
+      id: f.id,
+      name: f.name,
+      label: f.label,
+      type: f.type,
+      options: f.options,
+      help: f.help,
+      active: f.active,
+      value: f.value,
+      display: f.display,
+      canWrite: f.active && canWriteField(f, user, ticket, perms),
+    })),
+    variables,
     comments: comments.map((c) => ({
       id: c.id,
       body: c.body,
@@ -441,6 +460,35 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
     if (edited.length) await addEvent(db, id, req.user.id, 'edited', null, edited.join(','), now);
     await refreshSla(db, id);
 
+    res.json(await detailAfterChange(db, req.user, id));
+  });
+
+  // Champs personnalisés : chacun selon son droit de modification ; changement inscrit dans l'historique.
+  router.patch('/:id/fields', async (req, res) => {
+    const id = parseId(req.params.id);
+    const ticket = await loadVisibleTicket(db, req.user, id);
+    const perms = permissionsFor(req.user, ticket);
+    const input = req.body?.values;
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'Valeurs invalides.');
+    const fields = new Map((await loadCustomFields(db)).map((f) => [f.name, f]));
+    const pending = [];
+    for (const [name, raw] of Object.entries(input)) {
+      const f = fields.get(name);
+      if (!f || !f.active) throw new HttpError(400, `Champ inconnu : ${name}.`);
+      if (!canWriteField(f, req.user, ticket, perms)) throw new HttpError(403, `Vous ne pouvez pas modifier « ${f.label} ».`);
+      pending.push({ f, value: await normalizeValue(db, f, raw) });
+    }
+    const now = nowIso();
+    let changed = 0;
+    for (const { f, value } of pending) {
+      const before = await loadTicketFieldValues(db, id, [f]);
+      const diff = await setFieldValue(db, id, f, value);
+      if (!diff) continue;
+      const after = await loadTicketFieldValues(db, id, [f]);
+      changed += 1;
+      await addEvent(db, id, req.user.id, 'field', null, JSON.stringify({ label: f.label, from: before[0]?.display ?? null, to: after[0]?.display ?? null }), now);
+    }
+    if (changed) await db.run('UPDATE tickets SET updated_at = ? WHERE id = ?', [now, id]);
     res.json(await detailAfterChange(db, req.user, id));
   });
 

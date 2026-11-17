@@ -8,7 +8,7 @@ import UsersPanel from './admin/UsersPanel';
 import TrashPanel from './admin/TrashPanel';
 import BackupPanel from './admin/BackupPanel';
 import GroupsPanel from './admin/GroupsPanel';
-import CatalogPanel from './admin/CatalogPanel';
+import ProducersPanel from './admin/ProducersPanel';
 import SettingsPanel from './admin/SettingsPanel';
 import ChatReportsPanel from './admin/ChatReportsPanel';
 import SlaPanel from './admin/SlaPanel';
@@ -17,7 +17,7 @@ import SystemLogPanel from './admin/SystemLogPanel';
 const TABS = [
   { value: 'users', label: 'Utilisateurs' },
   { value: 'groups', label: 'Groupes' },
-  { value: 'catalog', label: 'Catalogue' },
+  { value: 'catalog', label: 'Record producers' },
   { value: 'sla', label: 'SLA' },
   { value: 'chat', label: 'Signalements' },
   { value: 'trash', label: 'Corbeille' },
@@ -25,7 +25,7 @@ const TABS = [
   { value: 'settings', label: 'Paramètres' },
   { value: 'log', label: 'Journal système' },
 ];
-const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, sla: SlaPanel, log: SystemLogPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
+const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: ProducersPanel, sla: SlaPanel, log: SystemLogPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
 
 export default function Admin() {
   const [params, setParams] = useSearchParams();

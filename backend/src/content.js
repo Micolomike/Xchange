@@ -99,7 +99,7 @@ const FORMS = [
     group: 'Informaticiens',
     description: 'Messagerie, compte en ligne, application : on vous aide à récupérer l’accès.',
     fields: [
-      text('Service concerné', { ...req, inTitle: true, placeholder: 'Gmail, Ameli, Facebook…' }),
+      text('Service concerné', { ...req, mapTo: 'title', placeholder: 'Gmail, Ameli, Facebook…' }),
       long('Ce qui bloque', { ...req, help: NO_PASSWORD }),
       yesno('Avez-vous encore accès à l’adresse e-mail ou au téléphone de secours ?'),
     ],
@@ -124,7 +124,7 @@ const FORMS = [
     group: 'Informaticiens',
     description: 'L’imprimante n’imprime plus, n’est pas reconnue, ou il faut l’installer.',
     fields: [
-      text('Marque et modèle', { ...req, inTitle: true, placeholder: 'HP DeskJet 2720…' }),
+      text('Marque et modèle', { ...req, mapTo: 'title', placeholder: 'HP DeskJet 2720…' }),
       long('Le problème', req),
       file('Photo du message ou de l’imprimante'),
     ],
@@ -136,7 +136,7 @@ const FORMS = [
     group: 'Informaticiens',
     description: 'Installer une application, régler un logiciel, apprendre à s’en servir.',
     fields: [
-      text('Logiciel ou application', { ...req, inTitle: true }),
+      text('Logiciel ou application', { ...req, mapTo: 'title' }),
       text('Sur quel appareil ?'),
       long('Ce que vous voulez faire', req),
     ],
@@ -200,7 +200,7 @@ const FORMS = [
     group: 'As de la paperasse',
     description: 'Carte grise, passeport, changement d’adresse, compte France Connect…',
     fields: [
-      text('Démarche', { ...req, inTitle: true, placeholder: 'Renouvellement de passeport…' }),
+      text('Démarche', { ...req, mapTo: 'title', placeholder: 'Renouvellement de passeport…' }),
       text('Site concerné', { placeholder: 'ants.gouv.fr, service-public.fr…' }),
       long('Où ça bloque ?', { ...req, help: NO_PASSWORD }),
     ],
@@ -212,7 +212,7 @@ const FORMS = [
     group: 'As de la paperasse',
     description: 'Réclamation, résiliation, contestation, demande de remise gracieuse.',
     fields: [
-      text('Destinataire', { ...req, inTitle: true }),
+      text('Destinataire', { ...req, mapTo: 'title' }),
       long('Ce que vous voulez obtenir', req),
       date('Date limite'),
       file('Documents utiles'),
@@ -279,7 +279,7 @@ const FORMS = [
     group: 'Coachs carrière',
     description: 'Un regard extérieur sur votre CV, pour un poste ou en général.',
     fields: [
-      text('Poste visé', { ...req, inTitle: true }),
+      text('Poste visé', { ...req, mapTo: 'title' }),
       text('Secteur'),
       file('Votre CV', req),
       long('Ce que vous voulez améliorer'),
@@ -292,7 +292,7 @@ const FORMS = [
     group: 'Coachs carrière',
     description: 'Écrire ou améliorer une lettre de motivation.',
     fields: [
-      text('Entreprise et poste', { ...req, inTitle: true }),
+      text('Entreprise et poste', { ...req, mapTo: 'title' }),
       long('L’annonce (ou son lien)'),
       file('Votre brouillon, si vous en avez un'),
     ],
@@ -304,7 +304,7 @@ const FORMS = [
     group: 'Coachs carrière',
     description: 'Entretien d’embauche, entretien annuel : s’entraîner aux questions.',
     fields: [
-      text('Poste ou type d’entretien', { ...req, inTitle: true }),
+      text('Poste ou type d’entretien', { ...req, mapTo: 'title' }),
       date('Date de l’entretien', req),
       radio('Format', ['Téléphone', 'Visio', 'Sur place']),
       long('Ce qui vous inquiète'),
@@ -356,7 +356,7 @@ const FORMS = [
     group: 'Mécanos',
     description: 'Bruit bizarre, voyant allumé, contrôle technique, achat d’occasion.',
     fields: [
-      text('Véhicule', { ...req, inTitle: true, placeholder: 'Renault Clio 2018…' }),
+      text('Véhicule', { ...req, mapTo: 'title', placeholder: 'Renault Clio 2018…' }),
       radio('Sujet', ['Panne ou bruit', 'Voyant allumé', 'Entretien ou contrôle technique', 'Achat ou vente'], req),
       long('Détails', req),
       file('Photo (voyant, devis…)'),
@@ -384,7 +384,7 @@ const FORMS = [
     group: 'As de la paperasse',
     description: 'Colis jamais livré, artisan qui ne termine pas, souci de voisinage. Des conseils entre proches, pas l’avis d’un avocat.',
     fields: [
-      text('Avec qui ?', { ...req, inTitle: true }),
+      text('Avec qui ?', { ...req, mapTo: 'title' }),
       long('La situation', req),
       file('Documents (contrat, factures, échanges)'),
     ],
@@ -397,7 +397,7 @@ const FORMS = [
     group: 'Cuisiniers',
     description: 'Un plat pour ce soir, un menu de fête, quoi faire avec ce qui reste au frigo.',
     fields: [
-      text('Occasion', { inTitle: true, placeholder: 'Repas de Noël, dîner rapide…' }),
+      text('Occasion', { mapTo: 'title', placeholder: 'Repas de Noël, dîner rapide…' }),
       number('Nombre de personnes'),
       long('Contraintes', { help: 'Allergies, régime, budget, temps disponible, ingrédients à utiliser.' }),
     ],
@@ -410,7 +410,7 @@ const FORMS = [
     group: 'Organisateurs',
     description: 'Anniversaire, baptême, mariage, réunion de famille.',
     fields: [
-      text('Événement', { ...req, inTitle: true }),
+      text('Événement', { ...req, mapTo: 'title' }),
       date('Date'),
       number('Nombre d’invités'),
       long('Besoin d’aide pour', req),
@@ -423,7 +423,7 @@ const FORMS = [
     group: 'Organisateurs',
     description: 'Idées de destination, itinéraire, réservations, papiers à prévoir.',
     fields: [
-      text('Destination', { ...req, inTitle: true, placeholder: 'Ou « je ne sais pas encore »' }),
+      text('Destination', { ...req, mapTo: 'title', placeholder: 'Ou « je ne sais pas encore »' }),
       text('Dates ou période'),
       number('Budget (€)'),
       long('Aide souhaitée', req),
@@ -438,7 +438,7 @@ const FORMS = [
     description: 'Un exercice, une notion à comprendre, une orientation à choisir.',
     fields: [
       choice('Niveau', ['Primaire', 'Collège', 'Lycée', 'Études supérieures', 'Formation adulte'], req),
-      text('Matière', { ...req, inTitle: true }),
+      text('Matière', { ...req, mapTo: 'title' }),
       long('La question', req),
       file('L’énoncé ou le document'),
     ],
@@ -451,7 +451,7 @@ const FORMS = [
     group: 'Conseillers budget',
     description: 'Électroménager, meuble, gros équipement : bonne affaire ou pas ?',
     fields: [
-      text('Produit', { ...req, inTitle: true }),
+      text('Produit', { ...req, mapTo: 'title' }),
       number('Budget (€)'),
       text('Lien ou référence'),
       long('Ce qui vous fait hésiter'),
@@ -521,7 +521,7 @@ function withKeys(fields) {
     let key = f.key || slug(f.label) || 'question';
     for (let i = 2; used.has(key); i += 1) key = `${(f.key || slug(f.label)).slice(0, 34)}_${i}`;
     used.add(key);
-    const out = { required: false, help: '', placeholder: '', inTitle: false, ...f, key };
+    const out = { required: false, help: '', placeholder: '', ...f, key };
     if (f.type === 'yesno') out.options = ['Oui', 'Non'];
     return out;
   });

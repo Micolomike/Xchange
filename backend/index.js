@@ -1,3 +1,4 @@
+const { upgradeProducers } = require('./src/ticketFields');
 const { loadConfig } = require('./src/config');
 const { openDatabase } = require('./src/db');
 const { createApp, ensureAdmin } = require('./src/app');
@@ -19,6 +20,9 @@ async function main() {
   if (config.jwtSecretIsEphemeral) log('serveur').warn('JWT_SECRET non défini : sessions perdues à chaque redémarrage.');
   await ensureAdmin(db, config, log('serveur'));
   if (config.seedContent) await applyContent(db);
+  // Record producers : anciens réglages « compléter le titre » et réponses déjà envoyées vers la table des variables.
+  const upgraded = await upgradeProducers(db);
+  if (upgraded) log('catalogue').info(`Réponses de ${upgraded} demande(s) rangées dans la table des variables.`);
   // Version de la charte prête avant la première requête (comptes ayant déjà accepté : version 1).
   await syncTerms(db);
 

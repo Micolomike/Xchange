@@ -538,8 +538,11 @@ function Kpi({ result }) {
   );
 }
 
-const cellText = (key, v) => {
+const cellText = (key, v, kind) => {
   if (v == null || v === '') return '-';
+  if (kind === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T12:00:00`).toLocaleDateString('fr-FR') : v;
+  if (kind === 'number') return typeof v === 'number' ? fmt(v, 2) : v;
+  if (kind) return v;
   if (/_at$|_due$/.test(key)) return new Date(v).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
   if (key === 'due_date') return new Date(`${v}T12:00:00`).toLocaleDateString('fr-FR');
   if (key === 'id') return `#${String(v).padStart(4, '0')}`;
@@ -571,7 +574,7 @@ function ListTable({ result, maxHeight }) {
                       {r[c.key]}
                     </Link>
                   ) : (
-                    cellText(c.key, r[c.key])
+                    cellText(c.key, r[c.key], c.kind)
                   )}
                 </td>
               ))}
