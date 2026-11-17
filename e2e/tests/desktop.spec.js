@@ -565,14 +565,17 @@ test('double authentification : refus tracé à l’inscription, navigateur de c
 
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
-  await page.getByRole('radio', { name: 'Sombre' }).check({ force: true });
+  const display = page.getByRole('radiogroup', { name: 'Thème' });
+  await expect(display).toBeVisible();
+  await display.getByText('Sombre', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).toBe('rgb(15, 20, 27)');
   await page.getByRole('button', { name: /^Thème : sombre/ }).click();
-  await page.getByRole('radio', { name: 'Clair' }).check({ force: true });
+  await expect(display).toBeVisible();
+  await display.getByText('Clair', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
