@@ -52,7 +52,8 @@ function createMailer({ db, config, logger = console, transport } = {}) {
       await log(meta, message, 'sent');
       return info;
     } catch (err) {
-      logger.error(`Envoi d'e-mail impossible (${to}) : ${err.message}`);
+      // Pas d'adresse dans le journal du serveur (données personnelles) : le détail est dans le journal des envois.
+      logger.error(`Envoi d'e-mail impossible (compte n°${meta.userId ?? '?'}) : ${err.message}`);
       const state = await getSetting(db, 'mail_state');
       const reason = explain(err);
       await setSetting(db, 'mail_state', { ...state, lastErrorAt: new Date().toISOString(), lastError: reason });

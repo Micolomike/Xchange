@@ -72,6 +72,11 @@ function rgpdAdminRoutes({ db, config }) {
     };
     months('inactiveMonths', 120);
     months('logMonths', 36);
+    if ('trashDays' in body) {
+      const v = Number(body.trashDays);
+      if (!Number.isInteger(v) || v < 0 || v > 365) throw new HttpError(400, 'Corbeille : entre 0 et 365 jours.', { trashDays: 'Entre 0 et 365 jours.' });
+      next.trashDays = v;
+    }
     if ('requireTerms' in body) next.requireTerms = Boolean(body.requireTerms);
     await setSetting(db, 'rgpd', next);
     res.json(await info());

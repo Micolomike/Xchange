@@ -384,6 +384,7 @@ function RetentionCard({ info, onSaved }) {
   const [form, setForm] = useState({
     inactiveMonths: String(info.settings.inactiveMonths),
     logMonths: String(info.settings.logMonths),
+    trashDays: String(info.settings.trashDays ?? 30),
     requireTerms: info.settings.requireTerms !== false,
   });
   const [errors, setErrors] = useState({});
@@ -396,7 +397,12 @@ function RetentionCard({ info, onSaved }) {
     try {
       const next = await api('/api/admin/rgpd/settings', {
         method: 'PUT',
-        body: { inactiveMonths: Number(form.inactiveMonths), logMonths: Number(form.logMonths), requireTerms: form.requireTerms },
+        body: {
+          inactiveMonths: Number(form.inactiveMonths),
+          logMonths: Number(form.logMonths),
+          trashDays: Number(form.trashDays),
+          requireTerms: form.requireTerms,
+        },
       });
       setErrors({});
       forgetLegal();
@@ -414,7 +420,9 @@ function RetentionCard({ info, onSaved }) {
     const n = candidates.inactive.length;
     const ok = await confirmAction({
       title: 'Lancer la purge maintenant ?',
-      text: `${n} compte(s) inactif(s) seront anonymisés (demandes conservées) et ${candidates.logs.mail + candidates.logs.impersonations} ligne(s) de journal supprimées.`,
+      text: `${n} compte(s) inactif(s) seront anonymisés (demandes conservées), ${candidates.trash} demande(s) de la corbeille effacée(s) et ${
+        candidates.logs.mail + candidates.logs.impersonations + candidates.logs.groupRequests
+      } ligne(s) de journal supprimées.`,
       confirmText: 'Lancer la purge',
       danger: n > 0,
     });
@@ -422,7 +430,7 @@ function RetentionCard({ info, onSaved }) {
     setBusy(true);
     try {
       const r = await api('/api/admin/rgpd/purge', { method: 'POST' });
-      toast(`Purge faite : ${r.done.accounts} compte(s), ${r.done.mail + r.done.impersonations} ligne(s) de journal`);
+      toast(`Purge faite : ${r.done.accounts} compte(s), ${r.done.trash} demande(s) de la corbeille, ${r.done.mail + r.done.impersonations + r.done.groupRequests} ligne(s) de journal`);
       onSaved(r);
     } catch (err) {
       toastError(err);
@@ -440,12 +448,15 @@ function RetentionCard({ info, onSaved }) {
       description="La purge tourne automatiquement une fois par jour. Les administrateurs ne sont jamais anonymisés automatiquement."
     >
       <form onSubmit={save} className="space-y-4" noValidate>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Field id="rgpd-inactive" label="Anonymiser les comptes inactifs depuis (mois)" hint="24 mois est la durée habituelle. 0 : jamais." error={errors.inactiveMonths}>
             {(p) => <input {...p} type="number" min="0" max="120" className="field" value={form.inactiveMonths} onChange={set('inactiveMonths')} />}
           </Field>
           <Field id="rgpd-logs" label="Supprimer les journaux plus vieux que (mois)" hint="Entre 6 et 12 mois recommandés. 0 : jamais." error={errors.logMonths}>
             {(p) => <input {...p} type="number" min="0" max="36" className="field" value={form.logMonths} onChange={set('logMonths')} />}
+          </Field>
+          <Field id="rgpd-trash" label="Vider la corbeille après (jours)" hint="Demandes supprimées, effacées pour de bon. 0 : jamais." error={errors.trashDays}>
+            {(p) => <input {...p} type="number" min="0" max="365" className="field" value={form.trashDays} onChange={set('trashDays')} />}
           </Field>
         </div>
         <label className="flex items-start gap-3 text-sm">
@@ -473,6 +484,8 @@ function RetentionCard({ info, onSaved }) {
           </li>
           <li>{candidates.logs.mail} e-mail(s) du journal d’envoi à supprimer</li>
           <li>{candidates.logs.impersonations} trace(s) de prise de contrôle à supprimer</li>
+          <li>{candidates.logs.groupRequests} demande(s) d’adhésion à un groupe, déjà traitée(s), à supprimer</li>
+          <li>{candidates.trash} demande(s) de la corbeille à effacer définitivement</li>
         </ul>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink-mute">
@@ -517,7 +530,7 @@ function LegalCard({ legal, onSaved }) {
     <Card
       id="rgpd-legal"
       title="Textes juridiques"
-      description="Pages publiques, en lien en bas de chaque page. « ## » commence un titre, « - » une ligne de liste ; laissez une ligne vide entre deux paragraphes."
+      description="Pages publiques, en lien en bas de chaque page. « ## » commence un titre, « - » une ligne de liste ; laissez une ligne vide entre deux paragraphes. Dans la politique de confidentialité, {{inactiveMonths}}, {{logMonths}} et {{trashDays}} affichent les durées réglées ci-dessus."
     >
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Texte à modifier">
         {LEGAL_PAGES.map((p) => (

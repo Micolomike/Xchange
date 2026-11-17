@@ -470,7 +470,7 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await page.goto('/');
   await page.getByRole('contentinfo').getByRole('link', { name: 'Politique de confidentialité' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Politique de confidentialité' })).toBeVisible();
-  await expect(page.getByText('après 2 ans d')).toBeVisible();
+  await expect(page.getByText('après 2 ans sans connexion')).toBeVisible();
 
   await page.goto('/admin?tab=settings&section=rgpd');
   await expect(page.getByRole('heading', { name: 'Données d’une personne' })).toBeVisible();

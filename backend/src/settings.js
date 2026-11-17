@@ -53,7 +53,7 @@ const DEFAULTS = {
   // Textes juridiques ; vide = texte proposé par défaut (src/legal.js).
   legal: { legalNotice: '', privacyPolicy: '', charter: '' },
   // Conservation des données : 0 = pas de purge automatique.
-  rgpd: { inactiveMonths: 24, logMonths: 12, requireTerms: true },
+  rgpd: { inactiveMonths: 24, logMonths: 12, trashDays: 30, requireTerms: true },
   rgpd_state: { lastRunAt: null, lastResult: null, lastError: null },
   backup_state: {
     lastRunAt: null,

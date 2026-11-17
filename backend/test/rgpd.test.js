@@ -37,8 +37,9 @@ describe('RGPD', () => {
   test('pages publiques : textes par défaut, durées remplies, modification et retour au texte d’origine', async () => {
     const pub = (await ctx.api.get('/api/legal').expect(200)).body;
     assert.ok(pub.legalNotice.includes('Éditeur du site'));
-    assert.ok(pub.privacyPolicy.includes("après 2 ans d'inactivité"));
-    assert.ok(pub.privacyPolicy.includes('les journaux techniques : 1 an'));
+    assert.ok(pub.privacyPolicy.includes('après 2 ans sans connexion'));
+    assert.ok(pub.privacyPolicy.includes("demandes d'adhésion déjà traitées : 1 an"));
+    assert.ok(pub.privacyPolicy.includes('30 jours dans la corbeille'));
     assert.equal(pub.requireTerms, true);
 
     await ctx.api.put('/api/admin/rgpd/legal').set(admin.auth).send({ legalNotice: '## Éditeur\nSwann' }).expect(200);
@@ -55,7 +56,7 @@ describe('RGPD', () => {
     assert.equal((await put({ inactiveMonths: 'beaucoup' })).status, 400);
     const ok = (await put({ inactiveMonths: 36, logMonths: 6 }).expect(200)).body;
     assert.equal(ok.settings.inactiveMonths, 36);
-    assert.ok((await ctx.api.get('/api/legal')).body.privacyPolicy.includes('après 3 ans'));
+    assert.ok((await ctx.api.get('/api/legal')).body.privacyPolicy.includes('après 3 ans sans connexion'));
     await put({ inactiveMonths: 24, logMonths: 12 }).expect(200);
   });
 
@@ -179,12 +180,22 @@ describe('RGPD', () => {
       [longAgo, new Date().toISOString()]
     );
 
+    // Corbeille : une demande supprimée il y a 40 jours est effacée, une récente reste.
+    const trashed = await ctx.createTicket(recent, { title: 'Vieille demande' });
+    const recentTrash = await ctx.createTicket(recent, { title: 'Demande récente' });
+    await ctx.db.run('UPDATE tickets SET deleted_at = ? WHERE id = ?', [new Date(Date.now() - 40 * 86400_000).toISOString(), trashed.id]);
+    await ctx.db.run('UPDATE tickets SET deleted_at = ? WHERE id = ?', [new Date().toISOString(), recentTrash.id]);
+    assert.equal((await ctx.api.put('/api/admin/rgpd/settings').set(admin.auth).send({ trashDays: 999 })).status, 400);
+
     const info = (await ctx.api.get('/api/admin/rgpd').set(admin.auth)).body;
+    assert.equal(info.candidates.trash, 1);
     assert.deepEqual(info.candidates.inactive.map((u) => u.id), [old.user.id]);
     assert.equal(info.candidates.logs.mail, 1);
 
     const done = await runPurge(ctx.db, ctx.config, { logger: { info() {}, error() {} } });
-    assert.deepEqual(done, { accounts: 1, mail: 1, impersonations: 0 });
+    assert.deepEqual(done, { accounts: 1, mail: 1, impersonations: 0, groupRequests: 0, trash: 1 });
+    assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [trashed.id])).n, 0);
+    assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [recentTrash.id])).n, 1);
     assert.ok((await ctx.db.get('SELECT anonymized_at FROM users WHERE id = ?', [old.user.id])).anonymized_at);
     assert.equal((await ctx.db.get('SELECT anonymized_at FROM users WHERE id = ?', [recent.user.id])).anonymized_at, null);
     assert.equal((await ctx.db.get('SELECT anonymized_at FROM users WHERE id = ?', [admin.user.id])).anonymized_at, null);

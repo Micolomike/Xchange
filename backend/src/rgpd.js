@@ -113,6 +113,7 @@ async function exportUser(db, id) {
       )
     ).map((c) => ({ author: c.username ? displayName(c) : 'Compte supprimé', body: c.body, created_at: c.created_at }));
     t.attachments = await db.all('SELECT original_name, mime_type, size, created_at FROM attachments WHERE ticket_id = ?', [t.id]);
+    t.history = await db.all('SELECT type, from_value, to_value, created_at FROM ticket_events WHERE ticket_id = ? ORDER BY id', [t.id]);
   }
   const messagesElsewhere = await db.all(
     `SELECT c.ticket_id, c.body, c.created_at FROM comments c JOIN tickets t ON t.id = c.ticket_id
@@ -160,7 +161,12 @@ async function exportUser(db, id) {
 
 /** Ce que la purge ferait (ou fait) avec les réglages actuels. */
 async function purgeCandidates(db, settings, now = new Date()) {
-  const result = { inactive: [], logs: { mail: 0, impersonations: 0 } };
+  const result = { inactive: [], logs: { mail: 0, impersonations: 0, groupRequests: 0 }, trash: 0 };
+  const trashDays = settings.trashDays ?? 30;
+  if (trashDays > 0) {
+    const limit = new Date(now.getTime() - trashDays * 86400_000).toISOString();
+    result.trash = (await db.get('SELECT COUNT(*) AS n FROM tickets WHERE deleted_at IS NOT NULL AND deleted_at < ?', [limit])).n;
+  }
   if (settings.inactiveMonths > 0) {
     const limit = monthsAgo(settings.inactiveMonths, now);
     result.inactive = (
@@ -175,6 +181,9 @@ async function purgeCandidates(db, settings, now = new Date()) {
     const limit = monthsAgo(settings.logMonths, now);
     result.logs.mail = (await db.get('SELECT COUNT(*) AS n FROM mail_log WHERE created_at < ?', [limit])).n;
     result.logs.impersonations = (await db.get('SELECT COUNT(*) AS n FROM impersonations WHERE started_at < ?', [limit])).n;
+    result.logs.groupRequests = (
+      await db.get("SELECT COUNT(*) AS n FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])
+    ).n;
   }
   return result;
 }
@@ -182,7 +191,7 @@ async function purgeCandidates(db, settings, now = new Date()) {
 async function runPurge(db, config, { now = new Date(), logger = console } = {}) {
   const settings = await getSetting(db, 'rgpd');
   const todo = await purgeCandidates(db, settings, now);
-  const done = { accounts: 0, mail: 0, impersonations: 0 };
+  const done = { accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, trash: 0 };
   for (const u of todo.inactive) {
     await anonymizeUser(db, config, u.id, { mode: 'keep' });
     done.accounts += 1;
@@ -191,10 +200,29 @@ async function runPurge(db, config, { now = new Date(), logger = console } = {})
     const limit = monthsAgo(settings.logMonths, now);
     done.mail = (await db.run('DELETE FROM mail_log WHERE created_at < ?', [limit])).changes;
     done.impersonations = (await db.run('DELETE FROM impersonations WHERE started_at < ?', [limit])).changes;
+    done.groupRequests = (
+      await db.run("DELETE FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])
+    ).changes;
+  }
+  // Corbeille : les demandes supprimées sont effacées définitivement (avec leurs fichiers) après le délai.
+  const trashDays = settings.trashDays ?? 30;
+  if (trashDays > 0) {
+    const limit = new Date(now.getTime() - trashDays * 86400_000).toISOString();
+    const old = await db.all('SELECT id FROM tickets WHERE deleted_at IS NOT NULL AND deleted_at < ?', [limit]);
+    if (old.length) {
+      const ph = old.map(() => '?').join(',');
+      const ids = old.map((t) => t.id);
+      const files = (await db.all(`SELECT stored_name FROM attachments WHERE ticket_id IN (${ph})`, ids)).map((f) => f.stored_name);
+      done.trash = (await db.run(`DELETE FROM tickets WHERE id IN (${ph})`, ids)).changes;
+      removeFilesNow(config.uploadsDir, files);
+    }
   }
   await setSetting(db, 'rgpd_state', { lastRunAt: now.toISOString(), lastResult: done, lastError: null });
-  if (done.accounts || done.mail || done.impersonations) {
-    logger.info(`Purge RGPD : ${done.accounts} compte(s) inactif(s) anonymisé(s), ${done.mail + done.impersonations} ligne(s) de journal supprimée(s).`);
+  if (done.accounts || done.mail || done.impersonations || done.groupRequests || done.trash) {
+    logger.info(
+      `Purge RGPD : ${done.accounts} compte(s) inactif(s) anonymisé(s), ${done.mail + done.impersonations + done.groupRequests} ligne(s) de journal ` +
+        `supprimée(s), ${done.trash} demande(s) de la corbeille effacée(s).`
+    );
   }
   return done;
 }
