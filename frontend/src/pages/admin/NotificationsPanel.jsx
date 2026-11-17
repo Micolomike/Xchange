@@ -17,7 +17,11 @@ const MAIL_EVENTS = [
   { key: 'join_decided', label: 'Réponse à une demande d’adhésion', who: 'La personne qui a demandé' },
   { key: 'rgpd_request', label: 'Demande sur des données personnelles (RGPD)', who: 'Les administrateurs' },
 ];
-const EVENT_LABELS = Object.fromEntries([...MAIL_EVENTS.map((e) => [e.key, e.label]), ['test', 'E-mail de test']]);
+const EVENT_LABELS = Object.fromEntries([
+  ...MAIL_EVENTS.map((e) => [e.key, e.label]),
+  ['test', 'E-mail de test'],
+  ['inactivity_warning', 'Avertissement avant anonymisation'],
+]);
 
 const STATUSES = [
   { key: 'open', label: 'Rouverte' },

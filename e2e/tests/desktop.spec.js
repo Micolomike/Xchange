@@ -497,9 +497,16 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await page.getByRole('tab', { name: 'Charte d’utilisation' }).click();
   await page.fill('#rgpd-legal-text', '## Règle\nSoyez sympas.');
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Publier' }).click();
   await expect(page.getByText('Texte personnalisé')).toBeVisible();
   await page.goto('/charte');
   await expect(page.getByText('Soyez sympas.')).toBeVisible();
+  await expect(page.getByText(/^Version 2, en vigueur depuis le/)).toBeVisible();
+  // Nouvelle version : l'administrateur lui-même doit la relire et l'accepter.
+  const banner = page.getByRole('region', { name: 'Charte d’utilisation' });
+  await expect(banner).toContainText('a été modifiée le');
+  await banner.getByRole('button', { name: 'J’ai lu et j’accepte' }).click();
+  await expect(banner).toBeHidden();
 });
 
 test('double authentification : refus tracé à l’inscription, navigateur de confiance', async ({ browser }, testInfo) => {

@@ -25,7 +25,7 @@ const PRIVACY_POLICY = `## Qui est responsable de vos données ?
 
 ## Quelles données, et pourquoi ?
 Xchange sert à demander de l'aide et à en proposer. Nous traitons :
-- votre compte : identifiant, prénom, nom, adresse e-mail, mot de passe (stocké sous une forme hachée, illisible), réglages de double authentification (y compris, le cas échéant, votre choix de ne pas l'utiliser et sa date), navigateurs de confiance, préférences de notification, date d'acceptation de la charte ;
+- votre compte : identifiant, prénom, nom, adresse e-mail, mot de passe (stocké sous une forme hachée, illisible), réglages de double authentification (y compris, le cas échéant, votre choix de ne pas l'utiliser et sa date), navigateurs de confiance, préférences de notification, versions de la charte acceptées et leurs dates ;
 - vos demandes et messages, vos réponses aux formulaires, leurs pièces jointes et l'historique de leur traitement ;
 - vos groupes et vos demandes pour rejoindre un groupe ;
 - vos demandes concernant vos données personnelles ;
@@ -55,7 +55,7 @@ Prestataires techniques :
 Sur l'ordinateur de l'éditeur, en France, et dans ses sauvegardes.
 
 ## Combien de temps ?
-- votre compte : tant que vous l'utilisez ; après {{inactiveMonths}} sans connexion, il est anonymisé automatiquement ;
+- votre compte : tant que vous l'utilisez ; après {{inactiveMonths}} sans connexion, il est anonymisé automatiquement, après un e-mail d'avertissement envoyé un mois avant ;
 - vos demandes et messages : tant que votre compte existe, puis sans votre nom, sauf si vous demandez leur suppression ;
 - une demande supprimée : {{trashDays}} dans la corbeille, puis effacée définitivement avec ses pièces jointes ;
 - les journaux techniques et les demandes d'adhésion déjà traitées : {{logMonths}} ;

@@ -71,7 +71,7 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/catalog', auth, catalogRoutes({ db, config, notifier }));
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
   app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config, mailer, notifier }));
-  app.use('/api/admin/rgpd', auth, requireAdmin, rgpdAdminRoutes({ db, config }));
+  app.use('/api/admin/rgpd', auth, requireAdmin, rgpdAdminRoutes({ db, config, notifier }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

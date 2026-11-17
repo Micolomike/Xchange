@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
 const { getSetting } = require('../settings');
 const { exportUser } = require('../rgpd');
+const { syncTerms, acceptTerms } = require('../terms');
 const { RGPD_TYPES, dueDate } = require('../rgpdRequests');
 const { exportFileName } = require('./rgpd');
 const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PREFS, parseNotifyPrefs } = require('../utils');
@@ -128,10 +129,11 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const role = count === 0 ? 'admin' : 'user';
     const hash = await bcrypt.hash(values.password, 10);
     const { lastID } = await db.run(
-      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at, last_seen_at, terms_accepted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso(), req.body?.acceptTerms === true ? nowIso() : null]
+      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso()]
     );
+    if (req.body?.acceptTerms === true) await acceptTerms(db, lastID, (await syncTerms(db)).version);
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
     // Groupes choisis à l'inscription : des demandes à valider par un administrateur.
     const wanted = Array.isArray(req.body.groups) ? req.body.groups.filter((id) => Number.isInteger(Number(id))) : [];
@@ -356,7 +358,12 @@ function authRoutes({ db, config, authenticate, notifier }) {
 
   // Acceptation de la charte par un compte créé avant qu'elle existe (ou par un administrateur).
   router.post('/me/accept-terms', authenticate, forbidImpersonation, async (req, res) => {
-    await db.run('UPDATE users SET terms_accepted_at = ? WHERE id = ?', [nowIso(), req.user.id]);
+    const current = await syncTerms(db);
+    // La page lue doit être la version en vigueur : si la charte vient de changer, on la fait relire.
+    if (req.body?.version !== undefined && Number(req.body.version) !== current.version) {
+      throw new HttpError(409, 'La charte vient d’être modifiée : rechargez la page et relisez-la.');
+    }
+    await acceptTerms(db, req.user.id, current.version);
     const row = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
     res.json({ user: publicUser(row), token: signToken(row, config, { mfa: req.sessionMfa }) });
   });

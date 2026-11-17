@@ -8,6 +8,15 @@ const bcrypt = require('bcryptjs');
 const { HttpError, nowIso, displayName, parseNotifyPrefs } = require('./utils');
 const { getSetting, setSetting } = require('./settings');
 
+/** Délai entre l'e-mail d'avertissement et l'anonymisation d'un compte inactif. */
+const WARNING_DAYS = 30;
+
+const addMonths = (iso, months) => {
+  const d = new Date(iso);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+};
+
 const monthsAgo = (months, now = new Date()) => {
   const d = new Date(now);
   d.setMonth(d.getMonth() - months);
@@ -69,6 +78,7 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
     await db.run('DELETE FROM mfa_recovery_codes WHERE user_id = ?', [id]);
     await db.run('DELETE FROM trusted_devices WHERE user_id = ?', [id]);
     await db.run('DELETE FROM security_events WHERE user_id = ?', [id]);
+    await db.run('DELETE FROM terms_acceptances WHERE user_id = ?', [id]);
     await db.run('DELETE FROM group_members WHERE user_id = ?', [id]);
     await db.run('DELETE FROM group_requests WHERE user_id = ?', [id]);
     await db.run('DELETE FROM impersonations WHERE target_id = ?', [id]);
@@ -77,7 +87,7 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
       `UPDATE users SET username = ?, firstname = 'Utilisateur supprimé', lastname = ?, email = NULL, password = ?,
          role = 'user', token_version = token_version + 1, mfa_enabled = 0, mfa_secret = NULL, mfa_pending_secret = NULL,
          mfa_last_step = 0, mfa_exempt = 0, mfa_exempt_by = NULL, mfa_exempt_at = NULL, notify_email = 0, notify_prefs = NULL, last_seen_at = NULL,
-         terms_accepted_at = NULL, anonymized_at = ?
+         terms_accepted_at = NULL, terms_version = 0, inactivity_warned_at = NULL, anonymized_at = ?
        WHERE id = ?`,
       [`utilisateur-supprime-${id}`, `n°${id}`, unusable, now, id]
     );
@@ -153,6 +163,7 @@ async function exportUser(db, id) {
     assigned_requests: (await db.all('SELECT id, title, status FROM tickets WHERE assigned_to = ? ORDER BY id', [id])),
     attachments_uploaded: await db.all('SELECT ticket_id, original_name, size, created_at FROM attachments WHERE uploaded_by = ?', [id]),
     emails_sent: await db.all('SELECT created_at, event, subject, status FROM mail_log WHERE user_id = ? ORDER BY id', [id]),
+    charter_acceptances: await db.all('SELECT version, accepted_at FROM terms_acceptances WHERE user_id = ? ORDER BY id', [id]),
     trusted_browsers: await db.all('SELECT label, created_at, last_used_at, expires_at FROM trusted_devices WHERE user_id = ? ORDER BY id', [id]),
     security_history: await db.all('SELECT type, detail, created_at FROM security_events WHERE user_id = ? ORDER BY id', [id]),
     data_requests: await db.all('SELECT type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id', [id]),
@@ -165,22 +176,38 @@ async function exportUser(db, id) {
 }
 
 /** Ce que la purge ferait (ou fait) avec les réglages actuels. */
-async function purgeCandidates(db, settings, now = new Date()) {
-  const result = { inactive: [], logs: { mail: 0, impersonations: 0, groupRequests: 0 }, trash: 0 };
+async function purgeCandidates(db, settings, now = new Date(), { canMail = false } = {}) {
+  const result = { inactive: [], toWarn: [], warned: [], logs: { mail: 0, impersonations: 0, groupRequests: 0 }, trash: 0 };
   const trashDays = settings.trashDays ?? 30;
   if (trashDays > 0) {
     const limit = new Date(now.getTime() - trashDays * 86400_000).toISOString();
     result.trash = (await db.get('SELECT COUNT(*) AS n FROM tickets WHERE deleted_at IS NOT NULL AND deleted_at < ?', [limit])).n;
   }
   if (settings.inactiveMonths > 0) {
+    // Un e-mail prévient la personne un mois avant ; sans adresse (ou sans envoi possible), pas d'avertissement.
     const limit = monthsAgo(settings.inactiveMonths, now);
-    result.inactive = (
-      await db.all(
-        `SELECT id, username, firstname, lastname, COALESCE(last_seen_at, created_at) AS last_seen FROM users
-         WHERE anonymized_at IS NULL AND role <> 'admin' AND COALESCE(last_seen_at, created_at) < ? ORDER BY last_seen`,
-        [limit]
-      )
-    ).map((u) => ({ id: u.id, name: displayName(u), last_seen: u.last_seen }));
+    const warnFrom = new Date(new Date(limit).getTime() + WARNING_DAYS * 86400_000).toISOString();
+    const warnedLongAgo = new Date(now.getTime() - WARNING_DAYS * 86400_000).toISOString();
+    const rows = await db.all(
+      `SELECT id, username, firstname, lastname, email, inactivity_warned_at, COALESCE(last_seen_at, created_at) AS last_seen FROM users
+       WHERE anonymized_at IS NULL AND role <> 'admin' AND COALESCE(last_seen_at, created_at) < ? ORDER BY last_seen`,
+      [warnFrom]
+    );
+    for (const u of rows) {
+      const entry = { id: u.id, name: displayName(u), last_seen: u.last_seen };
+      const canWarn = canMail && Boolean(u.email);
+      const warned = Boolean(u.inactivity_warned_at && u.inactivity_warned_at > u.last_seen);
+      const due = addMonths(u.last_seen, settings.inactiveMonths);
+      if (u.last_seen < limit && (!canWarn || (warned && u.inactivity_warned_at <= warnedLongAgo))) {
+        result.inactive.push({ ...entry, warned });
+      } else if (canWarn && !warned) {
+        const in30 = new Date(now.getTime() + WARNING_DAYS * 86400_000).toISOString();
+        result.toWarn.push({ ...entry, row: u, deadline: due > in30 ? due : in30 });
+      } else if (warned) {
+        const after = new Date(new Date(u.inactivity_warned_at).getTime() + WARNING_DAYS * 86400_000).toISOString();
+        result.warned.push({ ...entry, deadline: due > after ? due : after });
+      }
+    }
   }
   if (settings.logMonths > 0) {
     const limit = monthsAgo(settings.logMonths, now);
@@ -193,10 +220,17 @@ async function purgeCandidates(db, settings, now = new Date()) {
   return result;
 }
 
-async function runPurge(db, config, { now = new Date(), logger = console } = {}) {
+async function runPurge(db, config, { now = new Date(), logger = console, notifier = null } = {}) {
   const settings = await getSetting(db, 'rgpd');
-  const todo = await purgeCandidates(db, settings, now);
-  const done = { accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, trash: 0 };
+  const canMail = notifier ? await notifier.canSend() : false;
+  const todo = await purgeCandidates(db, settings, now, { canMail });
+  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, trash: 0 };
+  for (const u of todo.toWarn) {
+    if (await notifier.inactivityWarning(u.row, { lastSeen: u.last_seen, deadline: u.deadline })) {
+      await db.run('UPDATE users SET inactivity_warned_at = ? WHERE id = ?', [now.toISOString(), u.id]);
+      done.warned += 1;
+    }
+  }
   for (const u of todo.inactive) {
     await anonymizeUser(db, config, u.id, { mode: 'keep' });
     done.accounts += 1;
@@ -225,9 +259,9 @@ async function runPurge(db, config, { now = new Date(), logger = console } = {})
     }
   }
   await setSetting(db, 'rgpd_state', { lastRunAt: now.toISOString(), lastResult: done, lastError: null });
-  if (done.accounts || done.mail || done.impersonations || done.groupRequests || done.trash) {
+  if (done.warned || done.accounts || done.mail || done.impersonations || done.groupRequests || done.trash) {
     logger.info(
-      `Purge RGPD : ${done.accounts} compte(s) inactif(s) anonymisé(s), ${done.mail + done.impersonations + done.groupRequests} ligne(s) de journal ` +
+      `Purge RGPD : ${done.warned} compte(s) inactif(s) prévenu(s) par e-mail, ${done.accounts} compte(s) inactif(s) anonymisé(s), ${done.mail + done.impersonations + done.groupRequests} ligne(s) de journal ` +
         `supprimée(s), ${done.trash} demande(s) de la corbeille effacée(s).`
     );
   }
@@ -235,7 +269,7 @@ async function runPurge(db, config, { now = new Date(), logger = console } = {})
 }
 
 /** Purge une fois par jour (au démarrage puis toutes les 24 h). Renvoie une fonction d'arrêt. */
-function startRgpdScheduler({ db, config, logger = console, intervalMs = 60 * 60_000 }) {
+function startRgpdScheduler({ db, config, notifier = null, logger = console, intervalMs = 60 * 60_000 }) {
   let running = false;
   const tick = async () => {
     if (running) return;
@@ -243,7 +277,7 @@ function startRgpdScheduler({ db, config, logger = console, intervalMs = 60 * 60
     try {
       const state = await getSetting(db, 'rgpd_state');
       if (!state.lastRunAt || Date.now() - new Date(state.lastRunAt).getTime() >= 24 * 3600_000) {
-        await runPurge(db, config, { logger });
+        await runPurge(db, config, { logger, notifier });
       }
     } catch (err) {
       logger.error(`Purge RGPD : ${err.message}`);
@@ -259,4 +293,4 @@ function startRgpdScheduler({ db, config, logger = console, intervalMs = 60 * 60
   return () => clearInterval(timer);
 }
 
-module.exports = { anonymizeUser, exportUser, purgeCandidates, runPurge, startRgpdScheduler };
+module.exports = { WARNING_DAYS, anonymizeUser, exportUser, purgeCandidates, runPurge, startRgpdScheduler };

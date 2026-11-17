@@ -11,6 +11,7 @@ const { displayName, parseNotifyPrefs: parsePrefs } = require('./utils');
 const { getMailSettings } = require('./settings');
 const { RGPD_TYPES } = require('./rgpdRequests');
 
+const frDate = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
 const ticketNumber = (id) => `#${String(id).padStart(4, '0')}`;
 const STATUS = { open: 'Ouvert', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
 
@@ -82,6 +83,16 @@ const BUILDERS = {
     link: '/admin?tab=settings&section=rgpd',
     linkLabel: 'Traiter la demande',
   }),
+  inactivity_warning: ({ lastSeen, deadline }) => ({
+    subject: `Votre compte sera anonymisé le ${frDate(deadline)}`,
+    lines: [
+      `Vous ne vous êtes pas connecté à Xchange depuis le ${frDate(lastSeen)}.`,
+      `Sans connexion d'ici le ${frDate(deadline)}, votre compte sera anonymisé : votre nom, votre identifiant et votre adresse e-mail seront effacés, et vos demandes resteront sans votre nom.`,
+      'Pour garder votre compte, il suffit de vous connecter. Pour récupérer vos données avant, ouvrez « Mon compte », rubrique « Mes données ».',
+    ],
+    link: '/login',
+    linkLabel: 'Me connecter',
+  }),
   test: () => ({
     subject: 'E-mail de test',
     lines: ['Les notifications par e-mail de Xchange fonctionnent.'],
@@ -99,6 +110,8 @@ const SAMPLE = {
   message: 'Je m’y connais un peu en réseau, je peux aider.',
   approved: true,
   typeLabel: 'anonymiser mon compte',
+  lastSeen: '2024-11-02T10:00:00.000Z',
+  deadline: '2026-12-17T10:00:00.000Z',
 };
 
 function createNotifier({ db, mailer, logger = console }) {
@@ -274,6 +287,27 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
           data: { who: displayName(r), typeLabel: RGPD_TYPES[r.type]?.toLowerCase() || r.type },
         };
       });
+    },
+
+    /** Envoi possible (boîte configurée et notifications activées dans l'Administration). */
+    async canSend() {
+      return Boolean(mailer.configured) && (await getMailSettings(db)).enabled !== false;
+    },
+
+    /**
+     * Avertissement avant l'anonymisation d'un compte inactif : message de service, envoyé même si la
+     * personne a coupé ses notifications. Renvoie true si l'e-mail est parti.
+     */
+    async inactivityWarning(user, data) {
+      try {
+        const mail = await getMailSettings(db);
+        const msg = compose(mail, user, BUILDERS.inactivity_warning(data, mail), await baseUrl(mail));
+        await mailer.send(msg, { event: 'inactivity_warning', userId: user.id });
+        return true;
+      } catch (err) {
+        logger.error(`Avertissement d'inactivité non envoyé (compte n°${user.id}) : ${err.message}`);
+        return false;
+      }
     },
 
     /** Aperçu d'un e-mail, avec des données d'exemple et les réglages enregistrés. */

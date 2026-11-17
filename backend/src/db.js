@@ -191,6 +191,21 @@ CREATE TABLE IF NOT EXISTS security_events (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS terms_versions (
+  version INTEGER PRIMARY KEY,
+  text TEXT NOT NULL,
+  text_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS terms_acceptances (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  accepted_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -223,6 +238,8 @@ const ADDED_COLUMNS = {
     anonymized_at: 'TEXT',
     terms_accepted_at: 'TEXT',
     mfa_exempt_by: 'TEXT',
+    terms_version: 'INTEGER NOT NULL DEFAULT 0',
+    inactivity_warned_at: 'TEXT',
     mfa_exempt_at: 'TEXT',
   },
   tickets: {

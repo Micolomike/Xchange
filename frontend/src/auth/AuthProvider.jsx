@@ -170,7 +170,7 @@ export default function AuthProvider({ children }) {
   );
 
   const acceptTerms = useCallback(
-    async () => openSession(await api('/api/auth/me/accept-terms', { method: 'POST' })),
+    async (version) => openSession(await api('/api/auth/me/accept-terms', { method: 'POST', body: { version } })),
     [openSession]
   );
 

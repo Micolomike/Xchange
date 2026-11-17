@@ -3,6 +3,7 @@ const { HttpError, parseId, displayName } = require('../utils');
 const { getSetting, setSetting } = require('../settings');
 const { LEGAL_DEFAULTS, fillRetention } = require('../legal');
 const { RGPD_TYPES, dueDate } = require('../rgpdRequests');
+const { syncTerms } = require('../terms');
 const { anonymizeUser, exportUser, purgeCandidates, runPurge } = require('../rgpd');
 
 const LEGAL_KEYS = ['legalNotice', 'privacyPolicy', 'charter'];
@@ -15,7 +16,8 @@ async function legalTexts(db) {
   const out = {};
   for (const k of LEGAL_KEYS) out[k] = legal[k] || LEGAL_DEFAULTS[k];
   out.privacyPolicy = fillRetention(out.privacyPolicy, rgpd);
-  return { ...out, requireTerms: rgpd.requireTerms !== false };
+  const terms = await syncTerms(db);
+  return { ...out, requireTerms: rgpd.requireTerms !== false, termsVersion: terms.version, termsUpdatedAt: terms.updatedAt };
 }
 
 /** Pages publiques : mentions légales, politique de confidentialité, charte. */
@@ -32,25 +34,30 @@ function exportFileName(data) {
   return `xchange-donnees-${String(data.account.username).replace(/[^a-z0-9._-]+/gi, '_')}-${day}.json`;
 }
 
+/** Les lignes complètes de la base ne sortent pas vers le navigateur. */
+const strip = (c) => ({ ...c, toWarn: c.toWarn.map(({ row: _row, ...u }) => u) });
+
 /** Administration > Paramètres > RGPD. */
-function rgpdAdminRoutes({ db, config }) {
+function rgpdAdminRoutes({ db, config, notifier = null }) {
   const router = express.Router();
 
   async function info() {
     const settings = await getSetting(db, 'rgpd');
     const legal = await getSetting(db, 'legal');
     const { n } = await db.get('SELECT COUNT(*) AS n FROM users WHERE anonymized_at IS NOT NULL');
+    const current = await syncTerms(db);
     const terms = await db.get(
-      'SELECT COUNT(*) AS total, SUM(terms_accepted_at IS NOT NULL) AS accepted FROM users WHERE anonymized_at IS NULL'
+      'SELECT COUNT(*) AS total, SUM(terms_version >= ?) AS accepted FROM users WHERE anonymized_at IS NULL',
+      [current.version]
     );
     return {
       settings,
       state: await getSetting(db, 'rgpd_state'),
       legal: Object.fromEntries(LEGAL_KEYS.map((k) => [k, { text: legal[k] || LEGAL_DEFAULTS[k], custom: Boolean(legal[k]) }])),
-      candidates: await purgeCandidates(db, settings),
+      candidates: strip(await purgeCandidates(db, settings, new Date(), { canMail: notifier ? await notifier.canSend() : false })),
       anonymized: n,
       pendingRequests: (await db.get("SELECT COUNT(*) AS n FROM rgpd_requests WHERE status = 'pending'")).n,
-      terms: { total: terms.total, accepted: terms.accepted || 0 },
+      terms: { total: terms.total, accepted: terms.accepted || 0, version: current.version, updatedAt: current.updatedAt },
     };
   }
 
@@ -94,6 +101,8 @@ function rgpdAdminRoutes({ db, config }) {
       next[k] = text === LEGAL_DEFAULTS[k] ? '' : text;
     }
     await setSetting(db, 'legal', next);
+    // Charte modifiée : nouvelle version, à relire et accepter par chacun.
+    await syncTerms(db, { actorId: req.user.id });
     res.json(await info());
   });
 
@@ -166,7 +175,7 @@ function rgpdAdminRoutes({ db, config }) {
   });
 
   router.post('/purge', async (req, res) => {
-    const done = await runPurge(db, config);
+    const done = await runPurge(db, config, { notifier });
     res.json({ done, ...(await info()) });
   });
 

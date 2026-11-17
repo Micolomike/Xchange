@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDownload, FiExternalLink, FiPlay, FiSearch, FiUserX, FiX } from 'react-icons/fi';
 import { api } from '../../lib/api';
-import { formatDateTime } from '../../lib/format';
+import { formatDate, formatDateTime } from '../../lib/format';
 import { confirmAction, promptText, toast, toastError } from '../../lib/notify';
 import { exportFileName, saveJson } from '../../lib/saveJson';
 import { ErrorState, Field, Spinner } from '../../components/ui';
@@ -208,7 +208,11 @@ function PersonCard({ me, onChange }) {
                   <dt className="text-ink-mute">Dernière activité</dt>
                   <dd>{selected.last_seen_at ? formatDateTime(selected.last_seen_at) : 'inconnue'}</dd>
                   <dt className="text-ink-mute">Charte acceptée</dt>
-                  <dd>{selected.terms_accepted_at ? formatDateTime(selected.terms_accepted_at) : 'non'}</dd>
+                  <dd>
+                    {selected.terms_version
+                      ? `version ${selected.terms_version}${selected.terms_accepted_at ? `, le ${formatDateTime(selected.terms_accepted_at)}` : ''}`
+                      : 'non'}
+                  </dd>
                   <dt className="text-ink-mute">Demandes</dt>
                   <dd>{selected.created_count}</dd>
                 </dl>
@@ -420,7 +424,7 @@ function RetentionCard({ info, onSaved }) {
     const n = candidates.inactive.length;
     const ok = await confirmAction({
       title: 'Lancer la purge maintenant ?',
-      text: `${n} compte(s) inactif(s) seront anonymisés (demandes conservées), ${candidates.trash} demande(s) de la corbeille effacée(s) et ${
+      text: `${candidates.toWarn.length} compte(s) seront prévenus par e-mail, ${n} compte(s) inactif(s) seront anonymisés (demandes conservées), ${candidates.trash} demande(s) de la corbeille effacée(s) et ${
         candidates.logs.mail + candidates.logs.impersonations + candidates.logs.groupRequests
       } ligne(s) de journal supprimées.`,
       confirmText: 'Lancer la purge',
@@ -430,7 +434,7 @@ function RetentionCard({ info, onSaved }) {
     setBusy(true);
     try {
       const r = await api('/api/admin/rgpd/purge', { method: 'POST' });
-      toast(`Purge faite : ${r.done.accounts} compte(s), ${r.done.trash} demande(s) de la corbeille, ${r.done.mail + r.done.impersonations + r.done.groupRequests} ligne(s) de journal`);
+      toast(`Purge faite : ${r.done.warned} e-mail(s) d’avertissement, ${r.done.accounts} compte(s) anonymisé(s), ${r.done.trash} demande(s) de la corbeille, ${r.done.mail + r.done.impersonations + r.done.groupRequests} ligne(s) de journal`);
       onSaved(r);
     } catch (err) {
       toastError(err);
@@ -445,7 +449,7 @@ function RetentionCard({ info, onSaved }) {
     <Card
       id="rgpd-retention"
       title="Conservation et purge"
-      description="La purge tourne automatiquement une fois par jour. Les administrateurs ne sont jamais anonymisés automatiquement."
+      description="La purge tourne automatiquement une fois par jour. Un compte inactif est prévenu par e-mail un mois avant d’être anonymisé (sauf s’il n’a pas d’adresse). Les administrateurs ne sont jamais anonymisés automatiquement."
     >
       <form onSubmit={save} className="space-y-4" noValidate>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -464,7 +468,8 @@ function RetentionCard({ info, onSaved }) {
           <span>
             <span className="font-semibold">Faire accepter la charte et la politique de confidentialité à l’inscription</span>
             <span className="block text-ink-mute">
-              {info.terms.accepted} compte(s) sur {info.terms.total} les ont acceptées. Les autres voient un bandeau les invitant à le faire.
+              Charte en vigueur : version {info.terms.version} du {formatDate(info.terms.updatedAt)}. {info.terms.accepted} compte(s) sur{' '}
+              {info.terms.total} l’ont acceptée ; les autres voient un bandeau les invitant à la lire et l’accepter.
             </span>
           </span>
         </label>
@@ -478,6 +483,16 @@ function RetentionCard({ info, onSaved }) {
       <div className="mt-5 border-t border-line pt-5">
         <h4 className="font-semibold">Prochaine purge</h4>
         <ul className="mt-2 space-y-1 text-sm text-ink-soft">
+          <li>
+            {candidates.toWarn.length} compte(s) inactif(s) à prévenir par e-mail, un mois avant l’anonymisation
+            {candidates.toWarn.length > 0 && ` : ${candidates.toWarn.map((u) => u.name).join(', ')}`}
+          </li>
+          {candidates.warned.length > 0 && (
+            <li>
+              {candidates.warned.length} compte(s) déjà prévenu(s) :{' '}
+              {candidates.warned.map((u) => `${u.name} (anonymisation le ${formatDate(u.deadline)})`).join(', ')}
+            </li>
+          )}
           <li>
             {candidates.inactive.length} compte(s) inactif(s) à anonymiser
             {candidates.inactive.length > 0 && ` : ${candidates.inactive.map((u) => u.name).join(', ')}`}
@@ -578,13 +593,30 @@ function LegalCard({ legal, onSaved }) {
             className="btn btn-ghost"
             disabled={busy}
             onClick={async () => {
-              if (await confirmAction({ title: 'Rétablir le texte proposé ?', text: 'Votre version sera remplacée.', confirmText: 'Rétablir' })) save('');
+              const text = current === 'charter' ? 'Votre version sera remplacée, et chaque personne devra relire et accepter la charte.' : 'Votre version sera remplacée.';
+              if (await confirmAction({ title: 'Rétablir le texte proposé ?', text, confirmText: 'Rétablir' })) save('');
             }}
           >
             Rétablir le texte proposé
           </button>
         )}
-        <button type="button" className="btn btn-primary" disabled={busy || !changed} onClick={() => save(drafts[current])}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || !changed}
+          onClick={async () => {
+            if (
+              current === 'charter' &&
+              !(await confirmAction({
+                title: 'Publier une nouvelle version de la charte ?',
+                text: 'Chaque personne devra la relire et l’accepter à sa prochaine visite.',
+                confirmText: 'Publier',
+              }))
+            )
+              return;
+            save(drafts[current]);
+          }}
+        >
           Enregistrer
         </button>
       </div>

@@ -57,6 +57,7 @@ function publicUser(row) {
     notify_email: row.notify_email === undefined ? true : Boolean(row.notify_email),
     notify_prefs: parseNotifyPrefs(row.notify_prefs),
     terms_accepted_at: row.terms_accepted_at || null,
+    terms_version: row.terms_version || 0,
     last_seen_at: row.last_seen_at || null,
     name: displayName(row),
     created_at: toIso(row.created_at),

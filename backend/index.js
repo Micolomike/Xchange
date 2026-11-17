@@ -31,7 +31,7 @@ async function main() {
     config,
     logger: { info: stampLog(console.log), error: stampLog(console.error) },
   });
-  const stopPurge = startRgpdScheduler({ db, config, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
+  const stopPurge = startRgpdScheduler({ db, config, notifier: app.locals.notifier, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
   if (config.backupDir) console.log(`Sauvegardes automatiques dans : ${config.backupDir}`);
 
   const shutdown = () => {

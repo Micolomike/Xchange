@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorState, Spinner } from '../components/ui';
 import LegalText from './LegalText';
+import { formatDate } from '../lib/format';
 import { LEGAL_PAGES, useLegal } from './useLegal';
 
 /** Page publique : mentions légales, politique de confidentialité ou charte. */
@@ -25,6 +26,11 @@ export default function LegalPage({ kind }) {
       <div className="panel mt-6 p-6 sm:p-8">
         {error && <ErrorState error={error} />}
         {!error && !data && <Spinner />}
+        {data && kind === 'charter' && data.termsVersion && (
+          <p className="mb-6 text-sm text-ink-mute">
+            Version {data.termsVersion}, en vigueur depuis le {formatDate(data.termsUpdatedAt)}.
+          </p>
+        )}
         {data && <LegalText text={data[kind]} />}
       </div>
     </article>

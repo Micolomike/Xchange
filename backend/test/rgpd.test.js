@@ -193,7 +193,7 @@ describe('RGPD', () => {
     assert.equal(info.candidates.logs.mail, 1);
 
     const done = await runPurge(ctx.db, ctx.config, { logger: { info() {}, error() {} } });
-    assert.deepEqual(done, { accounts: 1, mail: 1, impersonations: 0, groupRequests: 0, trash: 1 });
+    assert.deepEqual(done, { warned: 0, accounts: 1, mail: 1, impersonations: 0, groupRequests: 0, trash: 1 });
     assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [trashed.id])).n, 0);
     assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [recentTrash.id])).n, 1);
     assert.ok((await ctx.db.get('SELECT anonymized_at FROM users WHERE id = ?', [old.user.id])).anonymized_at);
@@ -206,6 +206,37 @@ describe('RGPD', () => {
     await ctx.api.put('/api/admin/rgpd/settings').set(admin.auth).send({ inactiveMonths: 0 }).expect(200);
     await ctx.db.run('UPDATE users SET last_seen_at = ? WHERE id = ?', [longAgo, recent.user.id]);
     assert.equal((await runPurge(ctx.db, ctx.config, { logger: { info() {}, error() {} } })).accounts, 0);
+  });
+
+  test('charte : chaque modification crée une version à accepter de nouveau, acceptations tracées', async () => {
+    const u = await ctx.register('relit');
+    let pub = (await ctx.api.get('/api/legal')).body;
+    const v1 = pub.termsVersion;
+    assert.equal(u.user.terms_version, v1);
+
+    await ctx.api.put('/api/admin/rgpd/legal').set(admin.auth).send({ charter: '## Règle\nNouvelle charte.' }).expect(200);
+    pub = (await ctx.api.get('/api/legal')).body;
+    assert.equal(pub.termsVersion, v1 + 1);
+    // Même texte réenregistré : pas de nouvelle version.
+    await ctx.api.put('/api/admin/rgpd/legal').set(admin.auth).send({ charter: '## Règle\nNouvelle charte.' }).expect(200);
+    assert.equal((await ctx.api.get('/api/legal')).body.termsVersion, v1 + 1);
+
+    let me = (await ctx.api.get('/api/auth/me').set(u.auth)).body.user;
+    assert.equal(me.terms_version, v1, 'acceptation à refaire');
+    const info = (await ctx.api.get('/api/admin/rgpd').set(admin.auth)).body;
+    assert.equal(info.terms.version, v1 + 1);
+    assert.equal(info.terms.accepted, 0);
+
+    // Accepter une version périmée (page non rechargée) est refusé.
+    assert.equal((await ctx.api.post('/api/auth/me/accept-terms').set(u.auth).send({ version: v1 })).status, 409);
+    await ctx.api.post('/api/auth/me/accept-terms').set(u.auth).send({ version: v1 + 1 }).expect(200);
+    me = (await ctx.api.get('/api/auth/me').set(u.auth)).body.user;
+    assert.equal(me.terms_version, v1 + 1);
+    const exp = (await ctx.api.get('/api/auth/me/export').set(u.auth)).body;
+    assert.deepEqual(exp.charter_acceptances.map((a) => a.version), [v1, v1 + 1]);
+    // Le texte exact de chaque version est archivé.
+    const archived = await ctx.db.get('SELECT text FROM terms_versions WHERE version = ?', [v1 + 1]);
+    assert.equal(archived.text, '## Règle\nNouvelle charte.');
   });
 
   test('une connexion met à jour la dernière activité', async () => {
