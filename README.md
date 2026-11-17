@@ -11,6 +11,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Création avec titre, description, priorité (basse, moyenne, haute), catégorie (bug, fonctionnalité, support), date limite et pièces jointes.
 - Cycle de vie : ouvert, en cours, résolu, fermé ; réouverture possible. La date de résolution est enregistrée.
 - Assignation à un responsable, commentaires, historique complet des changements (statut, priorité, responsable, modifications, fichiers).
+- Images affichées directement dans l'activité dès leur envoi (PNG, JPEG, GIF, WebP, AVIF, BMP), regroupées par envoi, agrandissables au clic, avec vignette dans les pièces jointes. Envoi depuis la zone de commentaire : bouton « Image », coller (Ctrl+V, par exemple une capture d'écran) ou glisser l'image sur la zone.
 - Liste filtrable (statut, priorité, catégorie, responsable, retard), recherche plein texte et par numéro, tri, pagination. Les filtres sont dans l'adresse de la page : un lien filtré se partage.
 - Suppression vers une corbeille, restauration ou suppression définitive par un administrateur.
 
@@ -177,7 +178,7 @@ Toutes les variables sont facultatives ; voir `backend/.env.example`.
 | `APP_URL` | Adresse publique d'Xchange pour les liens des e-mails (modifiable aussi dans Administration > Paramètres) | |
 | `BACKUP_TARGETS` | Dossiers proposés pour la sauvegarde écrite par le serveur, séparés par des virgules (en plus des lecteurs Windows) | |
 
-Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML et SVG sont refusés. Les fichiers sont servis uniquement en téléchargement, après contrôle des droits sur le ticket.
+Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML et SVG sont refusés. Les fichiers sont servis uniquement après contrôle des droits sur le ticket ; les images s'affichent dans la page à partir de ce même téléchargement contrôlé (le SVG, qui peut contenir du script, reste refusé).
 
 ### Frontend (`frontend/`)
 

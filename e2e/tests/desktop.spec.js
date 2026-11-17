@@ -132,6 +132,29 @@ test('commentaire, prise en charge, historique et téléchargement', async () =>
   expect(content).toBe('ping 10.0.2.15 : délai dépassé');
 });
 
+test('une image envoyée apparaît tout de suite dans l’activité', async () => {
+  // PNG 2 x 2 valide.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGNgYGD4z8DAwMDEwMDAAAAJBQEBOQ0n3QAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  await page.setInputFiles('#comment ~ div input[type=file]', { name: 'photo imprimante.png', mimeType: 'image/png', buffer: png });
+  const activity = page.locator('section[aria-labelledby=activity-title]');
+  const img = activity.getByRole('img', { name: 'photo imprimante.png' });
+  await expect(img).toBeVisible();
+  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBe(2);
+  await expect(activity.getByText('a joint une image')).toBeVisible();
+  // Pas de doublon « a joint … » dans le fil.
+  await expect(activity.getByText('a joint « photo imprimante.png »')).toHaveCount(0);
+  // Vignette aussi dans les pièces jointes, et agrandissement au clic.
+  await expect(page.locator('section[aria-labelledby=files-title]').getByRole('img', { name: 'photo imprimante.png' })).toBeVisible();
+  await activity.getByRole('button', { name: 'Agrandir l’image photo imprimante.png'.replace('’', "'") }).click();
+  const viewer = page.getByRole('dialog', { name: 'photo imprimante.png' });
+  await expect(viewer.getByRole('img', { name: 'photo imprimante.png' })).toBeVisible();
+  await viewer.getByRole('button', { name: 'Fermer' }).click();
+  await expect(viewer).toBeHidden();
+});
+
 test('liste : recherche et filtres', async () => {
   await page.getByRole('link', { name: 'Tickets', exact: true }).click();
   await expect(page).toHaveURL(/\/tickets$/);

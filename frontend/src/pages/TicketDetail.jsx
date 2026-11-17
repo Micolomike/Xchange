@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   FiArrowLeft,
@@ -6,6 +6,7 @@ import {
   FiDownload,
   FiEdit2,
   FiFile,
+  FiImage,
   FiLock,
   FiPlayCircle,
   FiRotateCcw,
@@ -13,12 +14,14 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { api, downloadAttachment } from '../lib/api';
-import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER, STATUSES, STATUS_ORDER } from '../lib/constants';
+import { MAX_FILES, MAX_UPLOAD_MB, ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER, STATUSES, STATUS_ORDER } from '../lib/constants';
 import { formatDate, formatDateTime, formatRelative, formatSize, isOverdue } from '../lib/format';
 import { SlaDetail } from '../components/Sla';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Avatar, PriorityBadge, StatusBadge, TicketStub } from '../components/Badges';
 import FileDrop from '../components/FileDrop';
+import { ImageThumb, ImageViewer } from '../components/AttachmentImage';
+import { forgetImage, isImageAttachment } from '../lib/images';
 import { ErrorState, Field, Spinner } from '../components/ui';
 
 const FIELD_NAMES = {
@@ -161,6 +164,10 @@ export default function TicketDetail() {
   const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [sendingImages, setSendingImages] = useState(0);
+  const [viewing, setViewing] = useState(null);
+  const [dropOnComment, setDropOnComment] = useState(false);
+  const imageInput = useRef(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -255,15 +262,19 @@ export default function TicketDetail() {
     }
   };
 
+  const sendFiles = async (list) => {
+    const fd = new FormData();
+    list.forEach((f) => fd.append('files', f, f.name));
+    await api(`/api/tickets/${ticket.id}/attachments`, { method: 'POST', body: fd });
+    await load();
+  };
+
   const upload = async () => {
     if (!files.length) return;
     setUploading(true);
-    const fd = new FormData();
-    files.forEach((f) => fd.append('files', f));
     try {
-      await api(`/api/tickets/${ticket.id}/attachments`, { method: 'POST', body: fd });
+      await sendFiles(files);
       setFiles([]);
-      await load();
       toast(files.length > 1 ? 'Fichiers joints' : 'Fichier joint');
     } catch (err) {
       toastError(err);
@@ -272,10 +283,38 @@ export default function TicketDetail() {
     }
   };
 
+  // Images envoyées depuis la zone de message (bouton, coller ou glisser) : elles partent tout de suite
+  // et apparaissent dans l'activité.
+  const sendImages = async (list) => {
+    const all = Array.from(list || []);
+    const images = all.filter((f) => isImageAttachment(f));
+    const tooBig = images.filter((f) => f.size > MAX_UPLOAD_MB * 1024 * 1024);
+    const ok = images.filter((f) => f.size <= MAX_UPLOAD_MB * 1024 * 1024).slice(0, MAX_FILES);
+    if (all.length > images.length) toastError(new Error('Seules les images (PNG, JPEG, GIF, WebP, AVIF, BMP) vont ici ; les autres fichiers se joignent dans « Pièces jointes ».'));
+    if (tooBig.length) toastError(new Error(`${tooBig.map((f) => f.name).join(', ')} : plus de ${MAX_UPLOAD_MB} Mo.`));
+    if (images.length - tooBig.length > MAX_FILES) toastError(new Error(`${MAX_FILES} images au plus par envoi.`));
+    if (!ok.length) return;
+    // Une image collée s'appelle souvent « image.png » : on lui donne un nom daté.
+    const stamp = new Date().toLocaleString('fr-FR').replace(/[/:]/g, '-').replace(/\s+/g, '_');
+    const named = ok.map((f, i) =>
+      /^image\.(png|jpe?g|gif|webp)$/i.test(f.name) ? new File([f], `capture_${stamp}${ok.length > 1 ? `_${i + 1}` : ''}.${f.name.split('.').pop()}`, { type: f.type }) : f
+    );
+    setSendingImages(named.length);
+    try {
+      await sendFiles(named);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setSendingImages(0);
+    }
+  };
+
   const removeAttachment = async (a) => {
     if (!(await confirmAction({ title: `Retirer « ${a.name} » ?`, text: 'Le fichier sera supprimé du serveur.', confirmText: 'Retirer', danger: true }))) return;
     try {
       await api(`/api/attachments/${a.id}`, { method: 'DELETE' });
+      forgetImage(a.id);
+      if (viewing?.id === a.id) setViewing(null);
       await load();
       toast('Fichier retiré');
     } catch (err) {
@@ -308,10 +347,24 @@ export default function TicketDetail() {
     }
   };
 
-  // Fil d'activité : commentaires et changements, dans l'ordre chronologique.
+  // Images jointes : affichées dans l'activité, regroupées par envoi (même personne, même instant).
+  const imageGroups = new Map();
+  for (const a of ticket.attachments) {
+    if (!isImageAttachment(a)) continue;
+    const key = `${a.created_at}|${a.uploaded_by?.id ?? ''}`;
+    if (!imageGroups.has(key)) imageGroups.set(key, { at: a.created_at, by: a.uploaded_by, images: [] });
+    imageGroups.get(key).images.push(a);
+  }
+  // L'événement « a joint … » d'une image affichée ferait doublon.
+  const shownImages = new Set(ticket.attachments.filter(isImageAttachment).map((a) => `${a.created_at}|${a.name}`));
+
+  // Fil d'activité : commentaires, images et changements, dans l'ordre chronologique.
   const timeline = [
-    ...ticket.events.map((e) => ({ kind: 'event', at: e.created_at, key: `e${e.id}`, data: e })),
+    ...ticket.events
+      .filter((e) => !(e.type === 'attachment_added' && shownImages.has(`${e.created_at}|${e.to}`)))
+      .map((e) => ({ kind: 'event', at: e.created_at, key: `e${e.id}`, data: e })),
     ...ticket.comments.map((c) => ({ kind: 'comment', at: c.created_at, key: `c${c.id}`, data: c })),
+    ...[...imageGroups.values()].map((g) => ({ kind: 'images', at: g.at, key: `i${g.images[0].id}`, data: g })),
   ].sort((a, b) => {
     if (a.at !== b.at) return a.at < b.at ? -1 : 1;
     if (a.kind === b.kind) return 0; // tri stable : l'ordre du serveur est conservé
@@ -393,7 +446,11 @@ export default function TicketDetail() {
               <ul className="divide-y divide-line">
                 {ticket.attachments.map((a) => (
                   <li key={a.id} className="flex items-center gap-3 px-5 py-2.5">
-                    <FiFile className="shrink-0 text-ink-mute" aria-hidden="true" />
+                    {isImageAttachment(a) ? (
+                      <ImageThumb attachment={a} onOpen={setViewing} className="size-10 shrink-0" />
+                    ) : (
+                      <FiFile className="shrink-0 text-ink-mute" aria-hidden="true" />
+                    )}
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
@@ -454,6 +511,36 @@ export default function TicketDetail() {
                       </time>
                     </p>
                   </li>
+                ) : item.kind === 'images' ? (
+                  <li key={item.key} className="relative pb-4 pl-7 before:absolute before:left-[0.53rem] before:top-0 before:h-full before:w-px before:bg-line last:before:hidden">
+                    <div className="rounded-lg border border-line bg-paper/60">
+                      <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm">
+                        <Avatar user={item.data.by || { name: '?', username: '?' }} />
+                        <span className="font-semibold">{item.data.by?.name || 'Utilisateur supprimé'}</span>
+                        <span className="text-ink-mute">
+                          {item.data.images.length > 1 ? `a joint ${item.data.images.length} images` : 'a joint une image'}
+                        </span>
+                        <time dateTime={item.at} className="text-xs text-ink-mute" title={formatDateTime(item.at)}>
+                          {formatRelative(item.at)}
+                        </time>
+                      </div>
+                      <div className={`grid gap-2 p-3 ${item.data.images.length > 1 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                        {item.data.images.map((a) => (
+                          <figure key={a.id} className="min-w-0">
+                            <ImageThumb
+                              attachment={a}
+                              onOpen={setViewing}
+                              natural={item.data.images.length === 1}
+                              className={item.data.images.length > 1 ? 'aspect-square w-full' : 'w-fit max-w-full'}
+                            />
+                            <figcaption className="mt-1 truncate text-xs text-ink-mute" title={a.name}>
+                              {a.name}
+                            </figcaption>
+                          </figure>
+                        ))}
+                      </div>
+                    </div>
+                  </li>
                 ) : (
                   <li key={item.key} className="relative pb-4 pl-7 before:absolute before:left-[0.53rem] before:top-0 before:h-full before:w-px before:bg-line last:before:hidden">
                     <div className="rounded-lg border border-line bg-paper/60">
@@ -489,7 +576,28 @@ export default function TicketDetail() {
               </label>
               <textarea
                 id="comment"
-                className="field min-h-24 resize-y"
+                className={`field min-h-24 resize-y ${dropOnComment ? 'border-accent bg-accent-soft' : ''}`}
+                onPaste={(e) => {
+                  const pasted = Array.from(e.clipboardData?.files || []);
+                  if (pasted.length) {
+                    e.preventDefault();
+                    sendImages(pasted);
+                  }
+                }}
+                onDragOver={(e) => {
+                  if (Array.from(e.dataTransfer.types).includes('Files')) {
+                    e.preventDefault();
+                    setDropOnComment(true);
+                  }
+                }}
+                onDragLeave={() => setDropOnComment(false)}
+                onDrop={(e) => {
+                  if (e.dataTransfer.files.length) {
+                    e.preventDefault();
+                    setDropOnComment(false);
+                    sendImages(e.dataTransfer.files);
+                  }
+                }}
                 value={comment}
                 maxLength={5000}
                 onChange={(e) => setComment(e.target.value)}
@@ -499,7 +607,24 @@ export default function TicketDetail() {
                 placeholder="Votre message. Restez courtois, sans vulgarité, et n’indiquez pas d’informations sensibles (santé, numéros de compte, mots de passe)."
               />
               <div className="mt-2 flex items-center justify-between gap-2">
-                <span className="hidden text-xs text-ink-mute sm:inline">Ctrl + Entrée pour envoyer</span>
+                <input
+                  ref={imageInput}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/bmp"
+                  multiple
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => {
+                    sendImages(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+                <button type="button" className="btn btn-secondary" onClick={() => imageInput.current?.click()} disabled={sendingImages > 0}>
+                  <FiImage aria-hidden="true" />
+                  {sendingImages ? `Envoi de ${sendingImages > 1 ? `${sendingImages} images` : "l'image"}…` : 'Image'}
+                </button>
+                <span className="hidden text-xs text-ink-mute md:inline">Coller ou glisser une image l'envoie aussi ; Ctrl + Entrée pour commenter</span>
                 <button type="submit" className="btn btn-primary ml-auto" disabled={posting || !comment.trim()}>
                   {posting ? 'Envoi…' : 'Commenter'}
                 </button>
@@ -686,6 +811,7 @@ export default function TicketDetail() {
           )}
         </aside>
       </div>
+      <ImageViewer attachment={viewing} onClose={() => setViewing(null)} onDownload={download} />
     </div>
   );
 }
