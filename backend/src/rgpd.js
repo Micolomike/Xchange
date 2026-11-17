@@ -55,7 +55,7 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
   }
 
   const files = [];
-  const counts = { tickets: 0, comments: 0, attachments: 0 };
+  const counts = { tickets: 0, comments: 0, attachments: 0, chat: 0 };
   const now = nowIso();
   const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
 
@@ -70,7 +70,15 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
         counts.tickets = (await db.run(`DELETE FROM tickets WHERE id IN (${ph})`, ids)).changes;
       }
       counts.comments = (await db.run('DELETE FROM comments WHERE author_id = ?', [id])).changes;
+      counts.chat = (await db.run('DELETE FROM chat_messages WHERE author_id = ?', [id])).changes;
+      await db.run('DELETE FROM chat_reports WHERE author_id = ?', [id]);
     }
+    // Discussions : la personne quitte ses conversations ; ses messages restent signés « Utilisateur supprimé » (mode conserver).
+    await db.run('DELETE FROM chat_members WHERE user_id = ?', [id]);
+    await db.run('DELETE FROM chat_reads WHERE user_id = ?', [id]);
+    await db.run(
+      "DELETE FROM chat_conversations WHERE kind IN ('direct', 'custom') AND id NOT IN (SELECT conversation_id FROM chat_members)"
+    );
     const own = await db.all('SELECT stored_name FROM attachments WHERE uploaded_by = ?', [id]);
     files.push(...own.map((f) => f.stored_name));
     counts.attachments = (await db.run('DELETE FROM attachments WHERE uploaded_by = ?', [id])).changes;
@@ -87,7 +95,7 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
       `UPDATE users SET username = ?, firstname = 'Utilisateur supprimé', lastname = ?, email = NULL, password = ?,
          role = 'user', token_version = token_version + 1, mfa_enabled = 0, mfa_secret = NULL, mfa_pending_secret = NULL,
          mfa_last_step = 0, mfa_exempt = 0, mfa_exempt_by = NULL, mfa_exempt_at = NULL, notify_email = 0, notify_prefs = NULL, last_seen_at = NULL,
-         terms_accepted_at = NULL, terms_version = 0, inactivity_warned_at = NULL, anonymized_at = ?
+         terms_accepted_at = NULL, terms_version = 0, inactivity_warned_at = NULL, hide_real_name = 0, chat_retention_days = 0, anonymized_at = ?
        WHERE id = ?`,
       [`utilisateur-supprime-${id}`, `n°${id}`, unusable, now, id]
     );
@@ -98,6 +106,18 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
   }
   removeFilesNow(config.uploadsDir, files);
   return { mode, ...counts, files: files.length };
+}
+
+/** Conversations où la personne a écrit ou dont elle fait partie (pour l'export). */
+async function chatConversations(db, id) {
+  const rows = await db.all(
+    `SELECT c.id, c.kind, c.name, g.name AS group_name, c.created_at FROM chat_conversations c LEFT JOIN user_groups g ON g.id = c.group_id
+     WHERE c.id IN (SELECT conversation_id FROM chat_members WHERE user_id = ?) OR c.id IN (SELECT conversation_id FROM chat_messages WHERE author_id = ?)
+     ORDER BY c.id`,
+    [id, id]
+  );
+  const labels = { general: 'Salon général', group: 'Salon de groupe', direct: 'Message privé', custom: 'Conversation de groupe' };
+  return rows.map((c) => ({ id: c.id, type: labels[c.kind] || c.kind, name: c.kind === 'group' ? c.group_name : c.name || null, created_at: c.created_at }));
 }
 
 /** Toutes les données d'une personne, lisibles (droit d'accès et portabilité). */
@@ -168,6 +188,15 @@ async function exportUser(db, id) {
     trusted_browsers: await db.all('SELECT label, created_at, last_used_at, expires_at FROM trusted_devices WHERE user_id = ? ORDER BY id', [id]),
     security_history: await db.all('SELECT type, detail, created_at FROM security_events WHERE user_id = ? ORDER BY id', [id]),
     data_requests: await db.all('SELECT type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id', [id]),
+    chat: {
+      keep_messages: u.chat_retention_days ? `${u.chat_retention_days} jours` : 'tant que le compte existe',
+      conversations: await chatConversations(db, id),
+      messages: await db.all(
+        `SELECT m.id, m.conversation_id, m.body, m.created_at, m.deleted_at FROM chat_messages m WHERE m.author_id = ? ORDER BY m.id`,
+        [id]
+      ),
+      reports_made: await db.all('SELECT reason, snapshot AS message, status, created_at, handled_at FROM chat_reports WHERE reporter_id = ? ORDER BY id', [id]),
+    },
     impersonations: await db.all(
       `SELECT i.started_at, i.ended_at, a.username AS by_admin FROM impersonations i LEFT JOIN users a ON a.id = i.admin_id
        WHERE i.target_id = ? ORDER BY i.id`,
@@ -225,7 +254,7 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
   const settings = await getSetting(db, 'rgpd');
   const canMail = notifier ? await notifier.canSend() : false;
   const todo = await purgeCandidates(db, settings, now, { canMail });
-  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, trash: 0 };
+  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, trash: 0 };
   for (const u of todo.toWarn) {
     if (await notifier.inactivityWarning(u.row, { lastSeen: u.last_seen, deadline: u.deadline })) {
       await db.run('UPDATE users SET inactivity_warned_at = ? WHERE id = ?', [now.toISOString(), u.id]);
@@ -240,10 +269,24 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
     const limit = monthsAgo(settings.logMonths, now);
     done.mail = (await db.run('DELETE FROM mail_log WHERE created_at < ?', [limit])).changes;
     done.impersonations = (await db.run('DELETE FROM impersonations WHERE started_at < ?', [limit])).changes;
+    done.assistant = (await db.run('DELETE FROM assistant_misses WHERE created_at < ?', [limit])).changes;
+    done.chatReports = (await db.run("DELETE FROM chat_reports WHERE status <> 'pending' AND COALESCE(handled_at, created_at) < ?", [limit])).changes;
     done.groupRequests = (
       await db.run("DELETE FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])
     ).changes;
   }
+  // Discussions : chaque personne choisit combien de temps ses messages sont gardés (0 : tant que le compte existe).
+  done.chatMessages = (
+    await db.run(
+      `DELETE FROM chat_messages WHERE author_id IN (SELECT id FROM users WHERE chat_retention_days > 0)
+       AND julianday(created_at) < julianday(?) - (SELECT chat_retention_days FROM users WHERE users.id = chat_messages.author_id)`,
+      [now.toISOString()]
+    )
+  ).changes;
+  // Messages supprimés par leur auteur ou la modération : la trace « Message supprimé » disparaît après 30 jours.
+  done.chatMessages += (
+    await db.run('DELETE FROM chat_messages WHERE deleted_at IS NOT NULL AND julianday(deleted_at) < julianday(?) - 30', [now.toISOString()])
+  ).changes;
   // Navigateurs de confiance expirés : rien à garder.
   await db.run('DELETE FROM trusted_devices WHERE expires_at < ?', [now.toISOString()]);
   // Corbeille : les demandes supprimées sont effacées définitivement (avec leurs fichiers) après le délai.
@@ -260,10 +303,10 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
     }
   }
   await setSetting(db, 'rgpd_state', { lastRunAt: now.toISOString(), lastResult: done, lastError: null });
-  if (done.warned || done.accounts || done.mail || done.impersonations || done.groupRequests || done.trash) {
+  if (done.warned || done.accounts || done.mail || done.impersonations || done.groupRequests || done.trash || done.chatMessages) {
     logger.info(
       `Purge RGPD : ${done.warned} compte(s) inactif(s) prévenu(s) par e-mail, ${done.accounts} compte(s) inactif(s) anonymisé(s), ${done.mail + done.impersonations + done.groupRequests} ligne(s) de journal ` +
-        `supprimée(s), ${done.trash} demande(s) de la corbeille effacée(s).`
+        `supprimée(s), ${done.chatMessages} message(s) de discussion effacé(s), ${done.trash} demande(s) de la corbeille effacée(s).`
     );
   }
   return done;

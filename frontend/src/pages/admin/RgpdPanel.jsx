@@ -94,7 +94,7 @@ function AnonymizeDialog({ user, onClose, onDone, initialMode = 'keep', requestI
                 <input type="radio" name="anon-mode" className="mt-1" checked={mode === 'delete'} onChange={() => setMode('delete')} />
                 <span>
                   <span className="font-semibold">Les supprimer</span>
-                  <span className="block text-ink-mute">Ses demandes (avec leurs messages et fichiers) et ses messages sur les autres demandes.</span>
+                  <span className="block text-ink-mute">Ses demandes (avec leurs messages et fichiers), ses messages sur les autres demandes et dans les discussions.</span>
                 </span>
               </label>
             </fieldset>

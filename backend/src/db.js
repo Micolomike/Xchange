@@ -206,6 +206,62 @@ CREATE TABLE IF NOT EXISTS terms_acceptances (
   accepted_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assistant_misses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  query TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,
+  group_id INTEGER REFERENCES user_groups(id) ON DELETE CASCADE,
+  name TEXT,
+  direct_key TEXT UNIQUE,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL,
+  last_message_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS chat_members (
+  conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  added_at TEXT NOT NULL,
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_reads (
+  conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  last_read_id INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  deleted_at TEXT,
+  deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversation_id, id);
+
+CREATE TABLE IF NOT EXISTS chat_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL,
+  conversation_id INTEGER REFERENCES chat_conversations(id) ON DELETE SET NULL,
+  reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  snapshot TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL,
+  handled_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  handled_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -242,6 +298,7 @@ const ADDED_COLUMNS = {
     hide_real_name: 'INTEGER NOT NULL DEFAULT 0',
     inactivity_warned_at: 'TEXT',
     mfa_exempt_at: 'TEXT',
+    chat_retention_days: 'INTEGER NOT NULL DEFAULT 0',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",

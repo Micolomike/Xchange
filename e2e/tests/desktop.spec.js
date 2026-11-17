@@ -564,6 +564,83 @@ test('double authentification : refus tracé à l’inscription, navigateur de c
   await ctx2.close();
 });
 
+test('assistant guidé : orientation vers la bonne page', async () => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Besoin d’aide ?' }).click();
+  const panel = page.getByRole('dialog', { name: 'Assistant' });
+  await panel.getByLabel(/Décrivez votre besoin/).fill('je voudrais discuter avec quelqu’un');
+  await panel.getByLabel(/Décrivez votre besoin/).press('Enter');
+  await expect(panel.getByRole('heading', { name: 'Comment parler directement avec quelqu’un ?' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Fermer l’assistant' }).click();
+});
+
+test('discussions : message privé en direct, signalement et modération', async ({ browser }, testInfo) => {
+  // Inès (mot de passe provisoire donné par l'administrateur), dans un autre navigateur.
+  const token = await login({ ...USER, password: tempPassword });
+  const ctx = await browser.newContext(testInfo.project.use);
+  await ctx.addInitScript((t) => {
+    if (!sessionStorage.getItem('e2e-init')) {
+      localStorage.setItem('xchange.token', t);
+      sessionStorage.setItem('e2e-init', '1');
+    }
+  }, token);
+  const q = await ctx.newPage();
+  const thread = (p) => p.locator('section[aria-labelledby="thread-title"] ol');
+  const qErrors = trackPageErrors(q);
+  await q.goto('/');
+  await expect(q.getByRole('link', { name: 'Discussions' })).toBeVisible();
+
+  // Swann écrit à Inès.
+  await page.goto('/discussions');
+  await expect(page.getByRole('link', { name: /Salon général/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Nouvelle conversation' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nouvelle conversation' });
+  await dialog.getByLabel('À qui écrire ?').fill('ines');
+  await dialog.getByRole('button', { name: new RegExp(USER.firstname) }).click();
+  await expect(page.getByRole('heading', { name: `${USER.firstname} ${USER.lastname}` })).toBeVisible();
+  await page.fill('#chat-input', 'Bonjour Inès, ton badge fonctionne de nouveau ?');
+  await page.keyboard.press('Enter');
+  await expect(thread(page).getByText('Bonjour Inès, ton badge fonctionne de nouveau ?')).toBeVisible();
+
+  // Inès voit le compteur sans recharger la page, puis répond.
+  await expect(q.getByTestId('chat-unread')).toContainText('1');
+  await q.getByRole('link', { name: /Discussions/ }).click();
+  await q.getByRole('link', { name: new RegExp(`${ADMIN.firstname} ${ADMIN.lastname}`) }).click();
+  await expect(thread(q).getByText('Bonjour Inès, ton badge fonctionne de nouveau ?')).toBeVisible();
+  await expect(q.getByTestId('chat-unread')).toHaveCount(0);
+  await q.fill('#chat-input', 'Oui, merci beaucoup !');
+  await q.getByRole('button', { name: 'Envoyer' }).click();
+  // Arrivée en direct chez Swann.
+  await expect(thread(page).getByText('Oui, merci beaucoup !')).toBeVisible();
+
+  // Inès signale le message (exemple) ; l'administrateur ne voit que celui-là.
+  const msg = thread(q).getByRole('listitem').filter({ hasText: 'Bonjour Inès, ton badge' });
+  await msg.hover();
+  await msg.getByRole('button', { name: /Signaler ce message/ }).click();
+  const report = q.getByRole('dialog', { name: 'Signaler ce message' });
+  await report.getByLabel('Motif (facultatif)').fill('Test de signalement');
+  await report.getByRole('button', { name: 'Signaler' }).click();
+  await expect(q.getByText('Message signalé aux administrateurs')).toBeVisible();
+
+  await page.goto('/admin?tab=chat');
+  await expect(page.getByText('Test de signalement')).toBeVisible();
+  await expect(page.getByText('Oui, merci beaucoup !')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Retirer le message' }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByText('Aucun signalement à traiter')).toBeVisible();
+  await expect(thread(q).getByText('Message retiré par la modération')).toBeVisible();
+
+  // Durée de conservation choisie par Inès.
+  await q.goto('/profile');
+  const keep = q.getByRole('radiogroup', { name: 'Conservation de mes messages' });
+  await keep.getByText('30 jours', { exact: true }).click();
+  await expect(q.getByText('Durée de conservation enregistrée')).toBeVisible();
+  await q.reload();
+  await expect(keep.getByRole('radio', { name: '30 jours' })).toBeChecked();
+  expect(qErrors).toEqual([]);
+  await ctx.close();
+});
+
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
   const display = page.getByRole('radiogroup', { name: 'Thème' });

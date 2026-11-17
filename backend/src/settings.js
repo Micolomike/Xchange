@@ -182,7 +182,7 @@ function validateAppearance(input, current) {
   return out;
 }
 
-const MAIL_EVENTS = ['ticket_created', 'ticket_transferred', 'comment', 'status_changed', 'assigned', 'join_requested', 'join_decided', 'rgpd_request'];
+const MAIL_EVENTS = ['ticket_created', 'ticket_transferred', 'comment', 'status_changed', 'assigned', 'join_requested', 'join_decided', 'rgpd_request', 'chat_report'];
 const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
 /** Réglages des notifications, avec chaque événement explicitement actif ou non. */

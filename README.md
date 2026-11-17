@@ -90,6 +90,15 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Case « J'accepte la charte et la politique de confidentialité » à l'inscription (désactivable). La charte est versionnée : chaque modification crée une version archivée telle quelle, et chacun doit relire et accepter la nouvelle version (bandeau) ; chaque acceptation est enregistrée avec sa version et sa date.
 - « Mon compte » : téléchargement de ses propres données et formulaire de demande (anonymisation, suppression, correction, autre) ; les administrateurs sont prévenus par e-mail, voient les demandes avec le délai d'un mois dans l'onglet RGPD et les traitent en un clic (anonymisation, réponse ou refus motivé).
 
+**Assistant guidé** (sans intelligence artificielle)
+- Bouton « Besoin d'aide ? » sur chaque page : quelques mots suffisent pour obtenir les réponses de la foire aux questions et les formulaires du catalogue qui correspondent ; le formulaire choisi s'ouvre avec la description déjà remplie.
+- Les besoins restés sans réponse sont gardés sans nom pendant 90 jours (Administration > Catalogue, « Besoins non trouvés ») pour compléter le catalogue.
+
+**Discussions en direct** (menu « Discussions »)
+- Salon général, salon de chaque groupe (réservé à ses membres), messages privés à deux et conversations de groupe libres (nom, jusqu'à 50 participants, ajout, renommage, départ). Messages reçus en direct (flux SSE), compteur de non lus dans la barre de navigation, suppression de ses propres messages.
+- Confidentialité : un administrateur n'a aucun accès aux conversations dont il ne fait pas partie ; il ne voit que les messages signalés (Administration > Signalements), qu'il retire ou classe sans suite. E-mail aux administrateurs à chaque signalement.
+- Conservation choisie par chacun dans « Mon compte » : tant que le compte existe (par défaut), 30 jours, 6 mois ou 1 an ; effacement de tous ses messages en un clic. Messages inclus dans l'export RGPD, conservés anonymisés ou supprimés à l'anonymisation d'un compte.
+
 **Affichage**
 - Mode clair, sombre ou automatique (suit le réglage de l'appareil), depuis le bouton de la barre de navigation ou « Mon compte ». Retenu sur chaque appareil.
 
@@ -223,6 +232,15 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/admin/backup/write` | admin |
 | `GET`, `DELETE` | `/api/admin/trash`, `/api/admin/trash/:id` | admin |
 | `POST` | `/api/admin/trash/:id/restore` | admin |
+| `GET` | `/api/assistant/search?q=` ; `POST` `/api/assistant/miss` | connecté |
+| `GET`, `DELETE` | `/api/admin/assistant/misses` | admin |
+| `GET` | `/api/chat/stream` (flux en direct, `text/event-stream`), `/api/chat/unread`, `/api/chat/people?q=` | connecté |
+| `GET`, `POST` | `/api/chat/conversations` ; `POST` `/api/chat/direct` (`userId`) | connecté |
+| `GET`, `PUT` | `/api/chat/conversations/:id` ; `POST` `/api/chat/conversations/:id/members` ; `DELETE` `/api/chat/conversations/:id/members/me` | participant |
+| `GET`, `POST` | `/api/chat/conversations/:id/messages` (`before`, `limit`) ; `POST` `/api/chat/conversations/:id/read` | participant |
+| `DELETE` | `/api/chat/messages/:id` (auteur) ; `POST` `/api/chat/messages/:id/report` (`reason`) | participant |
+| `GET`, `PUT` | `/api/chat/me/settings` (`retentionDays` : 0, 30, 180, 365) ; `DELETE` `/api/chat/me/messages` | connecté |
+| `GET` | `/api/admin/chat/reports?status=` ; `POST` `/api/admin/chat/reports/:id/remove`, `/api/admin/chat/reports/:id/dismiss` | admin |
 
 ## Tests et intégration continue
 

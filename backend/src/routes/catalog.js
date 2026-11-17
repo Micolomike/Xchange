@@ -198,4 +198,4 @@ function catalogAdminRoutes({ db }) {
   return router;
 }
 
-module.exports = { catalogRoutes, catalogAdminRoutes };
+module.exports = { catalogRoutes, catalogAdminRoutes, visibleWhere, loadItems };

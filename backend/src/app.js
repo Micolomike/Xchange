@@ -18,6 +18,9 @@ const { groupRoutes } = require('./routes/groups');
 const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
 const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings');
 const { legalPublicRoutes, rgpdAdminRoutes } = require('./routes/rgpd');
+const { assistantRoutes, assistantAdminRoutes } = require('./routes/assistant');
+const { chatRoutes, chatAdminRoutes } = require('./routes/chat');
+const { createHub } = require('./chat');
 const { createMailer } = require('./mailer');
 const { createNotifier } = require('./notifications');
 
@@ -51,6 +54,8 @@ function createApp({ db, config, logger = console }) {
   const notifier = createNotifier({ db, config, mailer, logger });
   app.locals.mailer = mailer;
   app.locals.notifier = notifier;
+  const hub = createHub({ logger });
+  app.locals.chatHub = hub;
 
   const indexHtml = path.join(config.frontendDir, 'index.html');
   const serveFrontend = config.serveFrontend && fs.existsSync(indexHtml);
@@ -79,6 +84,10 @@ function createApp({ db, config, logger = console }) {
     res.set('Cache-Control', 'no-store');
     res.download(file, 'Xchange-guide-administrateur.pdf');
   });
+  app.use('/api/assistant', auth, assistantRoutes({ db }));
+  app.use('/api/admin/assistant', auth, requireAdmin, assistantAdminRoutes({ db }));
+  app.use('/api/chat', auth, chatRoutes({ db, hub, notifier }));
+  app.use('/api/admin/chat', auth, requireAdmin, chatAdminRoutes({ db, hub }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

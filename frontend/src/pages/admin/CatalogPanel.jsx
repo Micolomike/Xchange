@@ -2,9 +2,46 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiCopy, FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { api } from '../../lib/api';
-import { plural } from '../../lib/format';
+import { formatDate, plural } from '../../lib/format';
 import { confirmAction, toast, toastError } from '../../lib/notify';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui';
+
+/** Besoins que l'assistant n'a pas su orienter : idées de formulaires ou de réponses à ajouter. */
+function AssistantMisses() {
+  const [rows, setRows] = useState(null);
+  const load = useCallback(() => {
+    api('/api/admin/assistant/misses')
+      .then(setRows)
+      .catch(() => setRows([]));
+  }, []);
+  useEffect(load, [load]);
+  if (!rows) return null;
+  return (
+    <section className="panel p-5 sm:p-6" aria-labelledby="misses-title">
+      <h3 id="misses-title" className="font-bold">
+        Besoins que l’assistant n’a pas su orienter
+      </h3>
+      <p className="mt-1 text-sm text-ink-mute">
+        Les 90 derniers jours, sans nom. Un besoin qui revient souvent mérite peut-être un formulaire, ou de meilleurs mots dans la
+        description d’un formulaire existant.
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-soft">Rien pour l’instant.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-line rounded-md border border-line">
+          {rows.map((r) => (
+            <li key={r.query} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <span>{r.query}</span>
+              <span className="shrink-0 text-xs text-ink-mute">
+                {r.count} fois, dernière le {formatDate(r.last_at)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export default function CatalogPanel() {
   const [items, setItems] = useState(null);
@@ -53,6 +90,7 @@ export default function CatalogPanel() {
   if (!items) return <Spinner />;
 
   return (
+    <div className="space-y-6">
     <div className="panel">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <p className="max-w-xl text-sm text-ink-mute">
@@ -152,6 +190,8 @@ export default function CatalogPanel() {
           </table>
         </div>
       )}
+    </div>
+    <AssistantMisses />
     </div>
   );
 }

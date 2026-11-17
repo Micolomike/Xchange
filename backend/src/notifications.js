@@ -85,6 +85,12 @@ const BUILDERS = {
     link: '/admin?tab=settings&section=rgpd',
     linkLabel: 'Traiter la demande',
   }),
+  chat_report: ({ place }) => ({
+    subject: 'Message signalé dans les discussions',
+    lines: [`Un message a été signalé (${place}).`, 'Seul ce message vous est montré : le reste de la conversation reste privé.'],
+    link: '/admin?tab=chat',
+    linkLabel: 'Voir le signalement',
+  }),
   inactivity_warning: ({ lastSeen, deadline }) => ({
     subject: `Votre compte sera anonymisé le ${frDate(deadline)}`,
     lines: [
@@ -114,6 +120,7 @@ const SAMPLE = {
   typeLabel: 'anonymiser mon compte',
   lastSeen: '2024-11-02T10:00:00.000Z',
   deadline: '2026-12-17T10:00:00.000Z',
+  place: 'salon général',
 };
 
 function createNotifier({ db, mailer, logger = console }) {
@@ -287,6 +294,22 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
         return {
           list: await recipients(admins.map((a) => ({ id: a.id, pref: 'admin' })), r.user_id),
           data: { who: displayName(r), typeLabel: RGPD_TYPES[r.type]?.toLowerCase() || r.type },
+        };
+      });
+    },
+
+    chatReported(reportId) {
+      return run('chat_report', async () => {
+        const r = await db.get(
+          'SELECT r.reporter_id, c.kind, g.name AS group_name FROM chat_reports r LEFT JOIN chat_conversations c ON c.id = r.conversation_id LEFT JOIN user_groups g ON g.id = c.group_id WHERE r.id = ?',
+          [reportId]
+        );
+        if (!r) return null;
+        const places = { general: 'salon général', direct: 'message privé', custom: 'conversation de groupe' };
+        const admins = await db.all("SELECT id FROM users WHERE role = 'admin' AND anonymized_at IS NULL");
+        return {
+          list: await recipients(admins.map((a) => ({ id: a.id, pref: 'admin' })), r.reporter_id),
+          data: { place: r.kind === 'group' ? `salon ${r.group_name || 'de groupe'}` : places[r.kind] || 'discussion' },
         };
       });
     },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/context';
 import { api } from '../lib/api';
 import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER } from '../lib/constants';
@@ -13,9 +13,11 @@ import { Field, PageHeader } from '../components/ui';
 export default function CreateTicket() {
   const { isAdmin, canCreate } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Texte venu de l'assistant : repris dans la description.
   const [form, setForm] = useState({
     title: '',
-    description: '',
+    description: location.state?.prefill || '',
     priority: 'medium',
     category: '',
     due_date: '',

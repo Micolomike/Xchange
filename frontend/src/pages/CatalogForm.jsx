@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { api } from '../lib/api';
 import { toast, toastError } from '../lib/notify';
@@ -18,11 +18,21 @@ export default function CatalogForm() {
   const [submitting, setSubmitting] = useState(false);
   const [confidential, setConfidential] = useState(false);
 
+  const location = useLocation();
+  const prefill = location.state?.prefill;
+
   useEffect(() => {
     setItem(null);
     setError(null);
-    api(`/api/catalog/${id}`).then(setItem).catch(setError);
-  }, [id]);
+    api(`/api/catalog/${id}`)
+      .then((it) => {
+        setItem(it);
+        // Texte venu de l'assistant : repris dans la première question à réponse longue.
+        const long = prefill && it.fields.find((f) => f.type === 'textarea');
+        if (long) setValues((v) => ({ ...v, [long.key]: prefill }));
+      })
+      .catch(setError);
+  }, [id, prefill]);
 
   if (error) {
     return (

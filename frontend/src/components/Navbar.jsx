@@ -5,6 +5,7 @@ import { useAuth } from '../auth/context';
 import { Avatar } from './Badges';
 import { useSettings } from '../settings/context';
 import ThemeToggle from './ThemeToggle';
+import { useChat } from '../chat/context';
 
 export function Logo() {
   const { settings } = useSettings();
@@ -23,6 +24,8 @@ const linkClass = ({ isActive }) =>
 
 export default function Navbar() {
   const { user, isAdmin, canCreate, logout } = useAuth();
+  const chat = useChat();
+  const unread = chat?.enabled ? chat.unread : 0;
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -67,6 +70,17 @@ export default function Navbar() {
       <NavLink to="/catalogue" className={linkClass}>
         Catalogue
       </NavLink>
+      {chat?.enabled && (
+        <NavLink to="/discussions" className={(s) => `${linkClass(s)} inline-flex items-center gap-1.5`}>
+          Discussions
+          {unread > 0 && (
+            <span className="rounded-full bg-accent px-1.5 text-xs font-bold leading-5 text-white" data-testid="chat-unread">
+              {unread > 99 ? '99+' : unread}
+              <span className="sr-only"> message{unread > 1 ? 's' : ''} non lu{unread > 1 ? 's' : ''}</span>
+            </span>
+          )}
+        </NavLink>
+      )}
       {isAdmin && (
         <NavLink to="/admin" className={linkClass}>
           Administration
@@ -122,13 +136,14 @@ export default function Navbar() {
               </div>
               <button
                 type="button"
-                className="btn btn-ghost px-2 md:hidden"
+                className="btn btn-ghost relative px-2 md:hidden"
                 aria-expanded={open}
                 aria-controls="mobile-menu"
-                aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+                aria-label={`${open ? 'Fermer le menu' : 'Ouvrir le menu'}${unread ? ` (${unread} message${unread > 1 ? 's' : ''} non lu${unread > 1 ? 's' : ''})` : ''}`}
                 onClick={() => setOpen((v) => !v)}
               >
                 {open ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+                {!open && unread > 0 && <span className="absolute right-1 top-1 size-2.5 rounded-full bg-accent" aria-hidden="true" />}
               </button>
             </>
           ) : (

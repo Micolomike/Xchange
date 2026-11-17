@@ -23,7 +23,7 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
   await expect(page.getByRole('heading', { name: 'Double authentification' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
+  await page.getByRole('button', { name: /Ouvrir le menu/ }).click();
   await page.getByRole('link', { name: 'Tickets', exact: true }).click();
   await expect(page).toHaveURL(/\/tickets$/);
   // La demande confidentielle de Swann (sans groupe) n'apparaît pas pour Karim, pourtant administrateur.
@@ -34,7 +34,17 @@ test('sur mobile, les pages tiennent dans l’écran et le menu fonctionne', asy
   await expect(page.getByText('Je regarde les journaux')).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
+  await page.getByRole('button', { name: /Ouvrir le menu/ }).click();
+  await page.getByRole('link', { name: /Discussions/ }).click();
+  await page.getByRole('link', { name: /Salon général/ }).click();
+  await page.fill('#chat-input', 'Bonjour depuis mon téléphone');
+  await page.getByRole('button', { name: 'Envoyer' }).click();
+  await expect(page.getByText('Bonjour depuis mon téléphone')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Retour aux conversations' }).click();
+  await expect(page.getByRole('link', { name: /Salon général/ })).toBeVisible();
+
+  await page.getByRole('button', { name: /Ouvrir le menu/ }).click();
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('suivie jusqu');
   await expectNoHorizontalOverflow(page);

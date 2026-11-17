@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBell, FiDatabase, FiDownload, FiMonitor, FiShield, FiUsers } from 'react-icons/fi';
+import { FiBell, FiDatabase, FiDownload, FiMessageCircle, FiMonitor, FiShield, FiTrash2, FiUsers } from 'react-icons/fi';
 import { exportFileName, saveJson } from '../lib/saveJson';
 import { trustedDevice } from '../lib/trustedDevice';
 import { THEMES } from '../lib/theme';
@@ -449,6 +449,79 @@ function DisplaySection() {
   );
 }
 
+const CHAT_RETENTION = { 0: 'Tant que mon compte existe', 30: '30 jours', 180: '6 mois', 365: '1 an' };
+
+/** Discussions : durée de conservation de ses messages, et effacement de tous ses messages. */
+function ChatSection() {
+  const [settings, setSettings] = useState(null);
+  const load = () =>
+    api('/api/chat/me/settings')
+      .then(setSettings)
+      .catch(() => setSettings(null));
+  useEffect(() => {
+    load();
+  }, []);
+  if (!settings) return null;
+
+  const change = async (days) => {
+    try {
+      await api('/api/chat/me/settings', { method: 'PUT', body: { retentionDays: days } });
+      setSettings((s) => ({ ...s, retentionDays: days }));
+      toast('Durée de conservation enregistrée');
+    } catch (err) {
+      toastError(err);
+    }
+  };
+  const eraseAll = async () => {
+    const ok = await confirmAction({
+      title: 'Effacer tous vos messages ?',
+      text: 'Tous les messages que vous avez écrits dans les discussions (salons, messages privés, conversations de groupe) seront effacés définitivement.',
+      confirmText: 'Tout effacer',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const r = await api('/api/chat/me/messages', { method: 'DELETE' });
+      toast(`${r.deleted} message(s) effacé(s)`);
+      load();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="chat-settings-title">
+      <h2 id="chat-settings-title" className="flex items-center gap-2 font-bold">
+        <FiMessageCircle aria-hidden="true" /> Discussions
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">
+        Combien de temps vos messages sont gardés. Passé ce délai, ils sont effacés automatiquement pour tout le monde, chaque nuit.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Conservation de mes messages">
+        {settings.choices.map((d) => (
+          <label
+            key={d}
+            className={`flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold ${
+              settings.retentionDays === d ? 'border-accent bg-accent-soft text-accent-strong' : 'border-line-strong text-ink-soft hover:border-accent'
+            }`}
+          >
+            <input type="radio" name="chat-retention" className="sr-only" checked={settings.retentionDays === d} onChange={() => change(d)} />
+            {CHAT_RETENTION[d] || `${d} jours`}
+          </label>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-sm">
+        <span className="text-ink-soft">
+          {settings.messages} message{settings.messages > 1 ? 's' : ''} écrit{settings.messages > 1 ? 's' : ''} actuellement conservé{settings.messages > 1 ? 's' : ''}.
+        </span>
+        <button type="button" className="btn btn-secondary" onClick={eraseAll} disabled={!settings.messages}>
+          <FiTrash2 aria-hidden="true" /> Effacer tous mes messages
+        </button>
+      </div>
+    </section>
+  );
+}
+
 const RGPD_CHOICES = [
   { value: 'anonymize', label: 'Anonymiser mon compte', hint: 'Mon nom, mon identifiant et mon e-mail sont effacés. Mes demandes restent, signées « Utilisateur supprimé ».' },
   { value: 'erase', label: 'Supprimer mon compte, mes demandes et mes messages', hint: 'Tout ce que j’ai écrit disparaît.' },
@@ -700,6 +773,7 @@ export default function Profile() {
       {!user.impersonator && <NotificationsSection user={user} />}
       <GroupsSection />
       <DisplaySection />
+      {!user.impersonator && <ChatSection />}
       {!user.impersonator && <DataSection />}
       {!user.impersonator && <AdminAccessSection />}
       {!user.impersonator && <MfaSection user={user} />}

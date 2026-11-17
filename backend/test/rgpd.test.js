@@ -38,7 +38,7 @@ describe('RGPD', () => {
     const pub = (await ctx.api.get('/api/legal').expect(200)).body;
     assert.ok(pub.legalNotice.includes('Éditeur du site'));
     assert.ok(pub.privacyPolicy.includes('après 2 ans sans connexion'));
-    assert.ok(pub.privacyPolicy.includes("demandes d'adhésion déjà traitées : 1 an"));
+    assert.ok(pub.privacyPolicy.includes("questions de l'assistant restées sans réponse : 1 an"));
     assert.ok(pub.privacyPolicy.includes('30 jours dans la corbeille'));
     assert.equal(pub.requireTerms, true);
 
@@ -193,7 +193,7 @@ describe('RGPD', () => {
     assert.equal(info.candidates.logs.mail, 1);
 
     const done = await runPurge(ctx.db, ctx.config, { logger: { info() {}, error() {} } });
-    assert.deepEqual(done, { warned: 0, accounts: 1, mail: 1, impersonations: 0, groupRequests: 0, trash: 1 });
+    assert.deepEqual(done, { warned: 0, accounts: 1, mail: 1, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, trash: 1 });
     assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [trashed.id])).n, 0);
     assert.equal((await ctx.db.get('SELECT COUNT(*) AS n FROM tickets WHERE id = ?', [recentTrash.id])).n, 1);
     assert.ok((await ctx.db.get('SELECT anonymized_at FROM users WHERE id = ?', [old.user.id])).anonymized_at);
