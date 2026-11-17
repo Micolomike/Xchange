@@ -1,4 +1,5 @@
 const express = require('express');
+const { logUserEvent } = require('../systemLog');
 const { HttpError, parseId, nowIso, displayName } = require('../utils');
 
 function validateGroupInput(body, { partial }) {
@@ -140,6 +141,7 @@ function groupRoutes({ db, requireAdmin, notifier }) {
     const id = parseId(req.params.id, 'Groupe');
     const [requestId] = await requestGroups(db, req.user.id, [id], cleanMessage((req.body || {}).message));
     notifier?.joinRequested(requestId);
+    await logUserEvent(db, `Demande pour rejoindre le groupe n°${id}`, { subjectId: req.user.id });
     res.status(201).json((await listRequests(db, 'r.id = ?', [requestId]))[0]);
   });
 
@@ -150,6 +152,7 @@ function groupRoutes({ db, requireAdmin, notifier }) {
       [nowIso(), id, req.user.id]
     );
     if (!changes) throw new HttpError(404, 'Aucune demande en attente pour ce groupe.');
+    await logUserEvent(db, `Demande pour rejoindre le groupe n°${id} annulée`, { subjectId: req.user.id });
     res.json({ success: true });
   });
 
@@ -157,6 +160,7 @@ function groupRoutes({ db, requireAdmin, notifier }) {
     const id = parseId(req.params.id, 'Groupe');
     const { changes } = await db.run('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [id, req.user.id]);
     if (!changes) throw new HttpError(404, 'Vous ne faites pas partie de ce groupe.');
+    await logUserEvent(db, `A quitté le groupe n°${id}`, { subjectId: req.user.id });
     res.json({ success: true });
   });
 

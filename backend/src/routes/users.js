@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const { logUserEvent } = require('../systemLog');
 const { logSecurity } = require('../security');
 const bcrypt = require('bcryptjs');
 const { HttpError, publicUser, validateUserInput, parseId, nowIso, displayName } = require('../utils');
@@ -69,6 +70,7 @@ function userRoutes({ db, config }) {
         nowIso(),
       ]
     );
+    await logUserEvent(db, `Compte créé par un administrateur${values.role === 'admin' ? ' (administrateur)' : ''}`, { subjectId: lastID, actorId: req.user.id });
     res.status(201).json(publicUser(await db.get('SELECT * FROM users WHERE id = ?', [lastID])));
   });
 

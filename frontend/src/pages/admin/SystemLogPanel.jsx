@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { FiAlertCircle, FiAlertTriangle, FiChevronDown, FiDownload, FiInfo, FiRefreshCw } from 'react-icons/fi';
+import { useSearchParams } from 'react-router-dom';
+import { FiAlertCircle, FiAlertTriangle, FiChevronDown, FiDownload, FiInfo, FiRefreshCw, FiUser, FiX } from 'react-icons/fi';
 import { api } from '../../lib/api';
 import { toastError } from '../../lib/notify';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui';
@@ -28,7 +29,9 @@ function LevelBadge({ level }) {
  * et actions des administrateurs. Lecture seule ; purgé avec les journaux (onglet RGPD).
  */
 export default function SystemLogPanel() {
-  const [filters, setFilters] = useState({ level: '', source: '', q: '', from: '', to: '' });
+  const [params, setParams] = useSearchParams();
+  const userParam = /^\d+$/.test(params.get('user') || '') ? params.get('user') : '';
+  const [filters, setFilters] = useState({ level: '', source: '', q: '', from: '', to: '', user: userParam });
   const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -90,6 +93,20 @@ export default function SystemLogPanel() {
     }
   };
 
+  // Le filtre « compte » vient de l'adresse (lien « Journal » de l'onglet Utilisateurs).
+  useEffect(() => {
+    setFilters((f) => (f.user === userParam ? f : { ...f, user: userParam }));
+  }, [userParam]);
+  const clearUser = () =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        n.delete('user');
+        return n;
+      },
+      { replace: true }
+    );
+
   const set = (patch) => setFilters((f) => ({ ...f, ...patch }));
   const toggle = (id) =>
     setOpen((s) => {
@@ -128,6 +145,18 @@ export default function SystemLogPanel() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {filters.user && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 font-semibold text-accent-strong">
+            <FiUser aria-hidden="true" /> Compte : {data?.user?.name || `n°${filters.user}`}
+            <button type="button" className="ml-1 rounded-full p-0.5 hover:bg-accent/20" onClick={clearUser} aria-label="Retirer le filtre sur ce compte" title="Retirer le filtre">
+              <FiX aria-hidden="true" />
+            </button>
+          </span>
+          <span className="text-ink-mute">Entrées qui concernent ce compte ou faites par lui.</span>
         </div>
       )}
 
@@ -213,6 +242,9 @@ export default function SystemLogPanel() {
                   Message
                 </th>
                 <th scope="col" className="px-4 py-2">
+                  Compte
+                </th>
+                <th scope="col" className="px-4 py-2">
                   Par
                 </th>
               </tr>
@@ -239,11 +271,27 @@ export default function SystemLogPanel() {
                         </button>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-ink-soft">{i.actor || <span className="text-ink-mute">Xchange</span>}</td>
+                    <td className="whitespace-nowrap px-4 py-2">
+                      {i.subjectId ? (
+                        <button
+                          type="button"
+                          className="text-accent-strong hover:underline"
+                          title="Voir le journal de ce compte"
+                          onClick={() => setParams({ tab: 'log', user: String(i.subjectId) }, { replace: true })}
+                        >
+                          {i.subject}
+                        </button>
+                      ) : (
+                        <span className="text-ink-mute">-</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-ink-soft">
+                      {i.actor || <span className="text-ink-mute">{i.source !== 'utilisateurs' ? 'Xchange' : '-'}</span>}
+                    </td>
                   </tr>
                   {open.has(i.id) && (
                     <tr className="border-b border-line">
-                      <td colSpan={5} className="px-4 pb-3">
+                      <td colSpan={6} className="px-4 pb-3">
                         <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-paper p-3 text-xs text-ink-soft">{i.details}</pre>
                       </td>
                     </tr>
@@ -262,7 +310,7 @@ export default function SystemLogPanel() {
         </div>
       )}
       <p className="text-xs text-ink-mute">
-        Le journal ne se modifie pas. Il est effacé au bout de la durée de conservation des journaux (onglet RGPD) ; la même information est aussi écrite dans
+        Le journal ne se modifie pas. Il est effacé au bout de la durée de conservation des journaux (onglet RGPD) ; hors activité des comptes, la même information est aussi écrite dans
         C:\Xchange\journaux sur le PC.
       </p>
     </div>

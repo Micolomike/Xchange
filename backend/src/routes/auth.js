@@ -10,7 +10,8 @@ const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PR
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
 const mfa = require('../mfa');
-const { logSecurity, trustDevice, checkTrustedDevice } = require('../security');
+const { logUserEvent } = require('../systemLog');
+const { deviceLabel, logSecurity, trustDevice, checkTrustedDevice } = require('../security');
 const { requestGroups } = require('./groups');
 
 // Haché factice : rend le temps de réponse identique que l'utilisateur existe ou non.
@@ -45,8 +46,11 @@ function createLoginGuard({ maxFailures, lockMinutes }) {
       let e = entries.get(k);
       if (!e || now - e.first > windowMs) e = { first: now, count: 0, lockedUntil: 0 };
       e.count += 1;
+      const locked = e.count >= maxFailures && !e.lockedUntil;
       if (e.count >= maxFailures) e.lockedUntil = now + windowMs;
       entries.set(k, e);
+      // Vrai au moment où le blocage commence (pour le journal).
+      return locked;
     },
     succeed(username) {
       entries.delete(key(username));
@@ -58,6 +62,9 @@ function authRoutes({ db, config, authenticate, notifier }) {
   const router = express.Router();
   const guard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
   const codeGuard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
+  // Navigateur et système, sans adresse IP : « Chrome sur Windows ».
+  const browser = (req) => deviceLabel(req.get('user-agent'));
+  const lockText = `${config.loginLockMinutes} min après ${config.loginMaxFailures} échecs`;
 
   /** Réponse après un mot de passe correct : session, ou étape de double authentification. */
   function afterPassword(row) {
@@ -134,6 +141,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
       [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso(), req.body?.hideRealName === true ? 1 : 0]
     );
     if (req.body?.acceptTerms === true) await acceptTerms(db, lastID, (await syncTerms(db)).version);
+    await logUserEvent(db, `Inscription${role === 'admin' ? ' (premier compte : administrateur)' : ''}${req.body?.hideRealName === true ? ', pseudonyme seul' : ''}`, { subjectId: lastID });
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
     // Groupes choisis à l'inscription : des demandes à valider par un administrateur.
     const wanted = Array.isArray(req.body.groups) ? req.body.groups.filter((id) => Number.isInteger(Number(id))) : [];
@@ -154,15 +162,25 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const row = await db.get('SELECT * FROM users WHERE username = ? COLLATE NOCASE', [username.trim()]);
     const valid = await bcrypt.compare(password, row ? row.password : DUMMY_HASH);
     if (!row || !valid) {
-      guard.fail(username);
+      const locked = guard.fail(username);
+      // L'identifiant tapé n'est pas noté : ce peut être un mot de passe saisi au mauvais endroit.
+      await logUserEvent(db, row ? `Échec de connexion : mot de passe incorrect (${browser(req)})` : `Échec de connexion : identifiant inconnu (${browser(req)})`, {
+        subjectId: row?.id ?? null,
+        actorId: null,
+        level: 'warn',
+      });
+      if (locked && row) await logUserEvent(db, `Connexions bloquées ${lockText}`, { subjectId: row.id, actorId: null, level: 'warn' });
       throw new HttpError(401, 'Identifiants invalides.');
     }
     guard.succeed(username);
     // Navigateur de confiance : pas de code demandé jusqu'à l'expiration.
     if (row.mfa_enabled && (await checkTrustedDevice(db, row, req.body.deviceToken))) {
+      await logUserEvent(db, `Connexion avec un navigateur de confiance (${browser(req)})`, { subjectId: row.id });
       return res.json({ token: signToken(row, config, { mfa: true }), user: publicUser(row), trustedDevice: true });
     }
-    res.json({ ...afterPassword(row), ...(req.body.deviceToken ? { deviceRejected: true } : {}) });
+    const next = afterPassword(row);
+    if (next.token) await logUserEvent(db, `Connexion sans double authentification (${browser(req)})`, { subjectId: row.id });
+    res.json({ ...next, ...(req.body.deviceToken ? { deviceRejected: true } : {}) });
   });
 
   // Deuxième étape de la connexion : code de l'appli, ou code de secours.
@@ -182,13 +200,20 @@ function authRoutes({ db, config, authenticate, notifier }) {
         ? await db.get('SELECT id FROM mfa_recovery_codes WHERE user_id = ? AND code_hash = ? AND used_at IS NULL', [row.id, hash])
         : null;
       if (!recovery) {
-        codeGuard.fail(key);
+        const locked = codeGuard.fail(key);
+        await logUserEvent(db, `Échec de connexion : code de double authentification incorrect (${browser(req)})`, { subjectId: row.id, actorId: null, level: 'warn' });
+        if (locked) await logUserEvent(db, `Codes de double authentification bloqués ${lockText}`, { subjectId: row.id, actorId: null, level: 'warn' });
         throw new HttpError(401, 'Code incorrect ou déjà utilisé.');
       }
       await db.run('UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ?', [nowIso(), recovery.id]);
       usedRecoveryCode = true;
     }
     codeGuard.succeed(key);
+    await logUserEvent(
+      db,
+      usedRecoveryCode ? `Connexion avec un code de secours (${browser(req)}), ${await recoveryCodesLeft(row.id)} restant(s)` : `Connexion avec double authentification (${browser(req)})`,
+      { subjectId: row.id, level: usedRecoveryCode ? 'warn' : 'info' }
+    );
     const device = body.remember === true ? await trustDevice(db, row, { days: config.trustedDeviceDays, userAgent: req.get('user-agent') }) : null;
     res.json({
       token: signToken(row, config, { mfa: true }),
@@ -252,6 +277,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
     );
     await logSecurity(db, row.id, 'mfa_enabled', { actorId: row.id });
     const recoveryCodes = await newRecoveryCodes(row.id);
+    if ((req.body || {}).setupToken) await logUserEvent(db, `Connexion avec double authentification (${browser(req)})`, { subjectId: row.id });
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     res.json({ token: signToken(updated, config, { mfa: true }), user: publicUser(updated), recoveryCodes });
   });
@@ -291,6 +317,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
   // Droit d'accès et de portabilité : la personne télécharge elle-même ses données.
   router.get('/me/export', authenticate, forbidImpersonation, async (req, res) => {
     const data = await exportUser(db, req.user.id);
+    await logUserEvent(db, 'Export de ses données personnelles', { subjectId: req.user.id });
     res.set('Content-Disposition', `attachment; filename="${exportFileName(data)}"`);
     res.json(data);
   });
@@ -322,6 +349,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
       now,
     ]);
     notifier?.rgpdRequested(lastID);
+    await logUserEvent(db, `Demande RGPD n°${lastID} envoyée : « ${RGPD_TYPES[type]} »`, { subjectId: req.user.id });
     res.status(201).json({ id: lastID, type, message, status: 'pending', response: '', created_at: now, due_at: dueDate(now) });
   });
 
@@ -370,6 +398,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
       throw new HttpError(409, 'La charte vient d’être modifiée : rechargez la page et relisez-la.');
     }
     await acceptTerms(db, req.user.id, current.version);
+    await logUserEvent(db, `Charte acceptée (version ${current.version})`, { subjectId: req.user.id });
     const row = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
     res.json({ user: publicUser(row), token: signToken(row, config, { mfa: req.sessionMfa }) });
   });
@@ -387,7 +416,9 @@ function authRoutes({ db, config, authenticate, notifier }) {
     }
     codeGuard.succeed(key);
     await db.run('UPDATE users SET mfa_last_step = ? WHERE id = ?', [step, row.id]);
-    res.json({ recoveryCodes: await newRecoveryCodes(row.id) });
+    const recoveryCodes = await newRecoveryCodes(row.id);
+    await logUserEvent(db, 'Nouveaux codes de secours générés (les anciens ne marchent plus)', { subjectId: row.id });
+    res.json({ recoveryCodes });
   });
 
   router.put('/me', authenticate, forbidImpersonation, async (req, res) => {
@@ -427,6 +458,15 @@ function authRoutes({ db, config, authenticate, notifier }) {
       const next = { ...parseNotifyPrefs(row.notify_prefs), ...p };
       await db.run('UPDATE users SET notify_prefs = ? WHERE id = ?', [JSON.stringify(next), row.id]);
     }
+    // Journal : ce qui a changé, jamais les valeurs.
+    const FIELD_NAMES = { email: 'adresse e-mail', firstname: 'prénom', lastname: 'nom' };
+    const changed = ['email', 'firstname', 'lastname'].filter((f) => f in values && (values[f] ?? '') !== (row[f] ?? ''));
+    if (values.password) await logUserEvent(db, 'Mot de passe changé (autres sessions déconnectées)', { subjectId: row.id });
+    if (changed.length) await logUserEvent(db, `Profil modifié : ${changed.map((f) => FIELD_NAMES[f]).join(', ')}`, { subjectId: row.id });
+    if ('hide_real_name' in body && Boolean(row.hide_real_name) !== body.hide_real_name) {
+      await logUserEvent(db, body.hide_real_name ? 'Affichage : pseudonyme seul' : 'Affichage : prénom et nom visibles', { subjectId: row.id });
+    }
+    if ('notify_email' in body || 'notify_prefs' in body) await logUserEvent(db, 'Préférences de notification modifiées', { subjectId: row.id });
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     // Changer son mot de passe invalide les autres sessions : on renvoie un nouveau jeton.
     res.json({ user: publicUser(updated), token: signToken(updated, config, { mfa: req.sessionMfa }) });

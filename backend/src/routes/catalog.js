@@ -1,4 +1,5 @@
 const express = require('express');
+const { logUserEvent } = require('../systemLog');
 const { refreshSla } = require('../sla');
 const { HttpError, parseId, nowIso } = require('../utils');
 const { validateItemInput, validateSubmission, describeAnswers } = require('../catalog');
@@ -116,6 +117,7 @@ function catalogRoutes({ db, notifier }) {
     if (group) await addEvent(db, lastID, req.user.id, 'group', null, group, now);
     if (group && notifier) notifier.ticketCreated(lastID, req.user.id);
     await refreshSla(db, lastID);
+    await logUserEvent(db, `Demande n°${lastID} créée depuis le formulaire n°${item.id}`, { subjectId: req.user.id });
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
 

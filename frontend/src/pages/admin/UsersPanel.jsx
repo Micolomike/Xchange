@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FiEdit2, FiEye, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiActivity, FiEdit2, FiEye, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import { useAuth } from '../../auth/context';
 import { api } from '../../lib/api';
 import { ROLES } from '../../lib/constants';
@@ -346,6 +347,9 @@ export default function UsersPanel() {
                   >
                     <FiEye aria-hidden="true" />
                   </button>
+                  <Link to={`/admin?tab=log&user=${u.id}`} className="btn btn-ghost px-2" aria-label={`Journal de ${u.username}`} title="Journal du compte">
+                    <FiActivity aria-hidden="true" />
+                  </Link>
                   <button type="button" className="btn btn-ghost px-2" onClick={() => setFormFor(u)} aria-label={`Modifier ${u.username}`} title="Modifier">
                     <FiEdit2 aria-hidden="true" />
                   </button>

@@ -2,6 +2,19 @@
  * Sécurité des comptes : journal des choix liés à la double authentification, navigateurs de confiance.
  */
 const crypto = require('crypto');
+const { logUserEvent } = require('./systemLog');
+
+/** Libellés des événements de sécurité, repris dans le journal système. */
+const SECURITY_LABELS = {
+  mfa_declined: 'Double authentification refusée, risques acceptés',
+  mfa_enabled: 'Double authentification activée',
+  mfa_reset: 'Double authentification réinitialisée par un administrateur',
+  mfa_exempted: 'Dispensé de double authentification par un administrateur',
+  mfa_exemption_removed: 'Double authentification exigée à nouveau par un administrateur',
+  device_trusted: 'Navigateur ajouté aux navigateurs de confiance',
+  device_forgotten: 'Un navigateur de confiance retiré',
+  devices_forgotten: 'Tous les navigateurs de confiance retirés',
+};
 
 /** Trace d'un choix ou d'une action de sécurité sur un compte (qui, quoi, quand). */
 async function logSecurity(db, userId, type, { actorId = null, detail = '' } = {}) {
@@ -12,6 +25,12 @@ async function logSecurity(db, userId, type, { actorId = null, detail = '' } = {
     detail,
     new Date().toISOString(),
   ]);
+  const label = SECURITY_LABELS[type] || type;
+  await logUserEvent(db, detail && type === 'device_trusted' ? `${label} (${detail})` : label, {
+    subjectId: userId,
+    actorId: actorId ?? userId,
+    level: type === 'mfa_declined' || type === 'mfa_exempted' ? 'warn' : 'info',
+  });
 }
 
 const hashToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
@@ -76,4 +95,4 @@ async function checkTrustedDevice(db, user, token) {
   return true;
 }
 
-module.exports = { logSecurity, deviceLabel, trustDevice, checkTrustedDevice, hashToken };
+module.exports = { SECURITY_LABELS, logSecurity, deviceLabel, trustDevice, checkTrustedDevice, hashToken };

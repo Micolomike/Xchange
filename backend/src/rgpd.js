@@ -1,6 +1,7 @@
 /**
  * RGPD : anonymisation d'un compte, export des données d'une personne, purge des données trop anciennes.
  */
+const { logUserEvent } = require('./systemLog');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -191,6 +192,11 @@ async function exportUser(db, id) {
     charter_acceptances: await db.all('SELECT version, accepted_at FROM terms_acceptances WHERE user_id = ? ORDER BY id', [id]),
     trusted_browsers: await db.all('SELECT label, created_at, last_used_at, expires_at FROM trusted_devices WHERE user_id = ? ORDER BY id', [id]),
     security_history: await db.all('SELECT type, detail, created_at FROM security_events WHERE user_id = ? ORDER BY id', [id]),
+    account_activity: await db.all(
+      `SELECT l.created_at, l.level, l.message, CASE WHEN l.actor_id IS NULL THEN 'aucun compte connecté' WHEN l.actor_id = ? THEN 'vous-même' ELSE 'un administrateur' END AS by
+       FROM system_logs l WHERE l.subject_id = ? OR l.actor_id = ? ORDER BY l.id`,
+      [id, id, id]
+    ),
     data_requests: await db.all('SELECT type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id', [id]),
     chat: {
       keep_messages: u.chat_retention_days ? `${u.chat_retention_days} jours` : 'tant que le compte existe',
@@ -283,11 +289,13 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
   for (const u of todo.toWarn) {
     if (await notifier.inactivityWarning(u.row, { lastSeen: u.last_seen, deadline: u.deadline })) {
       await db.run('UPDATE users SET inactivity_warned_at = ? WHERE id = ?', [now.toISOString(), u.id]);
+      await logUserEvent(db, `Avertissement d'inactivité envoyé (anonymisation prévue le ${new Date(u.deadline).toLocaleDateString('fr-FR')})`, { subjectId: u.id, actorId: null });
       done.warned += 1;
     }
   }
   for (const u of todo.inactive) {
     await anonymizeUser(db, config, u.id, { mode: 'keep' });
+    await logUserEvent(db, 'Compte anonymisé après inactivité', { subjectId: u.id, actorId: null, level: 'warn' });
     done.accounts += 1;
   }
   if (settings.logMonths > 0) {

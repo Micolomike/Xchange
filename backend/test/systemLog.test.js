@@ -54,8 +54,46 @@ describe('journal système', () => {
     const page2 = (await ctx.api.get(`/api/admin/system-log?limit=2&before=${page1.items[1].id}`).set(admin.auth)).body;
     assert.ok(page2.items[0].id < page1.items[1].id);
     const csv = await ctx.api.get('/api/admin/system-log/csv?level=error').set(admin.auth).expect(200);
-    assert.match(csv.text, /Date;Niveau;Source;Message;Par;Détails/);
+    assert.match(csv.text, /Date;Niveau;Source;Message;Compte concerné;Par;Détails/);
     assert.match(csv.text, /Erreur;Sauvegardes;ÉCHEC de la sauvegarde : disque plein/);
+  });
+
+  test('activité des comptes : connexions, profil, demandes, filtre par compte, export', async () => {
+    await ctx.api.post('/api/auth/login').send({ username: 'anna', password: 'mauvais-mot' }).expect(401);
+    await ctx.api.post('/api/auth/login').send({ username: 'personne', password: 'mauvais-mot' }).expect(401);
+    await ctx.api.put('/api/auth/me').set(anna.auth).send({ lastname: 'Durand' }).expect(200);
+    const ticket = await ctx.createTicket(anna);
+    await ctx.api.delete(`/api/tickets/${ticket.id}`).set(admin.auth).expect(200);
+    const created = (await ctx.api.post('/api/users').set(admin.auth).send({ username: 'bruno', password: 'motdepasse1', email: 'bruno@exemple.fr', role: 'user' }).expect(201)).body;
+
+    const log = (await ctx.api.get('/api/admin/system-log?source=utilisateurs&limit=500').set(admin.auth).expect(200)).body;
+    const messages = log.items.map((i) => i.message);
+    assert.ok(messages.some((m) => /^Échec de connexion : mot de passe incorrect/.test(m)));
+    assert.ok(messages.some((m) => /^Échec de connexion : identifiant inconnu/.test(m)));
+    // Ni l'identifiant tapé ni le mot de passe ne sont écrits.
+    assert.ok(!JSON.stringify(log.items).includes('personne'));
+    assert.ok(!JSON.stringify(log.items).includes('mauvais-mot'));
+    assert.ok(messages.includes('Profil modifié : nom'), messages.join(' | '));
+    assert.ok(!JSON.stringify(log.items).includes('Durand') || log.items.every((i) => !i.message.includes('Durand')));
+    assert.ok(messages.includes(`Demande n°${ticket.id} créée`));
+    assert.ok(messages.includes(`Demande n°${ticket.id} mise à la corbeille`));
+    const byAdmin = log.items.find((i) => i.message.startsWith('Compte créé par un administrateur'));
+    assert.equal(byAdmin.subjectId, created.id);
+    assert.equal(byAdmin.actor, 'Swann Magna');
+
+    // Filtre sur un compte : ce qui le concerne ou ce qu'il a fait, y compris les actions d'administration.
+    const mine = (await ctx.api.get(`/api/admin/system-log?user=${anna.user.id}&limit=500`).set(admin.auth).expect(200)).body;
+    assert.equal(mine.user.name, 'Annie Durand');
+    assert.ok(mine.items.length > 0);
+    assert.ok(mine.items.every((i) => i.subjectId === anna.user.id || i.actor === 'Annie Durand'));
+    assert.ok(mine.items.some((i) => i.source === 'administration' && i.subject === 'Annie Durand'));
+    const csv = await ctx.api.get(`/api/admin/system-log/csv?user=${anna.user.id}`).set(admin.auth).expect(200);
+    assert.match(csv.text, /Date;Niveau;Source;Message;Compte concerné;Par;Détails/);
+
+    // L'export RGPD de la personne contient son activité.
+    const exp = (await ctx.api.get('/api/auth/me/export').set(anna.auth).expect(200)).body;
+    assert.ok(exp.account_activity.some((a) => a.message === 'Profil modifié : nom' && a.by === 'vous-même'));
+    assert.ok(exp.account_activity.some((a) => a.by === 'un administrateur'));
   });
 
   test('purge avec les journaux', async () => {

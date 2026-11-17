@@ -69,7 +69,7 @@ function createApp({ db, config, logger = console, syslog = createSystemLog({ db
     if (label) {
       res.on('finish', () => {
         const admin = req.user?.impersonator ? req.user.impersonator : req.user?.role === 'admin' ? req.user : null;
-        if (res.statusCode < 400 && admin) syslog.write('info', 'administration', label, { actorId: admin.id });
+        if (res.statusCode < 400 && admin) syslog.write('info', 'administration', label.label, { actorId: admin.id, subjectId: label.subjectId });
       });
     }
     next();

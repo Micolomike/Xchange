@@ -1,4 +1,5 @@
 const express = require('express');
+const { logUserEvent } = require('../systemLog');
 const { refreshSla } = require('../sla');
 const {
   HttpError,
@@ -329,6 +330,7 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
     if (assignedGroup) notifier.ticketCreated(lastID, req.user.id);
     if (assignedTo) notifier.assigned(lastID, req.user.id);
     await refreshSla(db, lastID);
+    await logUserEvent(db, `Demande n°${lastID} créée`, { subjectId: req.user.id });
 
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
@@ -450,6 +452,7 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
     const now = nowIso();
     await db.run('UPDATE tickets SET deleted_at = ?, deleted_by = ? WHERE id = ?', [now, req.user.id, id]);
     await addEvent(db, id, req.user.id, 'deleted', null, null, now);
+    await logUserEvent(db, `Demande n°${id} mise à la corbeille`, { subjectId: req.user.id });
     res.json({ success: true });
   });
 

@@ -366,6 +366,9 @@ CREATE TABLE IF NOT EXISTS ticket_events (
 
 // Colonnes ajoutées depuis la première version : ajoutées à chaud sur une base existante.
 const ADDED_COLUMNS = {
+  system_logs: {
+    subject_id: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
+  },
   users: {
     role: "TEXT NOT NULL DEFAULT 'user'",
     token_version: 'INTEGER NOT NULL DEFAULT 0',

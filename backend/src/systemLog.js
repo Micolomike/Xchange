@@ -8,6 +8,7 @@ const LEVELS = ['info', 'warn', 'error'];
 const SOURCES = {
   serveur: 'Serveur',
   administration: 'Administration',
+  utilisateurs: 'Utilisateurs',
   sauvegarde: 'Sauvegardes',
   'e-mail': 'E-mails',
   rgpd: 'RGPD',
@@ -17,6 +18,31 @@ const SOURCES = {
 };
 const MAX_MESSAGE = 1000;
 const MAX_DETAILS = 8000;
+
+async function insert(db, level, source, message, { actorId = null, subjectId = null, details = null } = {}) {
+  await db.run('INSERT INTO system_logs (level, source, message, details, actor_id, subject_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+    level,
+    source,
+    String(message).slice(0, MAX_MESSAGE),
+    details ? String(details).slice(0, MAX_DETAILS) : null,
+    actorId,
+    subjectId,
+    new Date().toISOString(),
+  ]);
+}
+
+/**
+ * Activité d'un compte (connexions, changements de profil, demandes...) : journal système seulement,
+ * pas dans le fichier texte. `subjectId` : le compte concerné ; `actorId` : qui a agi (par défaut, lui).
+ * Jamais d'adresse e-mail, d'adresse IP, de mot de passe ni de contenu de message.
+ */
+async function logUserEvent(db, message, { subjectId = null, actorId = subjectId, level = 'info', details = null } = {}) {
+  try {
+    await insert(db, level, 'utilisateurs', message, { subjectId, actorId, details });
+  } catch {
+    // Jamais bloquant.
+  }
+}
 
 function toText(value) {
   if (value instanceof Error) return value.message;
@@ -30,16 +56,9 @@ function toText(value) {
 function createSystemLog({ db, console: out = console, stamp = false }) {
   const print = (fn, msg) => fn(stamp ? `${new Date().toISOString()} ${msg}` : msg);
 
-  async function write(level, source, message, { actorId = null, details = null } = {}) {
+  async function write(level, source, message, opts = {}) {
     try {
-      await db.run('INSERT INTO system_logs (level, source, message, details, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
-        level,
-        source,
-        String(message).slice(0, MAX_MESSAGE),
-        details ? String(details).slice(0, MAX_DETAILS) : null,
-        actorId,
-        new Date().toISOString(),
-      ]);
+      await insert(db, level, source, message, opts);
     } catch (err) {
       // Le journal ne doit jamais faire tomber l'application (base fermée, disque plein...).
       out.error?.(`Journal système indisponible : ${err.message}`);
@@ -113,9 +132,13 @@ function adminActionLabel(method, path) {
   const key = `${method} ${path.replace(/\/+$/, '')}`;
   for (const [re, label] of ADMIN_ACTIONS) {
     const m = re.exec(key);
-    if (m) return label(m);
+    if (m) {
+      // Compte concerné, pour retrouver l'action depuis la fiche de la personne.
+      const subject = /^\/api\/(?:users|admin\/rgpd\/users)\/(\d+)/.exec(path);
+      return { label: label(m), subjectId: subject ? Number(subject[1]) : null };
+    }
   }
   return null;
 }
 
-module.exports = { LEVELS, SOURCES, createSystemLog, adminActionLabel };
+module.exports = { LEVELS, SOURCES, createSystemLog, adminActionLabel, logUserEvent };
