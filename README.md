@@ -69,6 +69,12 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Restauration d'une archive : `restaurer.ps1 -Fichier <archive.zip>`.
 - Sauvegarde automatique faite par Xchange lui-même quand `BACKUP_DIR` est défini (hébergement sur un PC) : heure, nombre de sauvegardes gardées et copie .zip vers un autre dossier (par exemple `D:\Xchange-sauvegardes`) réglables dans l'onglet Sauvegardes, avec l'état de la dernière sauvegarde et un bouton « Sauvegarder maintenant ». Si le PC était éteint à l'heure prévue, la sauvegarde est faite au démarrage suivant.
 
+**Notifications par e-mail**
+- Envoyées par une boîte dédiée (SMTP, par exemple Orange : `smtp.orange.fr`, port 465) configurée dans les variables `SMTP_*`.
+- Nouvelle demande pour un groupe (membres du groupe), nouveau message (demandeur, responsable, ou groupe si personne n'a pris la demande), changement de statut (demandeur), assignation, transfert vers un autre groupe, demande d'adhésion à un groupe (administrateurs) et décision.
+- Jamais à la personne qui a fait l'action. Demandes confidentielles : ni titre ni contenu dans l'e-mail, seulement un lien.
+- Chacun peut les couper dans « Mon compte ». Administration > Paramètres : état de la configuration, dernière erreur, interrupteur général, adresse publique utilisée dans les liens et e-mail de test.
+
 **Tableau de bord**
 - Compteurs (ouverts, en cours, en retard, délai moyen de résolution sur 90 jours), « Ma file » triée par priorité, activité récente, graphique créés/résolus sur 14 jours, répartition des tickets actifs par priorité.
 
@@ -108,6 +114,10 @@ Toutes les variables sont facultatives ; voir `backend/.env.example`.
 | `MAX_UPLOAD_MB` | Taille maximale d'une pièce jointe | `10` |
 | `JWT_EXPIRES_IN` | Durée de validité d'une session | `7d` |
 | `MFA_REQUIRED` | `false` pour rendre la double authentification facultative (activable depuis « Mon compte ») | `true` |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | Serveur d'envoi des notifications ; sans `SMTP_HOST`, aucun e-mail n'est envoyé. SSL/TLS direct si le port est 465 | port `465` |
+| `SMTP_USER` / `SMTP_PASSWORD` | Identifiant (adresse complète) et mot de passe de la boîte d'envoi | |
+| `MAIL_FROM` | Expéditeur affiché | `SMTP_USER` |
+| `APP_URL` | Adresse publique d'Xchange pour les liens des e-mails (modifiable aussi dans Administration > Paramètres) | |
 | `BACKUP_TARGETS` | Dossiers proposés pour la sauvegarde écrite par le serveur, séparés par des virgules (en plus des lecteurs Windows) | |
 
 Pièces jointes : 5 fichiers par envoi au plus ; les exécutables, scripts, HTML et SVG sont refusés. Les fichiers sont servis uniquement en téléchargement, après contrôle des droits sur le ticket.

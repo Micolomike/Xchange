@@ -17,6 +17,8 @@ const backupRoutes = require('./routes/backup');
 const { groupRoutes } = require('./routes/groups');
 const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
 const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings');
+const { createMailer } = require('./mailer');
+const { createNotifier } = require('./notifications');
 
 function createApp({ db, config, logger = console }) {
   const app = express();
@@ -44,6 +46,10 @@ function createApp({ db, config, logger = console }) {
   app.use(express.json({ limit: '1mb' }));
 
   const auth = authenticate({ db, config });
+  const mailer = createMailer({ db, config, logger });
+  const notifier = createNotifier({ db, config, mailer, logger });
+  app.locals.mailer = mailer;
+  app.locals.notifier = notifier;
 
   const indexHtml = path.join(config.frontendDir, 'index.html');
   const serveFrontend = config.serveFrontend && fs.existsSync(indexHtml);
@@ -54,15 +60,15 @@ function createApp({ db, config, logger = console }) {
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: nowIso() }));
 
   app.use('/api/settings', settingsPublicRoutes({ db, config }));
-  app.use('/api/auth', authRoutes({ db, config, authenticate: auth }));
+  app.use('/api/auth', authRoutes({ db, config, authenticate: auth, notifier }));
   app.use('/api', attachmentRoutes({ db, config, auth }));
-  app.use('/api/tickets', auth, ticketRoutes({ db, config }));
+  app.use('/api/tickets', auth, ticketRoutes({ db, config, notifier }));
   app.use('/api/stats', auth, statsRoutes({ db, config }));
   app.use('/api/users', auth, requireAdmin, userRoutes({ db, config }));
-  app.use('/api/groups', auth, groupRoutes({ db, config, requireAdmin }));
-  app.use('/api/catalog', auth, catalogRoutes({ db, config }));
+  app.use('/api/groups', auth, groupRoutes({ db, config, requireAdmin, notifier }));
+  app.use('/api/catalog', auth, catalogRoutes({ db, config, notifier }));
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
-  app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config }));
+  app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config, mailer, notifier }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

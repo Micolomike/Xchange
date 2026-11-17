@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiShield, FiUsers } from 'react-icons/fi';
+import { FiBell, FiShield, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { formatDateTime } from '../lib/format';
 import { api } from '../lib/api';
@@ -253,6 +253,40 @@ function AdminAccessSection() {
   );
 }
 
+function NotificationsSection({ user }) {
+  const { updateProfile } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const on = user.notify_email !== false && user.notify_email !== 0;
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({ notify_email: !on });
+      toast(on ? 'Vous ne recevrez plus d’e-mails' : 'Notifications par e-mail activées');
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="notif-title">
+      <h2 id="notif-title" className="flex items-center gap-2 font-bold">
+        <FiBell aria-hidden="true" /> Notifications par e-mail
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">
+        Un e-mail vous prévient quand on répond à vos demandes, quand leur statut change ou quand une demande arrive dans un de vos groupes.
+      </p>
+      <label className="mt-3 flex items-center gap-3 text-sm">
+        <input type="checkbox" checked={on} onChange={toggle} disabled={saving} />
+        Recevoir les notifications par e-mail
+      </label>
+      {!user.email && on && (
+        <p className="mt-2 text-sm text-amber-700">Renseignez votre adresse e-mail ci-dessus, sinon aucun e-mail ne peut vous être envoyé.</p>
+      )}
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, updateProfile } = useAuth();
   const [info, setInfo] = useState({ firstname: user.firstname, lastname: user.lastname, email: user.email });
@@ -326,6 +360,7 @@ export default function Profile() {
       </form>
       )}
 
+      {!user.impersonator && <NotificationsSection user={user} />}
       <GroupsSection />
       {!user.impersonator && <AdminAccessSection />}
       {!user.impersonator && <MfaSection user={user} />}

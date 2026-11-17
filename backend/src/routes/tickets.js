@@ -186,7 +186,10 @@ async function detailAfterChange(db, user, id) {
   }
 }
 
-function ticketRoutes({ db }) {
+const NOOP = () => Promise.resolve();
+const NOOP_NOTIFIER = { ticketCreated: NOOP, commentAdded: NOOP, statusChanged: NOOP, assigned: NOOP, groupChanged: NOOP };
+
+function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
   const router = express.Router();
 
   // Liste filtrée, triée et paginée.
@@ -308,6 +311,8 @@ function ticketRoutes({ db }) {
     await addEvent(db, lastID, req.user.id, 'created', null, null, now);
     if (assignedGroup) await addEvent(db, lastID, req.user.id, 'group', null, assignedGroup, now);
     if (assignedTo) await addEvent(db, lastID, req.user.id, 'assignee', null, assignedTo, now);
+    if (assignedGroup) notifier.ticketCreated(lastID, req.user.id);
+    if (assignedTo) notifier.assigned(lastID, req.user.id);
 
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
@@ -411,6 +416,9 @@ function ticketRoutes({ db }) {
     if ('assigned_to' in changes) {
       await addEvent(db, id, req.user.id, 'assignee', current.assigned_to, changes.assigned_to, now);
     }
+    if ('status' in changes) notifier.statusChanged(id, req.user.id, changes.status);
+    if (changes.assigned_to) notifier.assigned(id, req.user.id);
+    if (changes.assigned_group) notifier.groupChanged(id, req.user.id);
     const edited = ['title', 'description', 'category', 'due_date'].filter((f) => f in changes);
     if (edited.length) await addEvent(db, id, req.user.id, 'edited', null, edited.join(','), now);
 
@@ -441,6 +449,7 @@ function ticketRoutes({ db }) {
       [id, req.user.id, body, now, req.user.impersonator?.id ?? null]
     );
     await db.run('UPDATE tickets SET updated_at = ? WHERE id = ?', [now, id]);
+    notifier.commentAdded(id, req.user.id, body);
     res.status(201).json({
       id: lastID,
       body,
@@ -467,4 +476,4 @@ function ticketRoutes({ db }) {
   return router;
 }
 
-module.exports = { ticketRoutes, loadTicketDetail, defaultDueDate };
+module.exports = { ticketRoutes, loadTicketDetail, defaultDueDate, NOOP_NOTIFIER };

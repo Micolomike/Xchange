@@ -48,7 +48,7 @@ function createLoginGuard({ maxFailures, lockMinutes }) {
   };
 }
 
-function authRoutes({ db, config, authenticate }) {
+function authRoutes({ db, config, authenticate, notifier }) {
   const router = express.Router();
   const guard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
   const codeGuard = createLoginGuard({ maxFailures: config.loginMaxFailures, lockMinutes: config.loginLockMinutes });
@@ -126,7 +126,8 @@ function authRoutes({ db, config, authenticate }) {
     const wanted = Array.isArray(req.body.groups) ? req.body.groups.filter((id) => Number.isInteger(Number(id))) : [];
     if (wanted.length) {
       const open = (await db.all('SELECT id FROM user_groups WHERE joinable = 1')).map((g) => g.id);
-      await requestGroups(db, row.id, wanted.map(Number).filter((id) => open.includes(id)), '');
+      const ids = await requestGroups(db, row.id, wanted.map(Number).filter((id) => open.includes(id)), '');
+      for (const rid of ids) notifier?.joinRequested(rid);
     }
     res.status(201).json(afterPassword(row));
   });
@@ -274,6 +275,10 @@ function authRoutes({ db, config, authenticate }) {
     }
     for (const field of ['email', 'firstname', 'lastname']) {
       if (field in values) await db.run(`UPDATE users SET ${field} = ? WHERE id = ?`, [values[field], row.id]);
+    }
+    if ('notify_email' in body) {
+      if (typeof body.notify_email !== 'boolean') throw new HttpError(400, 'Préférence de notification invalide.');
+      await db.run('UPDATE users SET notify_email = ? WHERE id = ?', [body.notify_email ? 1 : 0, row.id]);
     }
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     // Changer son mot de passe invalide les autres sessions : on renvoie un nouveau jeton.

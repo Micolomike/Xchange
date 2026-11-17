@@ -40,6 +40,7 @@ function publicUser(row) {
     role: row.role,
     mfa_enabled: Boolean(row.mfa_enabled),
     mfa_exempt: Boolean(row.mfa_exempt),
+    notify_email: row.notify_email === undefined ? true : Boolean(row.notify_email),
     name: displayName(row),
     created_at: toIso(row.created_at),
   };

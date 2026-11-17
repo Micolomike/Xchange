@@ -53,6 +53,17 @@ function loadConfig(env = process.env) {
     // Verrouillage d'un compte après trop d'échecs de connexion, indépendant de l'adresse IP.
     // Double authentification (code d'application) obligatoire pour tous les comptes.
     mfaRequired: bool(env.MFA_REQUIRED, true),
+    // Envoi des notifications par e-mail (SMTP). Sans SMTP_HOST, rien n'est envoyé.
+    smtp: env.SMTP_HOST
+      ? {
+          host: env.SMTP_HOST,
+          port: Number(env.SMTP_PORT) || 465,
+          secure: env.SMTP_SECURE ? bool(env.SMTP_SECURE, true) : (Number(env.SMTP_PORT) || 465) === 465,
+          user: env.SMTP_USER || '',
+          password: env.SMTP_PASSWORD || '',
+          from: env.MAIL_FROM || env.SMTP_USER || '',
+        }
+      : null,
     // Contenu de départ (catégories, groupes, formulaires d'entraide), ajouté une fois sans rien écraser.
     seedContent: bool(env.SEED_CONTENT, true),
     loginMaxFailures: Number(env.LOGIN_MAX_FAILURES) || 10,

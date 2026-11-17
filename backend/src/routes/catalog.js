@@ -59,7 +59,7 @@ function visibleWhere(user) {
 }
 
 /** Catalogue côté demandeur. */
-function catalogRoutes({ db }) {
+function catalogRoutes({ db, notifier }) {
   const router = express.Router();
 
   router.get('/', async (req, res) => {
@@ -106,6 +106,7 @@ function catalogRoutes({ db }) {
     );
     await addEvent(db, lastID, req.user.id, 'created', null, item.name, now);
     if (group) await addEvent(db, lastID, req.user.id, 'group', null, group, now);
+    if (group && notifier) notifier.ticketCreated(lastID, req.user.id);
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
 

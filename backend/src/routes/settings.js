@@ -12,6 +12,7 @@ const {
 } = require('../settings');
 
 const { getAccessSettings, validateAccessSettings } = require('../access');
+const { explainMailError } = require('../mailer');
 
 const LOGO_TYPES = [
   { ext: 'png', mime: 'image/png', test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
@@ -55,7 +56,7 @@ function settingsPublicRoutes({ db, config }) {
 }
 
 /** Modification des paramètres, réservée aux administrateurs. */
-function settingsAdminRoutes({ db, config }) {
+function settingsAdminRoutes({ db, config, mailer, notifier }) {
   const router = express.Router();
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 512 * 1024, files: 1 } });
 
@@ -87,6 +88,47 @@ function settingsAdminRoutes({ db, config }) {
     const categoryKeys = (await getSetting(db, 'categories')).map((c) => c.key);
     await setSetting(db, 'access', validateAccessSettings(req.body || {}, { groupIds, categoryKeys }));
     res.json(await getAccessSettings(db));
+  });
+
+  // Notifications par e-mail : état de la configuration (xchange.env), réglages, e-mail de test.
+  async function mailInfo() {
+    return {
+      configured: Boolean(mailer?.configured),
+      host: mailer?.host || null,
+      from: mailer?.from || null,
+      settings: await getSetting(db, 'mail'),
+      state: await getSetting(db, 'mail_state'),
+    };
+  }
+
+  router.get('/mail', async (req, res) => {
+    res.json(await mailInfo());
+  });
+
+  router.put('/mail', async (req, res) => {
+    const body = req.body || {};
+    const current = await getSetting(db, 'mail');
+    const next = { ...current };
+    if ('enabled' in body) next.enabled = Boolean(body.enabled);
+    if ('appUrl' in body) {
+      const url = String(body.appUrl || '').trim().replace(/\/+$/, '');
+      if (url && !/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(url)) {
+        throw new HttpError(400, 'Adresse invalide : elle doit commencer par https://', { appUrl: 'Adresse invalide.' });
+      }
+      next.appUrl = url;
+    }
+    await setSetting(db, 'mail', next);
+    res.json(await mailInfo());
+  });
+
+  router.post('/mail/test', async (req, res) => {
+    const me = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    try {
+      await notifier.test(me);
+    } catch (err) {
+      return res.status(400).json({ error: err.code ? explainMailError(err) : err.message });
+    }
+    res.json({ success: true, to: me.email });
   });
 
   router.put('/appearance', async (req, res) => {

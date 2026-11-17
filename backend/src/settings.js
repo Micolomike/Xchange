@@ -34,6 +34,15 @@ const DEFAULTS = {
     copyDir: '',
   },
   access: {},
+  mail: {
+    enabled: true,
+    appUrl: '', // adresse publique du site, pour les liens dans les e-mails
+  },
+  mail_state: {
+    lastSentAt: null,
+    lastErrorAt: null,
+    lastError: null,
+  },
   backup_state: {
     lastRunAt: null,
     lastStatus: null,

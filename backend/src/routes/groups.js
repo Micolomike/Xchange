@@ -111,7 +111,7 @@ const cleanMessage = (v) => {
   return m;
 };
 
-function groupRoutes({ db, requireAdmin }) {
+function groupRoutes({ db, requireAdmin, notifier }) {
   const router = express.Router();
 
   router.get('/', async (req, res) => {
@@ -139,6 +139,7 @@ function groupRoutes({ db, requireAdmin }) {
   router.post('/:id/requests', async (req, res) => {
     const id = parseId(req.params.id, 'Groupe');
     const [requestId] = await requestGroups(db, req.user.id, [id], cleanMessage((req.body || {}).message));
+    notifier?.joinRequested(requestId);
     res.status(201).json((await listRequests(db, 'r.id = ?', [requestId]))[0]);
   });
 
@@ -179,6 +180,7 @@ function groupRoutes({ db, requireAdmin }) {
       rid,
     ]);
     if (approve) await db.run('INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?, ?)', [row.group_id, row.user_id]);
+    notifier?.joinDecided(rid);
     return (await listRequests(db, 'r.id = ?', [rid]))[0];
   }
 
