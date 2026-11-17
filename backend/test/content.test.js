@@ -1,7 +1,7 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { setup } = require('./helpers');
-const { applyContent, applyV1, FORMS, GROUPS, GROUPS_V2, CATEGORY_GROUP } = require('../src/content');
+const { HOME_TITLE, HOME_TEXT, applyContent, applyV1, FORMS, GROUPS, GROUPS_V2, CATEGORY_GROUP } = require('../src/content');
 const { setSetting } = require('../src/settings');
 
 const quiet = { info() {}, error() {} };
@@ -83,6 +83,25 @@ describe('contenu de départ', () => {
       assert.ok(access.categories.telephone.length === 2);
     } finally {
       await other.cleanup();
+    }
+  });
+
+  test('version 4 : textes d’accueil remplacés seulement s’ils sont d’origine', async () => {
+    for (const [title, expected] of [
+      ["Un souci avec l'ordi, le téléphone ou Internet ? Demandez, je m'en occupe.", HOME_TITLE],
+      ['Notre propre accueil', 'Notre propre accueil'],
+    ]) {
+      const other = await setup();
+      try {
+        await setSetting(other.db, 'content_version', 3);
+        await setSetting(other.db, 'appearance', { appName: 'Xchange', homeTitle: title, homeText: 'Décrivez votre problème avec vos mots, etc.' });
+        await applyContent(other.db, { logger: quiet });
+        const pub = (await other.api.get('/api/settings')).body;
+        assert.equal(pub.homeTitle, expected);
+        if (expected === HOME_TITLE) assert.equal(pub.homeText, HOME_TEXT);
+      } finally {
+        await other.cleanup();
+      }
     }
   });
 

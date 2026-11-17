@@ -5,6 +5,8 @@
 const nodemailer = require('nodemailer');
 const { getSetting, setSetting } = require('./settings');
 
+const LOG_KEEP = 1000; // lignes gardées dans le journal des envois
+
 function createMailer({ db, config, logger = console, transport } = {}) {
   const smtp = config.smtp;
   const sent = []; // gardés en mémoire pour les tests
@@ -25,19 +27,36 @@ function createMailer({ db, config, logger = console, transport } = {}) {
 
   const configured = Boolean(transporter);
 
-  async function send({ to, subject, text, html }) {
+  async function log(meta, message, status, error = null) {
+    try {
+      await db.run(
+        'INSERT INTO mail_log (created_at, event, user_id, to_email, subject, status, error) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [new Date().toISOString(), meta.event || 'autre', meta.userId || null, message.to, message.subject, status, error]
+      );
+      await db.run(`DELETE FROM mail_log WHERE id <= (SELECT id FROM mail_log ORDER BY id DESC LIMIT 1 OFFSET ${LOG_KEEP})`);
+    } catch (err) {
+      logger.error(`Journal des e-mails : ${err.message}`);
+    }
+  }
+
+  async function send({ to, subject, text, html }, meta = {}) {
     if (!transporter) return { skipped: true };
-    const message = { from: `Xchange <${smtp.from}>`, to, subject, text, html };
+    const { senderName } = await getSetting(db, 'mail');
+    const name = (senderName || 'Xchange').replace(/["<>]/g, '');
+    const message = { from: `"${name}" <${smtp.from}>`, to, subject, text, html };
     try {
       const info = await transporter.sendMail(message);
       sent.push(message);
       const state = await getSetting(db, 'mail_state');
       await setSetting(db, 'mail_state', { ...state, lastSentAt: new Date().toISOString() });
+      await log(meta, message, 'sent');
       return info;
     } catch (err) {
       logger.error(`Envoi d'e-mail impossible (${to}) : ${err.message}`);
       const state = await getSetting(db, 'mail_state');
-      await setSetting(db, 'mail_state', { ...state, lastErrorAt: new Date().toISOString(), lastError: explain(err) });
+      const reason = explain(err);
+      await setSetting(db, 'mail_state', { ...state, lastErrorAt: new Date().toISOString(), lastError: reason });
+      await log(meta, message, 'error', reason);
       throw err;
     }
   }

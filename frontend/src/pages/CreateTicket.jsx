@@ -158,7 +158,7 @@ export default function CreateTicket() {
                 <label
                   key={p}
                   className={`flex cursor-pointer items-center justify-center rounded-md border px-3 py-2.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
-                    form.priority === p ? 'border-accent bg-accent-soft' : 'border-line-strong bg-white hover:border-accent'
+                    form.priority === p ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface hover:border-accent'
                   }`}
                 >
                   <input

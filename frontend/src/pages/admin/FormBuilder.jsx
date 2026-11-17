@@ -43,7 +43,7 @@ function TypePicker({ onPick, onCancel }) {
           <button
             key={type}
             type="button"
-            className="rounded-md border border-line-strong bg-white px-3 py-2 text-left hover:border-accent"
+            className="rounded-md border border-line-strong bg-surface px-3 py-2 text-left hover:border-accent"
             onClick={() => onPick(type)}
           >
             <span className="block text-sm font-semibold">{t.label}</span>
@@ -81,7 +81,7 @@ function FieldEditor({ field, index, count, previous, onChange, onMove, onRemove
   };
 
   return (
-    <li className="rounded-lg border border-line bg-white">
+    <li className="rounded-lg border border-line bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper/70 px-4 py-2">
         <span className="text-sm font-bold">Question {index + 1}</span>
         <span className="text-sm text-ink-mute">{FIELD_TYPES[field.type].label}</span>

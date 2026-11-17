@@ -43,11 +43,11 @@ export default function FileDrop({ files, onChange, max = MAX_FILES, compact = f
         }}
         className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 text-center text-sm transition-colors ${
           compact ? 'py-3' : 'py-6'
-        } ${dragging ? 'border-accent bg-accent-soft' : 'border-line-strong bg-white hover:border-accent'}`}
+        } ${dragging ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface hover:border-accent'}`}
       >
         <FiUploadCloud className="text-xl text-ink-mute" aria-hidden="true" />
         <span>
-          <span className="font-semibold text-accent">Choisir des fichiers</span> ou les glisser ici
+          <span className="font-semibold text-accent-strong">Choisir des fichiers</span> ou les glisser ici
         </span>
         <span className="text-xs text-ink-mute">
           {max} fichiers maximum, {MAX_UPLOAD_MB} Mo chacun
@@ -77,7 +77,7 @@ export default function FileDrop({ files, onChange, max = MAX_FILES, compact = f
               <span className="text-xs text-ink-mute">{formatSize(f.size)}</span>
               <button
                 type="button"
-                className="rounded p-1 text-ink-mute hover:bg-white hover:text-danger"
+                className="rounded p-1 text-ink-mute hover:bg-surface hover:text-danger"
                 aria-label={`Retirer ${f.name}`}
                 onClick={() => onChange(files.filter((_, j) => j !== i))}
               >

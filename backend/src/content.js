@@ -6,7 +6,13 @@
 const { nowIso } = require('./utils');
 const { getSetting, setSetting } = require('./settings');
 
-const CONTENT_VERSION = 3;
+const CONTENT_VERSION = 4;
+
+// Textes d'accueil adaptés à l'entraide ouverte à toutes les catégories (version 4).
+const HOME_TITLE = "Besoin d'un coup de main ? Quelqu'un s'y connaît sûrement.";
+const HOME_TEXT =
+  "Ordinateur, papiers, impôts, logement, voiture, cuisine… Décrivez votre besoin avec vos mots : il arrive aux personnes qui s'y connaissent, et vous suivez où il en est, avec un e-mail à chaque réponse.\n\n" +
+  "Vous avez des compétences à partager ? Rejoignez un groupe et aidez à votre tour. Une demande confidentielle n'est vue que par les personnes qui la traitent.";
 
 const CATEGORIES = [
   ['informatique', 'Informatique et internet'],
@@ -622,6 +628,14 @@ async function applyContent(db, { logger = console } = {}) {
   if (version < 2) await applyV2(db, now, added, { previousVersion: version });
   // Version 3 : les Coordinateurs (droits étendus) ne sont pas ouverts aux demandes d'adhésion.
   if (version < 3) await db.run("UPDATE user_groups SET joinable = 0 WHERE name = 'Coordinateurs' COLLATE NOCASE");
+  // Version 4 : textes d'accueil. Remplacés seulement s'ils sont vides ou encore ceux de la première version
+  // (dépannage informatique) ; un texte personnalisé autrement n'est pas touché.
+  if (version < 4) {
+    const appearance = await getSetting(db, 'appearance');
+    const oldTitle = !appearance.homeTitle || /^Un souci avec l.ordi/i.test(appearance.homeTitle);
+    const oldText = !appearance.homeText || /^Décrivez votre problème avec vos mots/i.test(appearance.homeText);
+    if (oldTitle && oldText) await setSetting(db, 'appearance', { ...appearance, homeTitle: HOME_TITLE, homeText: HOME_TEXT });
+  }
   await setSetting(db, 'content_version', CONTENT_VERSION);
   logger.info(
     `Contenu mis à jour (version ${CONTENT_VERSION}) : ${added.categories} catégorie(s), ${added.groups} groupe(s), ` +
@@ -630,4 +644,4 @@ async function applyContent(db, { logger = console } = {}) {
   return { applied: true, added };
 }
 
-module.exports = { applyContent, applyV1, CONTENT_VERSION, FORMS, GROUPS, GROUPS_V2, CATEGORIES, CATEGORY_GROUP, withKeys };
+module.exports = { HOME_TITLE, HOME_TEXT, applyContent, applyV1, CONTENT_VERSION, FORMS, GROUPS, GROUPS_V2, CATEGORIES, CATEGORY_GROUP, withKeys };

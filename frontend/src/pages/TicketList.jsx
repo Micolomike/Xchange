@@ -260,7 +260,7 @@ export default function TicketList() {
                 </button>
               )}
               {hasFilters && (
-                <button type="button" className="font-semibold text-accent hover:underline" onClick={resetFilters}>
+                <button type="button" className="font-semibold text-accent-strong hover:underline" onClick={resetFilters}>
                   Effacer les filtres
                 </button>
               )}

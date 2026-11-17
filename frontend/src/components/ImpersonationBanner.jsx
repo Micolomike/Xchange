@@ -8,7 +8,7 @@ export default function ImpersonationBanner() {
   const [leaving, setLeaving] = useState(false);
   if (!user?.impersonator) return null;
   return (
-    <div role="status" className="sticky top-0 z-50 bg-progress text-white">
+    <div role="status" className="sticky top-0 z-50 bg-progress text-surface">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm sm:px-6">
         <FiEye aria-hidden="true" className="shrink-0" />
         <p className="min-w-0 flex-1">
@@ -17,7 +17,7 @@ export default function ImpersonationBanner() {
         </p>
         <button
           type="button"
-          className="rounded-md bg-white px-3 py-1.5 font-semibold text-progress hover:bg-white/90"
+          className="rounded-md bg-surface px-3 py-1.5 font-semibold text-progress hover:bg-surface/90"
           disabled={leaving}
           onClick={() => {
             setLeaving(true);

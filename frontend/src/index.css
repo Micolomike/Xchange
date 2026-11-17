@@ -8,10 +8,12 @@
   --color-ink-soft: #3f4a5a;
   --color-ink-mute: #626e7d;
   --color-paper: #f4f6f9;
+  --color-surface: #ffffff;
   --color-line: #dde2e8;
   --color-line-strong: #c5ccd6;
 
   --color-accent: #2f4bd8;
+  --color-accent-hover: #2238ad;
   --color-accent-strong: #2238ad;
   --color-accent-soft: #e8ecfc;
 
@@ -28,6 +30,47 @@
   --color-violet: #6b3fc4;
 }
 
+/*
+ * Couleur principale : réglable dans l'Administration (variables --accent-* posées par settings/apply.js),
+ * déclinée pour le thème clair et le thème sombre.
+ */
+:root {
+  color-scheme: light;
+  --color-accent: var(--accent-light, #2f4bd8);
+  --color-accent-hover: var(--accent-hover-light, #2238ad);
+  --color-accent-strong: var(--accent-strong-light, #2238ad);
+  --color-accent-soft: var(--accent-soft-light, #e8ecfc);
+}
+
+/* Mode sombre : mêmes rôles, valeurs choisies pour garder un contraste suffisant sur fond sombre. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-ink: #e4e8ee;
+  --color-ink-soft: #bcc4cf;
+  --color-ink-mute: #8e98a6;
+  --color-paper: #0f141b;
+  --color-surface: #171d26;
+  --color-line: #29313c;
+  --color-line-strong: #3b4552;
+
+  --color-accent: var(--accent-dark, #4560e0);
+  --color-accent-hover: var(--accent-hover-dark, #6378e4);
+  --color-accent-strong: var(--accent-strong-dark, #a8b6f2);
+  --color-accent-soft: var(--accent-soft-dark, #1d2541);
+
+  --color-open: #93a6ff;
+  --color-open-soft: #1d2541;
+  --color-progress: #eaa645;
+  --color-progress-soft: #33260f;
+  --color-resolved: #55c793;
+  --color-resolved-soft: #12301f;
+  --color-closed: #9ba5b3;
+  --color-closed-soft: #232a34;
+  --color-danger: #f2777a;
+  --color-danger-soft: #3a1b1d;
+  --color-violet: #b8a0f5;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -35,6 +78,10 @@
   body {
     @apply bg-paper text-ink antialiased;
     font-feature-settings: "ss01";
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-accent);
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -76,7 +123,7 @@
   }
 
   .field {
-    @apply block w-full rounded-md border border-line-strong bg-white px-3 py-2 text-[0.9375rem] text-ink placeholder:text-ink-mute/70;
+    @apply block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-[0.9375rem] text-ink placeholder:text-ink-mute/70;
     @apply focus:border-accent focus:ring-2 focus:ring-accent/20 focus:outline-none;
   }
   .field[aria-invalid="true"] {
@@ -90,21 +137,41 @@
     @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply bg-accent text-white hover:bg-accent-strong;
+    @apply bg-accent text-white hover:bg-accent-hover;
   }
   .btn-secondary {
-    @apply border border-line-strong bg-white text-ink hover:bg-paper;
+    @apply border border-line-strong bg-surface text-ink hover:bg-paper;
   }
   .btn-danger {
-    @apply bg-danger text-white hover:bg-[#a32626];
+    @apply bg-danger text-surface hover:brightness-90;
   }
   .btn-ghost {
     @apply text-ink-soft hover:bg-ink/5 hover:text-ink;
   }
 
   .panel {
-    @apply rounded-lg border border-line bg-white;
+    @apply rounded-lg border border-line bg-surface;
   }
+}
+
+/* Boîtes de dialogue et messages (SweetAlert2) en mode sombre. */
+:root[data-theme="dark"] .swal2-popup {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+}
+:root[data-theme="dark"] .swal2-title,
+:root[data-theme="dark"] .swal2-html-container {
+  color: var(--color-ink);
+}
+:root[data-theme="dark"] .swal2-input,
+:root[data-theme="dark"] .swal2-textarea {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border-color: var(--color-line-strong);
+}
+:root[data-theme="dark"] .swal2-container.swal2-backdrop-show {
+  background: rgb(0 0 0 / 0.6);
 }
 
 /* Accueil : le ticket d'exemple franchit ses étapes une seule fois au chargement. */

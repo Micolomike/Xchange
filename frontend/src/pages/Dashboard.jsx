@@ -100,7 +100,7 @@ export default function Dashboard() {
             title="Ma file"
             action={
               stats.assignedToMe > 0 && (
-                <Link to="/tickets?assignee=me&status=active" className="text-sm font-semibold text-accent hover:underline">
+                <Link to="/tickets?assignee=me&status=active" className="text-sm font-semibold text-accent-strong hover:underline">
                   Tout voir ({stats.assignedToMe})
                 </Link>
               )
@@ -135,7 +135,7 @@ export default function Dashboard() {
           <Section
             title="Activité récente"
             action={
-              <Link to="/tickets?sort=updated_at" className="text-sm font-semibold text-accent hover:underline">
+              <Link to="/tickets?sort=updated_at" className="text-sm font-semibold text-accent-strong hover:underline">
                 Tous les tickets
               </Link>
             }
@@ -196,14 +196,14 @@ export default function Dashboard() {
             </ul>
             {isAdmin && stats.pendingGroupRequests > 0 && (
               <div className="border-t border-line px-4 py-3 text-sm">
-                <Link to="/admin?tab=groups" className="font-semibold text-accent hover:underline">
+                <Link to="/admin?tab=groups" className="font-semibold text-accent-strong hover:underline">
                   {plural(stats.pendingGroupRequests, "demande d'adhésion à un groupe à valider", "demandes d'adhésion à des groupes à valider")}
                 </Link>
               </div>
             )}
             {isAdmin && stats.unassigned > 0 && (
               <div className="border-t border-line px-4 py-3 text-sm">
-                <Link to="/tickets?assignee=unassigned&status=active" className="font-semibold text-accent hover:underline">
+                <Link to="/tickets?assignee=unassigned&status=active" className="font-semibold text-accent-strong hover:underline">
                   {plural(stats.unassigned, 'ticket actif sans responsable', 'tickets actifs sans responsable')}
                 </Link>
               </div>

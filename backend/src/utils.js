@@ -13,6 +13,18 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const CATEGORIES = ['', 'bug', 'feature', 'support'];
 const ROLES = ['user', 'admin'];
 
+/** Choix de notifications proposés à chacun (« Mon compte ») ; absent = accepté. */
+const NOTIFY_PREFS = ['mine', 'assigned', 'handled', 'group_new', 'admin'];
+function parseNotifyPrefs(raw) {
+  let stored = {};
+  try {
+    stored = raw ? JSON.parse(raw) : {};
+  } catch {
+    stored = {};
+  }
+  return Object.fromEntries(NOTIFY_PREFS.map((k) => [k, stored?.[k] !== false]));
+}
+
 const nowIso = () => new Date().toISOString();
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -41,6 +53,7 @@ function publicUser(row) {
     mfa_enabled: Boolean(row.mfa_enabled),
     mfa_exempt: Boolean(row.mfa_exempt),
     notify_email: row.notify_email === undefined ? true : Boolean(row.notify_email),
+    notify_prefs: parseNotifyPrefs(row.notify_prefs),
     name: displayName(row),
     created_at: toIso(row.created_at),
   };
@@ -165,6 +178,8 @@ function validateTicketInput(body, { partial = false, categories = CATEGORIES } 
 }
 
 module.exports = {
+  NOTIFY_PREFS,
+  parseNotifyPrefs,
   HttpError,
   STATUSES,
   ACTIVE_STATUSES,

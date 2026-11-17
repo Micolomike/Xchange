@@ -52,7 +52,7 @@ export function Avatar({ user, size = 'sm' }) {
   const dims = size === 'lg' ? 'size-9 text-sm' : 'size-6 text-[0.625rem]';
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-ink text-white font-bold ${dims}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-ink text-surface font-bold ${dims}`}
       aria-hidden="true"
     >
       {initials}

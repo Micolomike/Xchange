@@ -59,7 +59,7 @@ export default function FormRenderer({ fields, values, onChange, errors = {}, id
                   <label
                     key={o}
                     className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${
-                      value === o ? 'border-accent bg-accent-soft text-accent-strong' : 'border-line-strong bg-white hover:bg-paper'
+                      value === o ? 'border-accent bg-accent-soft text-accent-strong' : 'border-line-strong bg-surface hover:bg-paper'
                     }`}
                   >
                     <input type="radio" name={id} value={o} checked={value === o} onChange={() => set(o)} className="size-4" />

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 const SERIES = [
-  { key: 'created', label: 'Créés', color: '#2f4bd8' },
-  { key: 'resolved', label: 'Résolus', color: '#1f7a4d' },
+  { key: 'created', label: 'Créés', color: 'var(--color-open)' },
+  { key: 'resolved', label: 'Résolus', color: 'var(--color-resolved)' },
 ];
 
 const H = 170;
@@ -64,8 +64,8 @@ export default function TrendChart({ data }) {
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block max-w-full" role="img" aria-label="Tickets créés et résolus par jour, 14 derniers jours">
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke="#e6e9ee" strokeWidth="1" />
-              <text x={PAD.left - 6} y={y(t)} dy="0.32em" textAnchor="end" fontSize={FONT} fill="#626e7d">
+              <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} strokeWidth="1" style={{ stroke: "var(--color-line)" }} />
+              <text x={PAD.left - 6} y={y(t)} dy="0.32em" textAnchor="end" fontSize={FONT} style={{ fill: "var(--color-ink-mute)" }}>
                 {Number.isInteger(t) ? t : ''}
               </text>
             </g>
@@ -76,16 +76,16 @@ export default function TrendChart({ data }) {
             return (
               <g key={d.date}>
                 {hover === i && (
-                  <rect x={PAD.left + band * i} y={PAD.top} width={band} height={innerH} fill="#2f4bd8" opacity="0.06" />
+                  <rect x={PAD.left + band * i} y={PAD.top} width={band} height={innerH} opacity="0.08" style={{ fill: "var(--color-accent)" }} />
                 )}
                 {SERIES.map((s, si) => {
                   const v = d[s.key];
                   if (!v) return null;
                   const x = cx - groupW / 2 + si * (BAR + GAP);
-                  return <path key={s.key} d={columnPath(x, y(v), BAR, y(0) - y(v))} fill={s.color} />;
+                  return <path key={s.key} d={columnPath(x, y(v), BAR, y(0) - y(v))} style={{ fill: s.color }} />;
                 })}
                 {(i === 0 || i === data.length - 1 || i === Math.floor(data.length / 2)) && (
-                  <text x={cx} y={H - 8} textAnchor="middle" fontSize={FONT} fill="#626e7d">
+                  <text x={cx} y={H - 8} textAnchor="middle" fontSize={FONT} style={{ fill: "var(--color-ink-mute)" }}>
                     {dayFmt.format(asDate(d.date))}
                   </text>
                 )}
@@ -105,11 +105,11 @@ export default function TrendChart({ data }) {
               </g>
             );
           })}
-          <line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} stroke="#c5ccd6" strokeWidth="1" />
+          <line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} strokeWidth="1" style={{ stroke: "var(--color-line-strong)" }} />
         </svg>
         {hover !== null && (
           <div
-            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-md border border-line bg-white px-3 py-2 text-xs shadow-md"
+            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-md border border-line bg-surface px-3 py-2 text-xs shadow-md"
             style={{ left: `${Math.min(82, Math.max(18, ((PAD.left + band * hover + band / 2) / W) * 100))}%` }}
           >
             <p className="mb-1 font-semibold text-ink">{capitalize(longFmt.format(asDate(data[hover].date)))}</p>

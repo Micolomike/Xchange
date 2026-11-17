@@ -140,7 +140,7 @@ export default function Register() {
       </div>
       <p className="mt-4 text-center text-sm text-ink-mute">
         Déjà un compte ?{' '}
-        <Link to="/login" className="font-semibold text-accent hover:underline">
+        <Link to="/login" className="font-semibold text-accent-strong hover:underline">
           Se connecter
         </Link>
       </p>

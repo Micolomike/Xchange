@@ -71,9 +71,13 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 
 **Notifications par e-mail**
 - Envoyées par une boîte dédiée (SMTP, par exemple Orange : `smtp.orange.fr`, port 465) configurée dans les variables `SMTP_*`.
-- Nouvelle demande pour un groupe (membres du groupe), nouveau message (demandeur, responsable, ou groupe si personne n'a pris la demande), changement de statut (demandeur), assignation, transfert vers un autre groupe, demande d'adhésion à un groupe (administrateurs) et décision.
+- Événements : nouvelle demande pour un groupe, transfert vers un groupe, demande confiée, nouveau message, changement de statut, demande d'adhésion à un groupe et réponse.
 - Jamais à la personne qui a fait l'action. Demandes confidentielles : ni titre ni contenu dans l'e-mail, seulement un lien.
-- Chacun peut les couper dans « Mon compte ». Administration > Paramètres : état de la configuration, dernière erreur, interrupteur général, adresse publique utilisée dans les liens et e-mail de test.
+- Administration > Paramètres > Notifications : état de l'envoi et statistiques sur 7 jours, interrupteur général, chaque événement activable avec aperçu de l'e-mail, statuts qui déclenchent un e-mail, nom d'expéditeur, début de l'objet, contenu détaillé ou non, texte de bas de page, adresse publique pour les liens, comptes sans adresse e-mail, journal des 100 derniers envois et e-mail de test vers n'importe quelle adresse.
+- « Mon compte » : chacun coupe tout ou choisit ce qu'il reçoit (ses demandes, demandes confiées, messages sur ce qu'il traite, nouvelles demandes de ses groupes, adhésions à valider pour les administrateurs).
+
+**Affichage**
+- Mode clair, sombre ou automatique (suit le réglage de l'appareil), depuis le bouton de la barre de navigation ou « Mon compte ». Retenu sur chaque appareil.
 
 **Tableau de bord**
 - Compteurs (ouverts, en cours, en retard, délai moyen de résolution sur 90 jours), « Ma file » triée par priorité, activité récente, graphique créés/résolus sur 14 jours, répartition des tickets actifs par priorité.

@@ -9,13 +9,13 @@ function ItemLink({ to, title, description }) {
     <li>
       <Link
         to={to}
-        className="group flex h-full items-start gap-3 rounded-lg border border-line bg-white px-4 py-3.5 transition-colors hover:border-accent hover:bg-accent-soft/40"
+        className="group flex h-full items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3.5 transition-colors hover:border-accent hover:bg-accent-soft/40"
       >
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-ink group-hover:text-accent-strong">{title}</span>
           {description && <span className="mt-0.5 line-clamp-2 block text-sm text-ink-mute">{description}</span>}
         </span>
-        <FiChevronRight className="mt-1 shrink-0 text-ink-mute group-hover:text-accent" aria-hidden="true" />
+        <FiChevronRight className="mt-1 shrink-0 text-ink-mute group-hover:text-accent-strong" aria-hidden="true" />
       </Link>
     </li>
   );

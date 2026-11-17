@@ -4,6 +4,7 @@ import { FiLogOut, FiMenu, FiPlus, FiUser, FiX } from 'react-icons/fi';
 import { useAuth } from '../auth/context';
 import { Avatar } from './Badges';
 import { useSettings } from '../settings/context';
+import ThemeToggle from './ThemeToggle';
 
 export function Logo() {
   const { settings } = useSettings();
@@ -75,12 +76,13 @@ export default function Navbar() {
   ) : null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
       <nav className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4 sm:px-6" aria-label="Navigation principale">
         <Logo />
         {user && <div className="hidden items-center gap-1 md:flex">{links}</div>}
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           {user ? (
             <>
               {canCreate && (
@@ -143,7 +145,7 @@ export default function Navbar() {
       </nav>
 
       {user && open && (
-        <div id="mobile-menu" className="border-t border-line bg-white px-4 pb-4 pt-2 md:hidden">
+        <div id="mobile-menu" className="border-t border-line bg-surface px-4 pb-4 pt-2 md:hidden">
           <div className="flex flex-col gap-1">
             {links}
             {canCreate && (

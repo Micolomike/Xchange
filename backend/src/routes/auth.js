@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
-const { displayName, HttpError, publicUser, validateUserInput, nowIso } = require('../utils');
+const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PREFS, parseNotifyPrefs } = require('../utils');
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
 const mfa = require('../mfa');
@@ -279,6 +279,14 @@ function authRoutes({ db, config, authenticate, notifier }) {
     if ('notify_email' in body) {
       if (typeof body.notify_email !== 'boolean') throw new HttpError(400, 'Préférence de notification invalide.');
       await db.run('UPDATE users SET notify_email = ? WHERE id = ?', [body.notify_email ? 1 : 0, row.id]);
+    }
+    if ('notify_prefs' in body) {
+      const p = body.notify_prefs;
+      if (!p || typeof p !== 'object' || Object.entries(p).some(([k, v]) => !NOTIFY_PREFS.includes(k) || typeof v !== 'boolean')) {
+        throw new HttpError(400, 'Préférences de notification invalides.');
+      }
+      const next = { ...parseNotifyPrefs(row.notify_prefs), ...p };
+      await db.run('UPDATE users SET notify_prefs = ? WHERE id = ?', [JSON.stringify(next), row.id]);
     }
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     // Changer son mot de passe invalide les autres sessions : on renvoie un nouveau jeton.

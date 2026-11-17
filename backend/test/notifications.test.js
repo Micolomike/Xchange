@@ -14,7 +14,7 @@ describe('notifications par e-mail', () => {
   const take = async () => {
     await settle();
     const out = mails.splice(0, mails.length);
-    return out.map((m) => ({ to: m.to, subject: m.subject, text: m.text }));
+    return out.map((m) => ({ to: m.to, subject: m.subject, text: m.text, from: m.from }));
   };
 
   before(async () => {
@@ -83,14 +83,68 @@ describe('notifications par e-mail', () => {
     assert.deepEqual(await take(), []);
   });
 
+  test('préférences fines : chacun choisit ce qu’il reçoit', async () => {
+    await ctx.api.put('/api/auth/me').set(mamie.auth).send({ notify_email: true }).expect(200);
+    const me = await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_prefs: { group_new: false } }).expect(200);
+    assert.equal(me.body.user.notify_prefs.group_new, false);
+    assert.equal(me.body.user.notify_prefs.mine, true);
+    assert.equal((await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_prefs: { inconnu: true } })).status, 400);
+    const t = await ctx.createTicket(mamie, { title: 'Scanner', assigned_group: info.id });
+    assert.deepEqual(await take(), []); // Karim ne veut plus les nouvelles demandes de groupe
+    await ctx.api.post(`/api/tickets/${t.id}/comments`).set(mamie.auth).send({ body: 'Urgent' }).expect(201);
+    assert.deepEqual((await take()).map((m) => m.to), ['karim@exemple.fr']); // mais garde les messages
+    await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_prefs: { group_new: true } }).expect(200);
+  });
+
+  test('réglages de l’administrateur : événements, statuts, contenu, expéditeur', async () => {
+    const put = (body) => ctx.api.put('/api/admin/settings/mail').set(admin.auth).send(body).expect(200);
+    await put({ events: { ticket_created: false }, statuses: ['resolved'], includeContent: false, subjectPrefix: '[Entraide]', senderName: 'Xchange Entraide', footer: 'Association des voisins' });
+    const t = await ctx.createTicket(mamie, { title: 'Box Internet', assigned_group: info.id });
+    assert.deepEqual(await take(), []);
+    await ctx.api.patch(`/api/tickets/${t.id}`).set(karim.auth).send({ status: 'in_progress' }).expect(200);
+    assert.deepEqual(await take(), []); // « En cours » n'est plus notifié
+    await ctx.api.patch(`/api/tickets/${t.id}`).set(karim.auth).send({ status: 'resolved' }).expect(200);
+    const sent = await take();
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].subject, /^\[Entraide\] #\d{4} : Résolu$/);
+    assert.ok(!sent[0].text.includes('Box Internet'));
+    assert.ok(sent[0].text.includes('Association des voisins'));
+    assert.equal(sent[0].from, '"Xchange Entraide" <x.change@orange.fr>');
+    const bad = await ctx.api.put('/api/admin/settings/mail').set(admin.auth).send({ statuses: ['nimporte'] });
+    assert.equal(bad.status, 400);
+    await put({ events: { ticket_created: true }, statuses: ['open', 'in_progress', 'resolved', 'closed'], includeContent: true, subjectPrefix: '[Xchange]', footer: '' });
+  });
+
+  test('journal des envois, aperçu et statistiques', async () => {
+    const log = (await ctx.api.get('/api/admin/settings/mail/log').set(admin.auth).expect(200)).body;
+    assert.ok(log.length > 5);
+    assert.ok(log.every((l) => l.status === 'sent' && l.to_email && l.event));
+    assert.equal(log[0].event, 'status_changed');
+    assert.equal(log[0].user, 'Francine');
+    const preview = (await ctx.api.post('/api/admin/settings/mail/preview').set(admin.auth).send({ event: 'comment' }).expect(200)).body;
+    assert.match(preview.subject, /Nouveau message/);
+    assert.ok(preview.html.includes('Bonjour Swann'));
+    assert.equal((await ctx.api.post('/api/admin/settings/mail/preview').set(admin.auth).send({ event: 'x' })).status, 400);
+    const info = (await ctx.api.get('/api/admin/settings/mail').set(admin.auth)).body;
+    assert.ok(info.stats.sent7d >= log.length);
+    assert.equal(info.settings.events.comment, true);
+    assert.equal(info.people.noEmail, 0);
+    assert.equal((await ctx.api.get('/api/admin/settings/mail/log').set(mamie.auth)).status, 403);
+  });
+
   test('administration : état, réglages et e-mail de test', async () => {
     const info2 = await ctx.api.get('/api/admin/settings/mail').set(admin.auth);
     assert.equal(info2.body.configured, true);
     assert.equal(info2.body.from, 'x.change@orange.fr');
     assert.equal((await ctx.api.put('/api/admin/settings/mail').set(admin.auth).send({ appUrl: 'pas une adresse' })).status, 400);
     await ctx.api.post('/api/admin/settings/mail/test').set(admin.auth).expect(200);
-    const sent = await take();
+    let sent = await take();
     assert.deepEqual(sent.map((m) => m.to), ['admin@exemple.fr']);
+    const other = await ctx.api.post('/api/admin/settings/mail/test').set(admin.auth).send({ to: 'autre@exemple.fr' }).expect(200);
+    assert.equal(other.body.to, 'autre@exemple.fr');
+    sent = await take();
+    assert.deepEqual(sent.map((m) => m.to), ['autre@exemple.fr']);
+    assert.equal((await ctx.api.post('/api/admin/settings/mail/test').set(admin.auth).send({ to: 'pas-une-adresse' })).status, 400);
 
     await ctx.api.put('/api/admin/settings/mail').set(admin.auth).send({ enabled: false }).expect(200);
     await ctx.api.post(`/api/groups/${info.id}/leave`).set(karim.auth).expect(200);

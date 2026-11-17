@@ -25,7 +25,7 @@ export default function App() {
       <AuthProvider>
         <a
           href="#contenu"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2"
         >
           Aller au contenu
         </a>

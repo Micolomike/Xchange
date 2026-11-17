@@ -118,7 +118,7 @@ export default function MfaSetup() {
                       >
                         {setup.secret}
                       </p>
-                      <a href={setup.otpauthUrl} className="mt-2 inline-block font-semibold text-accent hover:underline">
+                      <a href={setup.otpauthUrl} className="mt-2 inline-block font-semibold text-accent-strong hover:underline">
                         Vous êtes sur votre téléphone ? Ouvrir dans l'appli
                       </a>
                     </div>

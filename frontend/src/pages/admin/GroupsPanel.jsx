@@ -104,7 +104,7 @@ function GroupForm({ initial, users, onCancel, onSaved }) {
               onChange={(e) => setFilter(e.target.value)}
             />
           </label>
-          <ul className="max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line bg-white">
+          <ul className="max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line bg-surface">
             {shown.map((u) => (
               <li key={u.id}>
                 <label className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-paper">
@@ -141,7 +141,7 @@ function MemberList({ members }) {
     <span className="flex items-center gap-2">
       <span className="flex -space-x-1">
         {first.map((m) => (
-          <span key={m.id} className="rounded-full ring-2 ring-white" title={m.name}>
+          <span key={m.id} className="rounded-full ring-2 ring-surface" title={m.name}>
             <Avatar user={m} />
           </span>
         ))}
@@ -328,7 +328,7 @@ export default function GroupsPanel() {
                   </td>
                   <td className="px-5 py-3 text-right tabular-nums">
                     {g.active_count > 0 ? (
-                      <Link to={`/tickets?group=${g.id}`} className="font-semibold text-accent hover:underline">
+                      <Link to={`/tickets?group=${g.id}`} className="font-semibold text-accent-strong hover:underline">
                         {g.active_count}
                       </Link>
                     ) : (

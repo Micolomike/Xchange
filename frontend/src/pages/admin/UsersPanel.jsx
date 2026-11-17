@@ -155,7 +155,7 @@ export default function UsersPanel() {
       showInfo({
         title: 'Mot de passe réinitialisé',
         icon: 'success',
-        html: `Transmettez ce mot de passe temporaire à <b>${escapeHtml(u.username)}</b> :<br><code style="display:inline-block;margin-top:12px;padding:6px 12px;background:#f4f6f9;border-radius:6px;font-size:1.1rem;letter-spacing:.04em">${escapeHtml(password)}</code><br><small>Il pourra le changer depuis « Mon compte ».</small>`,
+        html: `Transmettez ce mot de passe temporaire à <b>${escapeHtml(u.username)}</b> :<br><code style="display:inline-block;margin-top:12px;padding:6px 12px;background:var(--color-paper);color:var(--color-ink);border-radius:6px;font-size:1.1rem;letter-spacing:.04em">${escapeHtml(password)}</code><br><small>Il pourra le changer depuis « Mon compte ».</small>`,
       });
     } catch (err) {
       toastError(err);
@@ -312,7 +312,7 @@ export default function UsersPanel() {
                   )}
                   <button
                     type="button"
-                    className="block text-xs font-semibold text-accent hover:underline"
+                    className="block text-xs font-semibold text-accent-strong hover:underline"
                     onClick={() => setExempt(u, !u.mfa_exempt)}
                     aria-label={
                       u.mfa_exempt

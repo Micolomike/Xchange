@@ -37,6 +37,13 @@ const DEFAULTS = {
   mail: {
     enabled: true,
     appUrl: '', // adresse publique du site, pour les liens dans les e-mails
+    senderName: 'Xchange',
+    subjectPrefix: '[Xchange]',
+    includeContent: true, // titres et extraits des messages dans les e-mails (jamais pour une demande confidentielle)
+    footer: '',
+    events: {},
+    commentToGroup: true, // message sur une demande sans responsable : prévenir le groupe
+    statuses: ['open', 'in_progress', 'resolved', 'closed'],
   },
   mail_state: {
     lastSentAt: null,
@@ -170,7 +177,59 @@ function validateAppearance(input, current) {
   return out;
 }
 
+const MAIL_EVENTS = ['ticket_created', 'ticket_transferred', 'comment', 'status_changed', 'assigned', 'join_requested', 'join_decided'];
+const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+
+/** Réglages des notifications, avec chaque événement explicitement actif ou non. */
+async function getMailSettings(db) {
+  const mail = await getSetting(db, 'mail');
+  mail.events = Object.fromEntries(MAIL_EVENTS.map((k) => [k, mail.events?.[k] !== false]));
+  mail.statuses = (Array.isArray(mail.statuses) ? mail.statuses : TICKET_STATUSES).filter((s) => TICKET_STATUSES.includes(s));
+  return mail;
+}
+
+function validateMailSettings(body, current) {
+  const next = { ...current };
+  if ('enabled' in body) next.enabled = Boolean(body.enabled);
+  if ('includeContent' in body) next.includeContent = Boolean(body.includeContent);
+  if ('commentToGroup' in body) next.commentToGroup = Boolean(body.commentToGroup);
+  if ('appUrl' in body) {
+    const url = String(body.appUrl || '').trim().replace(/\/+$/, '');
+    if (url && !/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(url)) {
+      throw new HttpError(400, 'Adresse invalide : elle doit commencer par https://', { appUrl: 'Adresse invalide.' });
+    }
+    next.appUrl = url;
+  }
+  if ('senderName' in body) {
+    const v = str(body.senderName).replace(/["<>]/g, '');
+    if (v.length > 60) throw new HttpError(400, "Nom d'expéditeur : 60 caractères maximum.", { senderName: '60 caractères maximum.' });
+    next.senderName = v;
+  }
+  if ('subjectPrefix' in body) {
+    const v = str(body.subjectPrefix);
+    if (v.length > 30) throw new HttpError(400, "Début de l'objet : 30 caractères maximum.", { subjectPrefix: '30 caractères maximum.' });
+    next.subjectPrefix = v;
+  }
+  if ('footer' in body) {
+    const v = typeof body.footer === 'string' ? body.footer.trim() : '';
+    if (v.length > 400) throw new HttpError(400, 'Pied de page : 400 caractères maximum.', { footer: '400 caractères maximum.' });
+    next.footer = v;
+  }
+  if ('events' in body) {
+    if (!body.events || typeof body.events !== 'object') throw new HttpError(400, 'Événements invalides.');
+    next.events = Object.fromEntries(MAIL_EVENTS.map((k) => [k, k in body.events ? Boolean(body.events[k]) : current.events?.[k] !== false]));
+  }
+  if ('statuses' in body) {
+    if (!Array.isArray(body.statuses) || body.statuses.some((s) => !TICKET_STATUSES.includes(s))) throw new HttpError(400, 'Statuts invalides.');
+    next.statuses = TICKET_STATUSES.filter((s) => body.statuses.includes(s));
+  }
+  return next;
+}
+
 module.exports = {
+  MAIL_EVENTS,
+  getMailSettings,
+  validateMailSettings,
   DEFAULTS,
   PRIORITY_KEYS,
   PRIORITY_COLORS,

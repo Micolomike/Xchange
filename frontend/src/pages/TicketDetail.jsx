@@ -184,7 +184,7 @@ export default function TicketDetail() {
       <div className="py-8">
         <ErrorState error={error} onRetry={error.status === 404 ? undefined : load} />
         <p className="mt-6 text-center">
-          <Link to="/tickets" className="font-semibold text-accent hover:underline">
+          <Link to="/tickets" className="font-semibold text-accent-strong hover:underline">
             Revenir aux tickets
           </Link>
         </p>
@@ -329,7 +329,7 @@ export default function TicketDetail() {
           <StatusBadge status={ticket.status} />
           {overdue && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger">En retard</span>}
           {ticket.confidential && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-surface">
               <FiLock aria-hidden="true" /> Confidentielle
             </span>
           )}
@@ -396,7 +396,7 @@ export default function TicketDetail() {
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
-                        className="block max-w-full truncate text-left text-sm font-semibold text-accent hover:underline"
+                        className="block max-w-full truncate text-left text-sm font-semibold text-accent-strong hover:underline"
                         onClick={() => download(a)}
                       >
                         {a.name}
@@ -442,7 +442,7 @@ export default function TicketDetail() {
               {timeline.map((item) =>
                 item.kind === 'event' ? (
                   <li key={item.key} className="relative flex gap-3 pb-4 pl-1 text-sm before:absolute before:left-[0.53rem] before:top-4 before:h-full before:w-px before:bg-line last:before:hidden">
-                    <span className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-white bg-line-strong ring-1 ring-line-strong" />
+                    <span className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-surface bg-line-strong ring-1 ring-line-strong" />
                     <p className="text-ink-soft">
                       {describeEvent(item.data)}
                       {item.data.on_behalf_by && (
@@ -468,7 +468,7 @@ export default function TicketDetail() {
                         {item.data.canDelete && (
                           <button
                             type="button"
-                            className="ml-auto rounded p-1 text-ink-mute hover:bg-white hover:text-danger"
+                            className="ml-auto rounded p-1 text-ink-mute hover:bg-surface hover:text-danger"
                             onClick={() => deleteComment(item.data)}
                             aria-label="Supprimer le commentaire"
                           >
@@ -610,7 +610,7 @@ export default function TicketDetail() {
                   {canTakeIt && ticket.assignee?.id !== user.id && (
                     <button
                       type="button"
-                      className="mt-1.5 text-xs font-semibold text-accent hover:underline"
+                      className="mt-1.5 text-xs font-semibold text-accent-strong hover:underline"
                       onClick={() => safePatch({ assigned_to: user.id }, 'Ticket assigné à vous')}
                     >
                       M'assigner ce ticket

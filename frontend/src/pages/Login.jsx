@@ -80,7 +80,7 @@ function CodeStep({ from }) {
         </button>
       </form>
       <div className="mt-5 flex flex-wrap justify-between gap-2 text-sm">
-        <button type="button" className="font-semibold text-accent hover:underline" onClick={toggle}>
+        <button type="button" className="font-semibold text-accent-strong hover:underline" onClick={toggle}>
           {recovery ? "Utiliser le code de l'appli" : 'Utiliser un code de secours'}
         </button>
         <button type="button" className="text-ink-mute hover:text-ink hover:underline" onClick={cancelChallenge}>
@@ -186,7 +186,7 @@ export default function Login() {
       {registrationOpen && (
         <p className="mt-4 text-center text-sm text-ink-mute">
           Pas encore de compte ?{' '}
-          <Link to="/register" className="font-semibold text-accent hover:underline">
+          <Link to="/register" className="font-semibold text-accent-strong hover:underline">
             Créer un compte
           </Link>
         </p>

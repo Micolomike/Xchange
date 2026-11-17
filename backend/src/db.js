@@ -148,6 +148,17 @@ CREATE TABLE IF NOT EXISTS impersonations (
   ended_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS mail_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  event TEXT NOT NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  to_email TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  status TEXT NOT NULL,
+  error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -175,6 +186,7 @@ const ADDED_COLUMNS = {
     mfa_last_step: 'INTEGER NOT NULL DEFAULT 0',
     mfa_exempt: 'INTEGER NOT NULL DEFAULT 0',
     notify_email: 'INTEGER NOT NULL DEFAULT 1',
+    notify_prefs: 'TEXT',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",
@@ -214,6 +226,7 @@ CREATE INDEX IF NOT EXISTS idx_events_ticket ON ticket_events(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_group ON tickets(assigned_group);
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON group_requests(status);
+CREATE INDEX IF NOT EXISTS idx_mail_log_created ON mail_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_recovery_user ON mfa_recovery_codes(user_id);
 `;
 

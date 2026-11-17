@@ -6,7 +6,7 @@ import { PRIORITY_COLORS, PRIORITY_ORDER } from '../../lib/constants';
 import { toast, toastError } from '../../lib/notify';
 import { useSettings } from '../../settings/context';
 import { accentShades } from '../../settings/apply';
-import { formatDateTime } from '../../lib/format';
+import NotificationsPanel from './NotificationsPanel';
 import { ErrorState, Field, Spinner } from '../../components/ui';
 
 function ListsSection({ initial }) {
@@ -260,7 +260,7 @@ function AppearanceSection({ initial }) {
                 <input
                   type="color"
                   aria-label="Choisir la couleur"
-                  className="h-10 w-12 cursor-pointer rounded-md border border-line-strong bg-white p-1"
+                  className="h-10 w-12 cursor-pointer rounded-md border border-line-strong bg-surface p-1"
                   value={validHex ? form.primaryColor : '#2f4bd8'}
                   onChange={(e) => set({ primaryColor: e.target.value })}
                 />
@@ -518,110 +518,8 @@ function AccessSection({ categories }) {
   );
 }
 
-function MailSection() {
-  const [info, setInfo] = useState(null);
-  const [appUrl, setAppUrl] = useState('');
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const apply = (d) => {
-    setInfo(d);
-    setAppUrl(d.settings.appUrl || '');
-  };
-  useEffect(() => {
-    api('/api/admin/settings/mail').then(apply).catch(setError);
-  }, []);
-  if (error) return <ErrorState error={error} />;
-  if (!info) return <Spinner />;
-
-  const save = async (patch) => {
-    setBusy(true);
-    try {
-      apply(await api('/api/admin/settings/mail', { method: 'PUT', body: patch }));
-      toast('Notifications enregistrées');
-    } catch (err) {
-      toastError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const sendTest = async () => {
-    setBusy(true);
-    try {
-      const r = await api('/api/admin/settings/mail/test', { method: 'POST' });
-      toast(`E-mail de test envoyé à ${r.to}`);
-    } catch (err) {
-      toastError(err);
-    } finally {
-      setBusy(false);
-      api('/api/admin/settings/mail').then(apply).catch(() => {});
-    }
-  };
-  const suggested = typeof window !== 'undefined' ? window.location.origin : '';
-  const { state } = info;
-
-  return (
-    <section className="panel space-y-4 p-5 sm:p-6" aria-labelledby="mail-title">
-      <div>
-        <h2 id="mail-title" className="font-bold">Notifications par e-mail</h2>
-        <p className="mt-1 text-sm text-ink-mute">
-          Les e-mails partent de la boîte configurée dans le fichier xchange.env du serveur (SMTP_HOST, SMTP_USER, SMTP_PASSWORD). Le mot de passe n’apparaît jamais ici.
-        </p>
-      </div>
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
-        <dt className="text-ink-mute">État</dt>
-        <dd>{info.configured ? `Configuré (${info.host})` : 'Non configuré : ajoutez les lignes SMTP dans xchange.env puis redémarrez'}</dd>
-        {info.from && (
-          <>
-            <dt className="text-ink-mute">Expéditeur</dt>
-            <dd>{info.from}</dd>
-          </>
-        )}
-        <dt className="text-ink-mute">Dernier envoi</dt>
-        <dd>{state.lastSentAt ? formatDateTime(state.lastSentAt) : 'aucun'}</dd>
-        {state.lastError && state.lastErrorAt && (!state.lastSentAt || state.lastErrorAt > state.lastSentAt) && (
-          <>
-            <dt className="text-ink-mute">Dernière erreur</dt>
-            <dd className="text-red-700">
-              {formatDateTime(state.lastErrorAt)} : {state.lastError}
-            </dd>
-          </>
-        )}
-      </dl>
-      <label className="flex items-center gap-3 text-sm">
-        <input type="checkbox" checked={info.settings.enabled} disabled={busy} onChange={(e) => save({ enabled: e.target.checked })} />
-        Envoyer les notifications
-      </label>
-      <form
-        className="flex flex-wrap items-end gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save({ appUrl });
-        }}
-      >
-        <Field id="mail-appurl" label="Adresse publique d’Xchange (pour les liens dans les e-mails)">
-          {(p) => <input {...p} className="field min-w-72" placeholder={suggested} value={appUrl} onChange={(e) => setAppUrl(e.target.value)} />}
-        </Field>
-        {!appUrl && suggested && (
-          <button type="button" className="btn" onClick={() => setAppUrl(suggested)}>
-            Utiliser {suggested}
-          </button>
-        )}
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Enregistrer
-        </button>
-      </form>
-      <div>
-        <button type="button" className="btn" onClick={sendTest} disabled={busy || !info.configured}>
-          M’envoyer un e-mail de test
-        </button>
-      </div>
-    </section>
-  );
-}
-
 const SECTIONS = [
-  { value: 'droits', label: 'Droits' },
+  { value: 'droits', label: 'Droits et visibilité' },
   { value: 'notifications', label: 'Notifications' },
   { value: 'listes', label: 'Catégories et priorités' },
   { value: 'apparence', label: 'Apparence' },
@@ -666,7 +564,7 @@ export default function SettingsPanel() {
         <AccessSection categories={data.categories} />
       </div>
       <div id="settings-panel-notifications" role="tabpanel" aria-labelledby="settings-tab-notifications" hidden={current !== 'notifications'}>
-        <MailSection />
+        <NotificationsPanel />
       </div>
       <div id="settings-panel-listes" role="tabpanel" aria-labelledby="settings-tab-listes" hidden={current !== 'listes'}>
         <ListsSection initial={data} />

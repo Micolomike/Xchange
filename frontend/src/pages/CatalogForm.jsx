@@ -29,7 +29,7 @@ export default function CatalogForm() {
       <div className="py-8">
         <ErrorState error={error} />
         <p className="mt-6 text-center">
-          <Link to="/catalogue" className="font-semibold text-accent hover:underline">
+          <Link to="/catalogue" className="font-semibold text-accent-strong hover:underline">
             Revenir au catalogue
           </Link>
         </p>

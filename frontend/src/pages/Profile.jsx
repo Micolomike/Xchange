@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBell, FiShield, FiUsers } from 'react-icons/fi';
+import { FiBell, FiMonitor, FiShield, FiUsers } from 'react-icons/fi';
+import { THEMES } from '../lib/theme';
+import { useTheme } from '../lib/useTheme';
 import { useAuth } from '../auth/context';
 import { formatDateTime } from '../lib/format';
 import { api } from '../lib/api';
@@ -253,36 +255,94 @@ function AdminAccessSection() {
   );
 }
 
+const NOTIFY_CHOICES = [
+  { key: 'mine', label: 'Mes demandes', hint: 'Réponses, changements de statut, réponse à une demande pour rejoindre un groupe.' },
+  { key: 'assigned', label: 'Une demande m’est confiée' },
+  { key: 'handled', label: 'Messages sur les demandes que je traite', hint: 'Ou que mon groupe peut prendre, tant que personne ne s’en occupe.' },
+  { key: 'group_new', label: 'Nouvelles demandes dans mes groupes', hint: 'Y compris les demandes transférées à un de mes groupes.' },
+  { key: 'admin', label: 'Demandes pour rejoindre un groupe, à valider', adminOnly: true },
+];
+
 function NotificationsSection({ user }) {
   const { updateProfile } = useAuth();
   const [saving, setSaving] = useState(false);
-  const on = user.notify_email !== false && user.notify_email !== 0;
-  const toggle = async () => {
+  const on = user.notify_email !== false;
+  const prefs = user.notify_prefs || {};
+
+  const save = async (body, message) => {
     setSaving(true);
     try {
-      await updateProfile({ notify_email: !on });
-      toast(on ? 'Vous ne recevrez plus d’e-mails' : 'Notifications par e-mail activées');
+      await updateProfile(body);
+      toast(message);
     } catch (err) {
       toastError(err);
     } finally {
       setSaving(false);
     }
   };
+
   return (
     <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="notif-title">
       <h2 id="notif-title" className="flex items-center gap-2 font-bold">
         <FiBell aria-hidden="true" /> Notifications par e-mail
       </h2>
-      <p className="mt-1 text-sm text-ink-mute">
-        Un e-mail vous prévient quand on répond à vos demandes, quand leur statut change ou quand une demande arrive dans un de vos groupes.
-      </p>
-      <label className="mt-3 flex items-center gap-3 text-sm">
-        <input type="checkbox" checked={on} onChange={toggle} disabled={saving} />
-        Recevoir les notifications par e-mail
+      <p className="mt-1 text-sm text-ink-mute">Vous n’êtes jamais prévenu de ce que vous faites vous-même.</p>
+      <label className="mt-4 flex items-center gap-3 text-sm font-semibold">
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={saving}
+          onChange={() => save({ notify_email: !on }, on ? 'Vous ne recevrez plus d’e-mails' : 'Notifications par e-mail activées')}
+        />
+        Recevoir des e-mails
       </label>
-      {!user.email && on && (
-        <p className="mt-2 text-sm text-amber-700">Renseignez votre adresse e-mail ci-dessus, sinon aucun e-mail ne peut vous être envoyé.</p>
+      {on && (
+        <fieldset className="mt-3 space-y-2 border-l-2 border-line pl-4" disabled={saving}>
+          <legend className="sr-only">Ce que vous recevez</legend>
+          {NOTIFY_CHOICES.filter((c) => !c.adminOnly || user.role === 'admin').map((c) => (
+            <label key={c.key} className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={prefs[c.key] !== false}
+                onChange={(e) => save({ notify_prefs: { [c.key]: e.target.checked } }, 'Préférences enregistrées')}
+              />
+              <span>
+                {c.label}
+                {c.hint && <span className="block text-ink-mute">{c.hint}</span>}
+              </span>
+            </label>
+          ))}
+        </fieldset>
       )}
+      {!user.email && on && (
+        <p className="mt-3 text-sm text-progress">Renseignez votre adresse e-mail ci-dessus, sinon aucun e-mail ne peut vous être envoyé.</p>
+      )}
+    </section>
+  );
+}
+
+function DisplaySection() {
+  const { choice, setChoice } = useTheme();
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="display-title">
+      <h2 id="display-title" className="flex items-center gap-2 font-bold">
+        <FiMonitor aria-hidden="true" /> Affichage
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">Retenu sur cet appareil. « Automatique » suit le réglage clair ou sombre de l’ordinateur ou du téléphone.</p>
+      <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Thème">
+        {THEMES.map((t) => (
+          <label
+            key={t.value}
+            className={`flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold ${
+              choice === t.value ? 'border-accent bg-accent-soft text-accent-strong' : 'border-line-strong text-ink-soft hover:border-accent'
+            }`}
+          >
+            <input type="radio" name="theme" className="sr-only" checked={choice === t.value} onChange={() => setChoice(t.value)} />
+            {t.label}
+          </label>
+        ))}
+      </div>
     </section>
   );
 }
@@ -362,6 +422,7 @@ export default function Profile() {
 
       {!user.impersonator && <NotificationsSection user={user} />}
       <GroupsSection />
+      <DisplaySection />
       {!user.impersonator && <AdminAccessSection />}
       {!user.impersonator && <MfaSection user={user} />}
 

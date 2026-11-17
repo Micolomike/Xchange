@@ -2,13 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const multer = require('multer');
-const { HttpError } = require('../utils');
+const { HttpError, displayName } = require('../utils');
 const {
   getSetting,
   setSetting,
   validateCategories,
   validatePriorities,
   validateAppearance,
+  getMailSettings,
+  validateMailSettings,
 } = require('../settings');
 
 const { getAccessSettings, validateAccessSettings } = require('../access');
@@ -90,14 +92,35 @@ function settingsAdminRoutes({ db, config, mailer, notifier }) {
     res.json(await getAccessSettings(db));
   });
 
-  // Notifications par e-mail : état de la configuration (xchange.env), réglages, e-mail de test.
+  // Notifications par e-mail : état de la configuration (xchange.env), réglages, journal, aperçu, test.
   async function mailInfo() {
+    const since = new Date(Date.now() - 7 * 86400_000).toISOString();
+    const stats = await db.get(
+      `SELECT SUM(status = 'sent') AS sent, SUM(status = 'error') AS errors FROM mail_log WHERE created_at >= ?`,
+      [since]
+    );
+    const people = await db.get(
+      `SELECT COUNT(*) AS total,
+              SUM(email IS NULL OR email = '') AS noEmail,
+              SUM(notify_email = 0) AS optedOut
+       FROM users`
+    );
+    const noEmail = await db.all(
+      "SELECT id, username, firstname, lastname FROM users WHERE email IS NULL OR email = '' ORDER BY lower(username) LIMIT 30"
+    );
     return {
       configured: Boolean(mailer?.configured),
       host: mailer?.host || null,
       from: mailer?.from || null,
-      settings: await getSetting(db, 'mail'),
+      settings: await getMailSettings(db),
       state: await getSetting(db, 'mail_state'),
+      stats: { sent7d: stats?.sent || 0, errors7d: stats?.errors || 0 },
+      people: {
+        total: people.total,
+        noEmail: people.noEmail || 0,
+        optedOut: people.optedOut || 0,
+        noEmailList: noEmail.map((u) => ({ id: u.id, name: displayName(u) })),
+      },
     };
   }
 
@@ -106,29 +129,44 @@ function settingsAdminRoutes({ db, config, mailer, notifier }) {
   });
 
   router.put('/mail', async (req, res) => {
-    const body = req.body || {};
-    const current = await getSetting(db, 'mail');
-    const next = { ...current };
-    if ('enabled' in body) next.enabled = Boolean(body.enabled);
-    if ('appUrl' in body) {
-      const url = String(body.appUrl || '').trim().replace(/\/+$/, '');
-      if (url && !/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(url)) {
-        throw new HttpError(400, 'Adresse invalide : elle doit commencer par https://', { appUrl: 'Adresse invalide.' });
-      }
-      next.appUrl = url;
-    }
-    await setSetting(db, 'mail', next);
+    await setSetting(db, 'mail', validateMailSettings(req.body || {}, await getMailSettings(db)));
     res.json(await mailInfo());
+  });
+
+  router.get('/mail/log', async (req, res) => {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const onlyErrors = req.query.status === 'error';
+    const rows = await db.all(
+      `SELECT l.id, l.created_at, l.event, l.to_email, l.subject, l.status, l.error,
+              u.username, u.firstname, u.lastname
+       FROM mail_log l LEFT JOIN users u ON u.id = l.user_id
+       ${onlyErrors ? "WHERE l.status = 'error'" : ''}
+       ORDER BY l.id DESC LIMIT ?`,
+      [limit]
+    );
+    res.json(rows.map(({ username, firstname, lastname, ...r }) => ({ ...r, user: username ? displayName({ username, firstname, lastname }) : null })));
+  });
+
+  router.post('/mail/preview', async (req, res) => {
+    const me = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const preview = await notifier.preview(String(req.body?.event || ''), me);
+    if (!preview) throw new HttpError(400, 'Événement inconnu.');
+    res.json(preview);
   });
 
   router.post('/mail/test', async (req, res) => {
     const me = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const address = typeof req.body?.to === 'string' ? req.body.to.trim() : '';
+    if (address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+      throw new HttpError(400, 'Adresse e-mail invalide.', { to: 'Adresse e-mail invalide.' });
+    }
+    let to;
     try {
-      await notifier.test(me);
+      to = await notifier.test(me, address || null);
     } catch (err) {
       return res.status(400).json({ error: err.code ? explainMailError(err) : err.message });
     }
-    res.json({ success: true, to: me.email });
+    res.json({ success: true, to });
   });
 
   router.put('/appearance', async (req, res) => {

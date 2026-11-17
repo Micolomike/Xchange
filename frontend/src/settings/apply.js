@@ -14,6 +14,17 @@ export function accentShades(color) {
   return { accent: base, strong: mix(base, '#000000', 0.22), soft: mix(base, '#ffffff', 0.9) };
 }
 
+/** Variantes pour le mode sombre : boutons un peu éclaircis, textes clairs, fonds teintés foncés. */
+export function darkAccentShades(color) {
+  const { accent } = accentShades(color);
+  return {
+    accent: mix(accent, '#ffffff', 0.1),
+    hover: mix(accent, '#ffffff', 0.22),
+    strong: mix(accent, '#ffffff', 0.6),
+    soft: mix(accent, '#171d26', 0.78),
+  };
+}
+
 /**
  * Applique les paramètres au reste de l'interface : listes (objets partagés modifiés en place,
  * lus au rendu par les pages), couleur principale, titre de l'onglet et icône.
@@ -36,10 +47,16 @@ export function applySettings(s) {
     }
   }
   const { accent, strong, soft } = accentShades(s.primaryColor);
+  const dark = darkAccentShades(s.primaryColor);
   const root = document.documentElement.style;
-  root.setProperty('--color-accent', accent);
-  root.setProperty('--color-accent-strong', strong);
-  root.setProperty('--color-accent-soft', soft);
+  root.setProperty('--accent-light', accent);
+  root.setProperty('--accent-hover-light', strong);
+  root.setProperty('--accent-strong-light', strong);
+  root.setProperty('--accent-soft-light', soft);
+  root.setProperty('--accent-dark', dark.accent);
+  root.setProperty('--accent-hover-dark', dark.hover);
+  root.setProperty('--accent-strong-dark', dark.strong);
+  root.setProperty('--accent-soft-dark', dark.soft);
   if (s.appName) document.title = s.appName;
   const icon = document.querySelector('link[rel="icon"]');
   if (icon) {
