@@ -502,6 +502,60 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await expect(page.getByText('Soyez sympas.')).toBeVisible();
 });
 
+test('double authentification : refus tracé à l’inscription, navigateur de confiance', async ({ browser }, testInfo) => {
+  // Refus à l'inscription, dans un navigateur à part.
+  const ctx = await browser.newContext(testInfo.project.use);
+  const p = await ctx.newPage();
+  await p.goto('/register');
+  await p.fill('#reg-username', 'bernard');
+  await p.fill('#reg-password', 'motdepasse-bernard');
+  await p.fill('#reg-confirm', 'motdepasse-bernard');
+  await p.getByRole('checkbox', { name: /J’accepte la charte/ }).check();
+  await p.getByRole('button', { name: 'Créer mon compte' }).click();
+  await expect(p).toHaveURL(/\/double-authentification$/);
+  await p.getByRole('button', { name: 'Je ne souhaite pas utiliser la double authentification' }).click();
+  const go = p.getByRole('button', { name: 'Continuer sans double authentification' });
+  await expect(go).toBeDisabled();
+  await p.getByRole('checkbox', { name: /J’ai compris les risques/ }).check();
+  await go.click();
+  await expect(p.getByRole('link', { name: 'Tableau de bord' })).toBeVisible();
+  await p.goto('/profile');
+  await expect(p.getByText(/Vous avez choisi le .* de ne pas utiliser la double/)).toBeVisible();
+  await expect(p.getByText('Double authentification refusée, risques acceptés, par vous')).toBeVisible();
+  await ctx.close();
+
+  // L'administrateur voit que c'est le choix de la personne.
+  await page.goto('/admin');
+  await expect(page.getByRole('row', { name: /bernard/ })).toContainText('Refusée par la personne');
+
+  // Navigateur de confiance : le code n'est demandé qu'une fois.
+  const ctx2 = await browser.newContext(testInfo.project.use);
+  const q = await ctx2.newPage();
+  const signIn = async () => {
+    await q.goto('/login');
+    await q.fill('#login-username', ADMIN.username);
+    await q.fill('#login-password', ADMIN.password);
+    await q.getByRole('button', { name: 'Se connecter' }).click();
+  };
+  await signIn();
+  await expect(q.getByRole('heading', { name: 'Vérification' })).toBeVisible();
+  await q.getByRole('checkbox', { name: /Faire confiance à ce navigateur pendant 30 jours/ }).check();
+  await q.fill('#login-code', await nextCode(ADMIN.username));
+  await q.getByRole('button', { name: 'Valider' }).click();
+  await expect(q.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
+  await q.evaluate(() => localStorage.removeItem('xchange.token'));
+  await signIn();
+  await expect(q.getByRole('heading', { name: `Bonjour ${ADMIN.firstname}` })).toBeVisible();
+  await q.goto('/profile');
+  await expect(q.getByText('Navigateurs de confiance')).toBeVisible();
+  await q.getByRole('button', { name: 'Retirer tous les navigateurs' }).click();
+  await expect(q.getByText('Tous les navigateurs ont été retirés')).toBeVisible();
+  await q.evaluate(() => localStorage.removeItem('xchange.token'));
+  await signIn();
+  await expect(q.getByRole('heading', { name: 'Vérification' })).toBeVisible();
+  await ctx2.close();
+});
+
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
   await page.getByRole('radio', { name: 'Sombre' }).check({ force: true });

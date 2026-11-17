@@ -67,6 +67,8 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
     counts.attachments = (await db.run('DELETE FROM attachments WHERE uploaded_by = ?', [id])).changes;
 
     await db.run('DELETE FROM mfa_recovery_codes WHERE user_id = ?', [id]);
+    await db.run('DELETE FROM trusted_devices WHERE user_id = ?', [id]);
+    await db.run('DELETE FROM security_events WHERE user_id = ?', [id]);
     await db.run('DELETE FROM group_members WHERE user_id = ?', [id]);
     await db.run('DELETE FROM group_requests WHERE user_id = ?', [id]);
     await db.run('DELETE FROM impersonations WHERE target_id = ?', [id]);
@@ -74,7 +76,7 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
     await db.run(
       `UPDATE users SET username = ?, firstname = 'Utilisateur supprimé', lastname = ?, email = NULL, password = ?,
          role = 'user', token_version = token_version + 1, mfa_enabled = 0, mfa_secret = NULL, mfa_pending_secret = NULL,
-         mfa_last_step = 0, mfa_exempt = 0, notify_email = 0, notify_prefs = NULL, last_seen_at = NULL,
+         mfa_last_step = 0, mfa_exempt = 0, mfa_exempt_by = NULL, mfa_exempt_at = NULL, notify_email = 0, notify_prefs = NULL, last_seen_at = NULL,
          terms_accepted_at = NULL, anonymized_at = ?
        WHERE id = ?`,
       [`utilisateur-supprime-${id}`, `n°${id}`, unusable, now, id]
@@ -136,6 +138,7 @@ async function exportUser(db, id) {
       terms_accepted_at: u.terms_accepted_at,
       anonymized_at: u.anonymized_at,
       double_authentication: Boolean(u.mfa_enabled),
+      double_authentication_declined: u.mfa_exempt ? { by: u.mfa_exempt_by === 'self' ? 'vous-même' : 'un administrateur', at: u.mfa_exempt_at } : null,
       email_notifications: Boolean(u.notify_email),
       notification_choices: prefs,
     },
@@ -150,6 +153,8 @@ async function exportUser(db, id) {
     assigned_requests: (await db.all('SELECT id, title, status FROM tickets WHERE assigned_to = ? ORDER BY id', [id])),
     attachments_uploaded: await db.all('SELECT ticket_id, original_name, size, created_at FROM attachments WHERE uploaded_by = ?', [id]),
     emails_sent: await db.all('SELECT created_at, event, subject, status FROM mail_log WHERE user_id = ? ORDER BY id', [id]),
+    trusted_browsers: await db.all('SELECT label, created_at, last_used_at, expires_at FROM trusted_devices WHERE user_id = ? ORDER BY id', [id]),
+    security_history: await db.all('SELECT type, detail, created_at FROM security_events WHERE user_id = ? ORDER BY id', [id]),
     data_requests: await db.all('SELECT type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id', [id]),
     impersonations: await db.all(
       `SELECT i.started_at, i.ended_at, a.username AS by_admin FROM impersonations i LEFT JOIN users a ON a.id = i.admin_id
@@ -204,6 +209,8 @@ async function runPurge(db, config, { now = new Date(), logger = console } = {})
       await db.run("DELETE FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])
     ).changes;
   }
+  // Navigateurs de confiance expirés : rien à garder.
+  await db.run('DELETE FROM trusted_devices WHERE expires_at < ?', [now.toISOString()]);
   // Corbeille : les demandes supprimées sont effacées définitivement (avec leurs fichiers) après le délai.
   const trashDays = settings.trashDays ?? 30;
   if (trashDays > 0) {

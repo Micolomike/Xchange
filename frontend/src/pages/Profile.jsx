@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiBell, FiDatabase, FiDownload, FiMonitor, FiShield, FiUsers } from 'react-icons/fi';
 import { exportFileName, saveJson } from '../lib/saveJson';
+import { trustedDevice } from '../lib/trustedDevice';
 import { THEMES } from '../lib/theme';
 import { useTheme } from '../lib/useTheme';
 import { useAuth } from '../auth/context';
@@ -11,6 +12,98 @@ import RecoveryCodes from '../components/RecoveryCodes';
 import { ROLES } from '../lib/constants';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Field, PageHeader } from '../components/ui';
+
+const SECURITY_EVENTS = {
+  mfa_declined: 'Double authentification refusée, risques acceptés',
+  mfa_enabled: 'Double authentification activée',
+  mfa_reset: 'Double authentification réinitialisée',
+  mfa_exempted: 'Dispense de double authentification',
+  mfa_exemption_removed: 'Double authentification exigée à nouveau',
+  device_trusted: 'Navigateur de confiance ajouté',
+  device_forgotten: 'Navigateur de confiance retiré',
+  devices_forgotten: 'Tous les navigateurs de confiance retirés',
+};
+
+/** Navigateurs de confiance et historique des choix de sécurité du compte. */
+function SecurityDetails({ user }) {
+  const [data, setData] = useState(null);
+  const load = () =>
+    api('/api/auth/me/security')
+      .then(setData)
+      .catch(() => {});
+  useEffect(() => {
+    load();
+  }, []);
+  if (!data) return null;
+
+  const forget = async (device) => {
+    try {
+      if (device) await api(`/api/auth/me/devices/${device.id}`, { method: 'DELETE' });
+      else {
+        await api('/api/auth/me/devices', { method: 'DELETE' });
+        trustedDevice.remove(user.username);
+      }
+      toast(device ? 'Navigateur retiré' : 'Tous les navigateurs ont été retirés');
+      load();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  return (
+    <div className="space-y-4 border-t border-line pt-4">
+      {user.mfa_enabled && (
+        <div>
+          <h3 className="font-semibold">Navigateurs de confiance</h3>
+          <p className="mt-1 text-sm text-ink-mute">
+            Le code n’y est pas demandé pendant {data.trustedDeviceDays} jours. Un changement de mot de passe les retire tous.
+          </p>
+          {data.devices.length === 0 ? (
+            <p className="mt-2 text-sm text-ink-soft">Aucun.</p>
+          ) : (
+            <>
+              <ul className="mt-2 divide-y divide-line rounded-md border border-line">
+                {data.devices.map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span>
+                      <span className="font-semibold">{d.label}</span>
+                      <span className="block text-xs text-ink-mute">
+                        Ajouté le {formatDateTime(d.created_at)}, dernière connexion le {formatDateTime(d.last_used_at || d.created_at)},
+                        jusqu’au {formatDateTime(d.expires_at)}
+                      </span>
+                    </span>
+                    <button type="button" className="btn btn-ghost py-1 text-sm" onClick={() => forget(d)}>
+                      Retirer
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn btn-secondary mt-2 text-sm" onClick={() => forget(null)}>
+                Retirer tous les navigateurs
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {data.events.length > 0 && (
+        <div>
+          <h3 className="font-semibold">Historique de sécurité</h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            {data.events.map((e, i) => (
+              <li key={i} className="flex flex-wrap gap-x-2">
+                <span className="text-ink-mute">{formatDateTime(e.created_at)}</span>
+                <span>
+                  {SECURITY_EVENTS[e.type] || e.type}
+                  {e.detail && e.type.startsWith('device') ? ` (${e.detail})` : ''}, par {e.by}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MfaSection({ user }) {
   const [left, setLeft] = useState(null);
@@ -49,11 +142,18 @@ function MfaSection({ user }) {
       </h2>
       {!user.mfa_enabled ? (
         <div className="space-y-3">
-          <p className="text-sm text-ink-soft">
-            {user.mfa_exempt
-              ? 'Un administrateur vous en a dispensé : le mot de passe suffit. Vous pouvez quand même l’activer.'
-              : 'Pas encore activée sur ce compte.'}
-          </p>
+          {user.mfa_exempt && user.mfa_exempt_by === 'self' ? (
+            <p className="rounded-md bg-progress-soft px-3 py-2 text-sm text-ink">
+              Vous avez choisi{user.mfa_exempt_at ? ` le ${formatDateTime(user.mfa_exempt_at)}` : ''} de ne pas utiliser la double
+              authentification. Votre mot de passe est la seule protection de votre compte.
+            </p>
+          ) : (
+            <p className="text-sm text-ink-soft">
+              {user.mfa_exempt
+                ? 'Un administrateur vous en a dispensé : le mot de passe suffit. Vous pouvez quand même l’activer.'
+                : 'Pas encore activée sur ce compte.'}
+            </p>
+          )}
           <Link to="/double-authentification" className="btn btn-primary">
             Activer la double authentification
           </Link>
@@ -100,6 +200,7 @@ function MfaSection({ user }) {
           )}
         </>
       )}
+      <SecurityDetails user={user} />
     </section>
   );
 }

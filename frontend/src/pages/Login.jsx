@@ -7,8 +7,9 @@ import { toast } from '../lib/notify';
 
 /** Deuxième étape : code de l'appli d'authentification, ou code de secours. */
 function CodeStep({ from }) {
-  const { challenge, verifyMfa, cancelChallenge } = useAuth();
+  const { challenge, verifyMfa, cancelChallenge, trustedDeviceDays } = useAuth();
   const [recovery, setRecovery] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +23,7 @@ function CodeStep({ from }) {
     setError(null);
     setSubmitting(true);
     try {
-      const data = await verifyMfa(code.trim());
+      const data = await verifyMfa(code.trim(), remember);
       if (data.usedRecoveryCode) {
         toast(
           `Code de secours utilisé : il vous en reste ${data.recoveryCodesLeft}. Pensez à en générer de nouveaux dans « Mon compte ».`,
@@ -70,6 +71,13 @@ function CodeStep({ from }) {
             />
           )}
         </Field>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-0.5 size-4" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          <span>
+            Faire confiance à ce navigateur pendant {trustedDeviceDays} jours
+            <span className="block text-xs text-ink-mute">Le code ne sera plus demandé ici. À ne pas cocher sur un ordinateur partagé.</span>
+          </span>
+        </label>
         {error && (
           <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
             {error}

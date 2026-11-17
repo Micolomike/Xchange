@@ -52,6 +52,8 @@ function publicUser(row) {
     role: row.role,
     mfa_enabled: Boolean(row.mfa_enabled),
     mfa_exempt: Boolean(row.mfa_exempt),
+    mfa_exempt_by: row.mfa_exempt ? row.mfa_exempt_by || 'admin' : null,
+    mfa_exempt_at: row.mfa_exempt ? row.mfa_exempt_at || null : null,
     notify_email: row.notify_email === undefined ? true : Boolean(row.notify_email),
     notify_prefs: parseNotifyPrefs(row.notify_prefs),
     terms_accepted_at: row.terms_accepted_at || null,

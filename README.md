@@ -76,6 +76,10 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Administration > Paramètres > Notifications : état de l'envoi et statistiques sur 7 jours, interrupteur général, chaque événement activable avec aperçu de l'e-mail, statuts qui déclenchent un e-mail, nom d'expéditeur, début de l'objet, contenu détaillé ou non, texte de bas de page, adresse publique pour les liens, comptes sans adresse e-mail, journal des 100 derniers envois et e-mail de test vers n'importe quelle adresse.
 - « Mon compte » : chacun coupe tout ou choisit ce qu'il reçoit (ses demandes, demandes confiées, messages sur ce qu'il traite, nouvelles demandes de ses groupes, adhésions à valider pour les administrateurs).
 
+**Double authentification au choix**
+- À l'inscription ou à la première connexion, une personne (pas un administrateur) peut refuser la double authentification : les risques sont expliqués, une case doit être cochée, et le choix est enregistré sur son compte avec sa date (« Refusée par la personne » dans la liste des utilisateurs, distinct d'une dispense donnée par un administrateur). Elle peut l'activer plus tard dans « Mon compte ».
+- « Faire confiance à ce navigateur pendant 30 jours » à la saisie du code (`TRUSTED_DEVICE_DAYS`, 1 à 90). Le mot de passe reste demandé ; la confiance tombe à l'expiration, au changement de mot de passe ou à la réinitialisation de la double authentification. « Mon compte » liste les navigateurs de confiance (retrait un par un ou tous) et l'historique de sécurité du compte.
+
 **RGPD** (Administration > Paramètres > RGPD)
 - Données d'une personne : recherche d'un compte, export JSON de toutes ses données, anonymisation irréversible en conservant ses demandes (signées « Utilisateur supprimé n°X ») ou en les supprimant. Identité, e-mail, mot de passe, double authentification, sessions, pièces jointes déposées, groupes, demandes d'adhésion et journaux la concernant sont effacés dans les deux cas.
 - Conservation : anonymisation automatique des comptes inactifs (24 mois par défaut, jamais les administrateurs) et suppression des journaux anciens (12 mois), une fois par jour ; aperçu de la prochaine purge et lancement manuel.
@@ -127,6 +131,7 @@ Toutes les variables sont facultatives ; voir `backend/.env.example`.
 | `MFA_REQUIRED` | `false` pour rendre la double authentification facultative (activable depuis « Mon compte ») | `true` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | Serveur d'envoi des notifications ; sans `SMTP_HOST`, aucun e-mail n'est envoyé. SSL/TLS direct si le port est 465 | port `465` |
 | `SMTP_USER` / `SMTP_PASSWORD` | Identifiant (adresse complète) et mot de passe de la boîte d'envoi | |
+| `TRUSTED_DEVICE_DAYS` | Jours sans code de double authentification sur un navigateur de confiance (1 à 90) | `30` |
 | `MAIL_FROM` | Expéditeur affiché | `SMTP_USER` |
 | `APP_URL` | Adresse publique d'Xchange pour les liens des e-mails (modifiable aussi dans Administration > Paramètres) | |
 | `BACKUP_TARGETS` | Dossiers proposés pour la sauvegarde écrite par le serveur, séparés par des virgules (en plus des lecteurs Windows) | |

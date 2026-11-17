@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const { logSecurity } = require('../security');
 const bcrypt = require('bcryptjs');
 const { HttpError, publicUser, validateUserInput, parseId, nowIso, displayName } = require('../utils');
 const { signImpersonationToken } = require('../middleware/auth');
@@ -18,6 +19,7 @@ async function resetMfa(db, row) {
     [(row.token_version || 0) + 1, row.id]
   );
   await db.run('DELETE FROM mfa_recovery_codes WHERE user_id = ?', [row.id]);
+  await db.run('DELETE FROM trusted_devices WHERE user_id = ?', [row.id]);
 }
 
 async function countAdmins(db) {
@@ -122,6 +124,7 @@ function userRoutes({ db, config }) {
     const row = await db.get('SELECT * FROM users WHERE id = ?', [id]);
     if (!row) throw new HttpError(404, 'Utilisateur introuvable.');
     await resetMfa(db, row);
+    await logSecurity(db, id, 'mfa_reset', { actorId: req.user.id });
     res.json({ success: true });
   });
 
@@ -136,7 +139,13 @@ function userRoutes({ db, config }) {
     if (typeof exempt !== 'boolean') throw new HttpError(400, 'Indiquez exempt : true ou false.');
     if (exempt) await resetMfa(db, row);
     else await db.run('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [id]);
-    await db.run('UPDATE users SET mfa_exempt = ? WHERE id = ?', [exempt ? 1 : 0, id]);
+    await db.run('UPDATE users SET mfa_exempt = ?, mfa_exempt_by = ?, mfa_exempt_at = ? WHERE id = ?', [
+      exempt ? 1 : 0,
+      exempt ? 'admin' : null,
+      exempt ? nowIso() : null,
+      id,
+    ]);
+    await logSecurity(db, id, exempt ? 'mfa_exempted' : 'mfa_exemption_removed', { actorId: req.user.id });
     res.json(publicUser(await db.get('SELECT * FROM users WHERE id = ?', [id])));
   });
 

@@ -305,8 +305,12 @@ export default function UsersPanel() {
                 <td className="whitespace-nowrap px-5 py-3">
                   {u.mfa_enabled ? (
                     <span className="font-semibold text-resolved">Activée</span>
+                  ) : u.mfa_exempt && u.mfa_exempt_by === 'self' ? (
+                    <span className="font-semibold text-progress" title={u.mfa_exempt_at ? `Choix de la personne, le ${formatDate(u.mfa_exempt_at)}` : 'Choix de la personne'}>
+                      Refusée par la personne
+                    </span>
                   ) : u.mfa_exempt ? (
-                    <span className="font-semibold text-progress">Dispensé</span>
+                    <span className="font-semibold text-progress">Dispensé (admin)</span>
                   ) : (
                     <span className="text-ink-mute">À configurer</span>
                   )}

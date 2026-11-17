@@ -171,6 +171,26 @@ CREATE TABLE IF NOT EXISTS rgpd_requests (
   handled_by INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS trusted_devices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL DEFAULT '',
+  token_version INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS security_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -202,6 +222,8 @@ const ADDED_COLUMNS = {
     last_seen_at: 'TEXT',
     anonymized_at: 'TEXT',
     terms_accepted_at: 'TEXT',
+    mfa_exempt_by: 'TEXT',
+    mfa_exempt_at: 'TEXT',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",
@@ -242,6 +264,8 @@ CREATE INDEX IF NOT EXISTS idx_tickets_group ON tickets(assigned_group);
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON group_requests(status);
 CREATE INDEX IF NOT EXISTS idx_mail_log_created ON mail_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_trusted_user ON trusted_devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_user ON security_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_recovery_user ON mfa_recovery_codes(user_id);
 `;
 
@@ -268,6 +292,7 @@ async function normalizeLegacyData(db) {
     UPDATE tickets SET created_at = COALESCE(created_at, datetime('now')) WHERE created_at IS NULL;
     UPDATE tickets SET updated_at = created_at WHERE updated_at IS NULL;
     UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');
+    UPDATE users SET mfa_exempt_by = 'admin' WHERE mfa_exempt = 1 AND mfa_exempt_by IS NULL;
     -- Comptes antérieurs au suivi de connexion : considérés actifs aujourd'hui, pour ne pas les purger à tort.
     UPDATE users SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE last_seen_at IS NULL AND anonymized_at IS NULL;
   `);

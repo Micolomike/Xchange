@@ -9,6 +9,7 @@ const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PR
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
 const mfa = require('../mfa');
+const { logSecurity, trustDevice, checkTrustedDevice } = require('../security');
 const { requestGroups } = require('./groups');
 
 // Haché factice : rend le temps de réponse identique que l'utilisateur existe ou non.
@@ -105,7 +106,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const joinableGroups = config.allowRegistration
       ? await db.all('SELECT id, name, description FROM user_groups WHERE joinable = 1 ORDER BY name COLLATE NOCASE')
       : [];
-    res.json({ registrationOpen: config.allowRegistration, joinableGroups });
+    res.json({ registrationOpen: config.allowRegistration, joinableGroups, trustedDeviceDays: config.trustedDeviceDays });
   });
 
   router.post('/register', limiter, async (req, res) => {
@@ -155,7 +156,11 @@ function authRoutes({ db, config, authenticate, notifier }) {
       throw new HttpError(401, 'Identifiants invalides.');
     }
     guard.succeed(username);
-    res.json(afterPassword(row));
+    // Navigateur de confiance : pas de code demandé jusqu'à l'expiration.
+    if (row.mfa_enabled && (await checkTrustedDevice(db, row, req.body.deviceToken))) {
+      return res.json({ token: signToken(row, config, { mfa: true }), user: publicUser(row), trustedDevice: true });
+    }
+    res.json({ ...afterPassword(row), ...(req.body.deviceToken ? { deviceRejected: true } : {}) });
   });
 
   // Deuxième étape de la connexion : code de l'appli, ou code de secours.
@@ -182,12 +187,35 @@ function authRoutes({ db, config, authenticate, notifier }) {
       usedRecoveryCode = true;
     }
     codeGuard.succeed(key);
+    const device = body.remember === true ? await trustDevice(db, row, { days: config.trustedDeviceDays, userAgent: req.get('user-agent') }) : null;
     res.json({
       token: signToken(row, config, { mfa: true }),
       user: publicUser(row),
       usedRecoveryCode,
       recoveryCodesLeft: await recoveryCodesLeft(row.id),
+      ...(device ? { deviceToken: device.token, deviceExpiresAt: device.expiresAt } : {}),
     });
+  });
+
+  // Refus de la double authentification par la personne elle-même, en connaissance des risques (tracé).
+  // Les administrateurs ne peuvent pas refuser : leur compte donne accès à tout.
+  router.post('/mfa/decline', limiter, async (req, res) => {
+    const row = await setupUser(req);
+    if (row.mfa_enabled) throw new HttpError(400, 'La double authentification est déjà activée sur ce compte.');
+    if (row.role === 'admin') {
+      throw new HttpError(403, 'Un compte administrateur doit utiliser la double authentification : il donne accès à toutes les données.');
+    }
+    if ((req.body || {}).acknowledge !== true) {
+      throw new HttpError(400, 'Cochez la case pour confirmer que vous avez compris les risques.', { acknowledge: 'Obligatoire.' });
+    }
+    const now = nowIso();
+    await db.run(
+      "UPDATE users SET mfa_exempt = 1, mfa_exempt_by = 'self', mfa_exempt_at = ?, mfa_pending_secret = NULL WHERE id = ?",
+      [now, row.id]
+    );
+    await logSecurity(db, row.id, 'mfa_declined', { actorId: row.id, detail: 'Risques affichés et acceptés par la personne' });
+    const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
+    res.json({ token: signToken(updated, config, { mfa: false }), user: publicUser(updated) });
   });
 
   // Configuration de l'appli : 1) secret + QR code, 2) confirmation par un premier code.
@@ -216,9 +244,11 @@ function authRoutes({ db, config, authenticate, notifier }) {
     }
     codeGuard.succeed(key);
     await db.run(
-      'UPDATE users SET mfa_enabled = 1, mfa_secret = mfa_pending_secret, mfa_pending_secret = NULL, mfa_last_step = ? WHERE id = ?',
+      `UPDATE users SET mfa_enabled = 1, mfa_secret = mfa_pending_secret, mfa_pending_secret = NULL, mfa_last_step = ?,
+         mfa_exempt = 0, mfa_exempt_by = NULL, mfa_exempt_at = NULL WHERE id = ?`,
       [step, row.id]
     );
+    await logSecurity(db, row.id, 'mfa_enabled', { actorId: row.id });
     const recoveryCodes = await newRecoveryCodes(row.id);
     const updated = await db.get('SELECT * FROM users WHERE id = ?', [row.id]);
     res.json({ token: signToken(updated, config, { mfa: true }), user: publicUser(updated), recoveryCodes });
@@ -285,6 +315,43 @@ function authRoutes({ db, config, authenticate, notifier }) {
     ]);
     notifier?.rgpdRequested(lastID);
     res.status(201).json({ id: lastID, type, message, status: 'pending', response: '', created_at: now, due_at: dueDate(now) });
+  });
+
+  // Navigateurs de confiance (connexion sans code pendant quelques jours) et journal de sécurité du compte.
+  router.get('/me/security', authenticate, forbidImpersonation, async (req, res) => {
+    const devices = await db.all(
+      `SELECT id, label, created_at, last_used_at, expires_at FROM trusted_devices
+       WHERE user_id = ? AND expires_at > ? AND token_version = (SELECT token_version FROM users WHERE id = ?) ORDER BY id DESC`,
+      [req.user.id, nowIso(), req.user.id]
+    );
+    const events = await db.all(
+      `SELECT e.type, e.detail, e.created_at, e.actor_id, a.username, a.firstname, a.lastname FROM security_events e
+       LEFT JOIN users a ON a.id = e.actor_id WHERE e.user_id = ? ORDER BY e.id DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({
+      trustedDeviceDays: config.trustedDeviceDays,
+      devices,
+      events: events.map((e) => ({
+        type: e.type,
+        detail: e.detail,
+        created_at: e.created_at,
+        by: e.actor_id === req.user.id ? 'vous' : e.username ? displayName(e) : 'un administrateur',
+      })),
+    });
+  });
+
+  router.delete('/me/devices/:id', authenticate, forbidImpersonation, async (req, res) => {
+    const { changes } = await db.run('DELETE FROM trusted_devices WHERE id = ? AND user_id = ?', [Number(req.params.id), req.user.id]);
+    if (!changes) throw new HttpError(404, 'Navigateur introuvable.');
+    await logSecurity(db, req.user.id, 'device_forgotten', { actorId: req.user.id });
+    res.json({ success: true });
+  });
+
+  router.delete('/me/devices', authenticate, forbidImpersonation, async (req, res) => {
+    await db.run('DELETE FROM trusted_devices WHERE user_id = ?', [req.user.id]);
+    await logSecurity(db, req.user.id, 'devices_forgotten', { actorId: req.user.id });
+    res.json({ success: true });
   });
 
   // Acceptation de la charte par un compte créé avant qu'elle existe (ou par un administrateur).

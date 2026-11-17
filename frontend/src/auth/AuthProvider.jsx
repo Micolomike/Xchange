@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { trustedDevice } from '../lib/trustedDevice';
 import { api, impersonation, setUnauthorizedHandler, tokenStore } from '../lib/api';
 import { AuthContext } from './context';
 
@@ -10,6 +11,7 @@ export default function AuthProvider({ children }) {
   const [joinableGroups, setJoinableGroups] = useState([]);
   // Étape intermédiaire après le mot de passe : { kind: 'mfa' | 'setup', token, user }.
   const [challenge, setChallenge] = useState(null);
+  const [trustedDeviceDays, setTrustedDeviceDays] = useState(30);
 
   const clearSession = useCallback(() => {
     // Fin (ou expiration) d'une prise de contrôle : retour à la session de l'administrateur.
@@ -49,6 +51,7 @@ export default function AuthProvider({ children }) {
       .then((cfg) => {
         setRegistrationOpen(cfg.registrationOpen);
         setJoinableGroups(cfg.joinableGroups || []);
+        setTrustedDeviceDays(cfg.trustedDeviceDays || 30);
       })
       .catch(() => {});
   }, [clearSession, loadSession]);
@@ -85,8 +88,12 @@ export default function AuthProvider({ children }) {
   );
 
   const login = useCallback(
-    async (username, password) =>
-      afterPassword(await api('/api/auth/login', { method: 'POST', body: { username, password }, auth: false })),
+    async (username, password) => {
+      const deviceToken = trustedDevice.get(username);
+      const data = await api('/api/auth/login', { method: 'POST', body: { username, password, deviceToken }, auth: false });
+      if (data.deviceRejected) trustedDevice.remove(username);
+      return afterPassword(data);
+    },
     [afterPassword]
   );
 
@@ -96,12 +103,13 @@ export default function AuthProvider({ children }) {
   );
 
   const verifyMfa = useCallback(
-    async (code) => {
+    async (code, remember = false) => {
       const data = await api('/api/auth/mfa/verify', {
         method: 'POST',
-        body: { mfaToken: challenge?.token, code },
+        body: { mfaToken: challenge?.token, code, remember },
         auth: false,
       });
+      if (data.deviceToken) trustedDevice.set(data.user.username, data.deviceToken, data.deviceExpiresAt);
       openSession(data);
       return data;
     },
@@ -124,6 +132,17 @@ export default function AuthProvider({ children }) {
         ? api('/api/auth/mfa/setup/confirm', { method: 'POST', body: { setupToken: challenge.token, code }, auth: false })
         : api('/api/auth/mfa/setup/confirm', { method: 'POST', body: { code } }),
     [challenge]
+  );
+
+  /** Refus de la double authentification, risques acceptés : la session s'ouvre sans code. */
+  const declineMfa = useCallback(
+    async () =>
+      openSession(
+        challenge?.kind === 'setup'
+          ? await api('/api/auth/mfa/decline', { method: 'POST', body: { setupToken: challenge.token, acknowledge: true }, auth: false })
+          : await api('/api/auth/mfa/decline', { method: 'POST', body: { acknowledge: true } })
+      ),
+    [challenge, openSession]
   );
 
   const cancelChallenge = useCallback(() => setChallenge(null), []);
@@ -163,6 +182,7 @@ export default function AuthProvider({ children }) {
       canCreate: Boolean(user) && (user.role === 'admin' || user.access?.rights?.create !== false),
       registrationOpen,
       joinableGroups,
+      trustedDeviceDays,
       challenge,
       login,
       register,
@@ -171,6 +191,7 @@ export default function AuthProvider({ children }) {
       confirmMfaSetup,
       finishMfaSetup: openSession,
       cancelChallenge,
+      declineMfa,
       logout,
       impersonate,
       stopImpersonating,
@@ -183,6 +204,7 @@ export default function AuthProvider({ children }) {
       status,
       registrationOpen,
       joinableGroups,
+      trustedDeviceDays,
       challenge,
       login,
       register,
@@ -191,6 +213,7 @@ export default function AuthProvider({ children }) {
       confirmMfaSetup,
       openSession,
       cancelChallenge,
+      declineMfa,
       logout,
       impersonate,
       stopImpersonating,

@@ -53,6 +53,8 @@ function loadConfig(env = process.env) {
     // Verrouillage d'un compte après trop d'échecs de connexion, indépendant de l'adresse IP.
     // Double authentification (code d'application) obligatoire pour tous les comptes.
     mfaRequired: bool(env.MFA_REQUIRED, true),
+    // « Faire confiance à ce navigateur » : jours sans code de double authentification.
+    trustedDeviceDays: Math.min(Math.max(Number(env.TRUSTED_DEVICE_DAYS) || 30, 1), 90),
     // Envoi des notifications par e-mail (SMTP). Sans SMTP_HOST, rien n'est envoyé.
     smtp: env.SMTP_HOST
       ? {

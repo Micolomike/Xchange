@@ -25,11 +25,11 @@ const PRIVACY_POLICY = `## Qui est responsable de vos données ?
 
 ## Quelles données, et pourquoi ?
 Xchange sert à demander de l'aide et à en proposer. Nous traitons :
-- votre compte : identifiant, prénom, nom, adresse e-mail, mot de passe (stocké sous une forme hachée, illisible), réglages de double authentification, préférences de notification, date d'acceptation de la charte ;
+- votre compte : identifiant, prénom, nom, adresse e-mail, mot de passe (stocké sous une forme hachée, illisible), réglages de double authentification (y compris, le cas échéant, votre choix de ne pas l'utiliser et sa date), navigateurs de confiance, préférences de notification, date d'acceptation de la charte ;
 - vos demandes et messages, vos réponses aux formulaires, leurs pièces jointes et l'historique de leur traitement ;
 - vos groupes et vos demandes pour rejoindre un groupe ;
 - vos demandes concernant vos données personnelles ;
-- des journaux techniques : e-mails de notification envoyés, actions faites par un administrateur à votre place, date de votre dernière activité.
+- des journaux techniques : historique de sécurité de votre compte, e-mails de notification envoyés, actions faites par un administrateur à votre place, date de votre dernière activité.
 
 Ces données servent uniquement à faire fonctionner Xchange. Elles ne sont ni vendues, ni utilisées à des fins publicitaires, ni soumises à un profilage.
 
@@ -59,6 +59,8 @@ Sur l'ordinateur de l'éditeur, en France, et dans ses sauvegardes.
 - vos demandes et messages : tant que votre compte existe, puis sans votre nom, sauf si vous demandez leur suppression ;
 - une demande supprimée : {{trashDays}} dans la corbeille, puis effacée définitivement avec ses pièces jointes ;
 - les journaux techniques et les demandes d'adhésion déjà traitées : {{logMonths}} ;
+- l'historique de sécurité de votre compte : tant que votre compte existe ;
+- un navigateur de confiance : 30 jours au plus, ou jusqu'à ce que vous le retiriez ou changiez de mot de passe ;
 - vos demandes concernant vos données : gardées pour prouver qu'elles ont été traitées, sans votre nom une fois votre compte anonymisé ;
 - les sauvegardes : seules les plus récentes sont gardées ; une donnée effacée en disparaît à leur renouvellement.
 
@@ -80,7 +82,7 @@ Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une 
 Connexion chiffrée (HTTPS), double authentification, mots de passe hachés, droits d'accès par groupe, sauvegardes régulières. En cas de violation de données, la CNIL est prévenue dans les délais légaux, et vous êtes informé si le risque pour vous est élevé.
 
 ## Cookies
-Xchange n'utilise ni cookie publicitaire ni mesure d'audience, et ne charge aucun service extérieur. Le navigateur garde seulement votre session de connexion et votre choix de thème, nécessaires au fonctionnement du site.`;
+Xchange n'utilise ni cookie publicitaire ni mesure d'audience, et ne charge aucun service extérieur. Le navigateur garde seulement votre session de connexion, votre choix de thème et, si vous le demandez à la connexion, un identifiant de navigateur de confiance (30 jours au plus). Ces informations sont nécessaires au fonctionnement du site.`;
 
 const CHARTER = `## Le principe
 Xchange met en relation des personnes qui cherchent de l'aide et des personnes qui veulent aider. L'aide est bénévole, gratuite et sans garantie de résultat.
