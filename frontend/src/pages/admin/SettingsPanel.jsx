@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { FiArrowDown, FiArrowUp, FiPlus, FiTrash2, FiUpload } from 'react-icons/fi';
 import { api } from '../../lib/api';
@@ -619,9 +620,18 @@ function MailSection() {
   );
 }
 
+const SECTIONS = [
+  { value: 'droits', label: 'Droits' },
+  { value: 'notifications', label: 'Notifications' },
+  { value: 'listes', label: 'Catégories et priorités' },
+  { value: 'apparence', label: 'Apparence' },
+];
+
 export default function SettingsPanel() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const current = SECTIONS.some((s) => s.value === params.get('section')) ? params.get('section') : 'droits';
 
   const load = () => {
     setError(null);
@@ -631,12 +641,39 @@ export default function SettingsPanel() {
 
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <Spinner />;
+  // Toutes les sections restent montées (masquées) : un changement d'onglet ne perd pas une saisie en cours.
   return (
-    <div className="space-y-6">
-      <AccessSection categories={data.categories} />
-      <MailSection />
-      <ListsSection initial={data} />
-      <AppearanceSection initial={data} />
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Paramètres">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.value}
+            id={`settings-tab-${s.value}`}
+            type="button"
+            role="tab"
+            aria-selected={current === s.value}
+            aria-controls={`settings-panel-${s.value}`}
+            onClick={() => setParams({ tab: 'settings', ...(s.value === 'droits' ? {} : { section: s.value }) }, { replace: true })}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+              current === s.value ? 'bg-accent text-white' : 'bg-paper text-ink-soft ring-1 ring-line hover:text-ink'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div id="settings-panel-droits" role="tabpanel" aria-labelledby="settings-tab-droits" hidden={current !== 'droits'}>
+        <AccessSection categories={data.categories} />
+      </div>
+      <div id="settings-panel-notifications" role="tabpanel" aria-labelledby="settings-tab-notifications" hidden={current !== 'notifications'}>
+        <MailSection />
+      </div>
+      <div id="settings-panel-listes" role="tabpanel" aria-labelledby="settings-tab-listes" hidden={current !== 'listes'}>
+        <ListsSection initial={data} />
+      </div>
+      <div id="settings-panel-apparence" role="tabpanel" aria-labelledby="settings-tab-apparence" hidden={current !== 'apparence'}>
+        <AppearanceSection initial={data} />
+      </div>
     </div>
   );
 }

@@ -418,6 +418,12 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
   await expect(page.getByLabel('Tickets visibles : Support informatique')).toHaveValue('all');
   await expect(page.getByLabel('Supprimer : Support informatique')).toBeChecked();
 
+  await page.getByRole('tab', { name: 'Notifications' }).click();
+  await expect(page).toHaveURL(/section=notifications/);
+  await expect(page.getByText('Non configuré')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enregistrer les droits' })).toBeHidden();
+
+  await page.getByRole('tab', { name: 'Catégories et priorités' }).click();
   await page.getByRole('button', { name: 'Ajouter une catégorie' }).click();
   await page.getByLabel('Nom de la catégorie 4').fill('Matériel');
   await page.getByLabel('Nom de la priorité 1').fill('Urgente');
@@ -426,6 +432,7 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
   await page.getByRole('button', { name: 'Enregistrer les listes' }).click();
   await expect(page.getByText('Listes enregistrées')).toBeVisible();
 
+  await page.getByRole('tab', { name: 'Apparence' }).click();
   await page.fill('#set-name', 'Helpdesk Magna');
   await page.fill('#set-color', '#ffd700');
   await page.getByRole('button', { name: "Enregistrer l'apparence" }).click();
