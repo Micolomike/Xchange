@@ -20,6 +20,7 @@ const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings
 const { legalPublicRoutes, rgpdAdminRoutes } = require('./routes/rgpd');
 const { assistantRoutes, assistantAdminRoutes } = require('./routes/assistant');
 const { chatRoutes, chatAdminRoutes } = require('./routes/chat');
+const { analyticsRoutes, analyticsAdminRoutes } = require('./routes/analytics');
 const { createHub } = require('./chat');
 const { createMailer } = require('./mailer');
 const { createNotifier } = require('./notifications');
@@ -57,6 +58,23 @@ function createApp({ db, config, logger = console }) {
   const hub = createHub({ logger });
   app.locals.chatHub = hub;
 
+  // Tableaux de bord en direct : après chaque modification de demande, un simple signal (sans contenu)
+  // est envoyé aux navigateurs connectés, qui recalculent leurs blocs avec leurs propres droits.
+  let pingTimer = null;
+  app.use(['/api/tickets', '/api/catalog', '/api/admin/trash', '/api/attachments'], (req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        if (res.statusCode >= 400 || pingTimer) return;
+        pingTimer = setTimeout(() => {
+          pingTimer = null;
+          hub.send(hub.connected(), 'tickets', { at: new Date().toISOString() });
+        }, 1000);
+        pingTimer.unref?.();
+      });
+    }
+    next();
+  });
+
   const indexHtml = path.join(config.frontendDir, 'index.html');
   const serveFrontend = config.serveFrontend && fs.existsSync(indexHtml);
   if (config.serveFrontend && !serveFrontend) {
@@ -87,6 +105,8 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/assistant', auth, assistantRoutes({ db }));
   app.use('/api/admin/assistant', auth, requireAdmin, assistantAdminRoutes({ db }));
   app.use('/api/chat', auth, chatRoutes({ db, hub, notifier }));
+  app.use('/api/analytics', auth, analyticsRoutes({ db, mailer }));
+  app.use('/api/admin/analytics', auth, requireAdmin, analyticsAdminRoutes({ db }));
   app.use('/api/admin/chat', auth, requireAdmin, chatAdminRoutes({ db, hub }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));

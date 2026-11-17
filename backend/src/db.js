@@ -262,6 +262,81 @@ CREATE TABLE IF NOT EXISTS chat_reports (
   handled_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  definition TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'private',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS report_shares (
+  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (report_id, group_id)
+);
+
+CREATE TABLE IF NOT EXISTS report_schedules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  frequency TEXT NOT NULL,
+  weekday INTEGER,
+  monthday INTEGER,
+  time TEXT NOT NULL,
+  include_self INTEGER NOT NULL DEFAULT 1,
+  skip_empty INTEGER NOT NULL DEFAULT 0,
+  message TEXT NOT NULL DEFAULT '',
+  active INTEGER NOT NULL DEFAULT 1,
+  disabled_reason TEXT,
+  next_run_at TEXT,
+  last_run_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS report_schedule_users (
+  schedule_id INTEGER NOT NULL REFERENCES report_schedules(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (schedule_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS report_schedule_groups (
+  schedule_id INTEGER NOT NULL REFERENCES report_schedules(id) ON DELETE CASCADE,
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (schedule_id, group_id)
+);
+
+CREATE TABLE IF NOT EXISTS report_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  schedule_id INTEGER NOT NULL REFERENCES report_schedules(id) ON DELETE CASCADE,
+  ran_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  sent INTEGER NOT NULL DEFAULT 0,
+  skipped TEXT NOT NULL DEFAULT '[]',
+  error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dashboards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  widgets TEXT NOT NULL DEFAULT '[]',
+  filters TEXT NOT NULL DEFAULT '{}',
+  visibility TEXT NOT NULL DEFAULT 'private',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_shares (
+  dashboard_id INTEGER NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  group_id INTEGER NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+  PRIMARY KEY (dashboard_id, group_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

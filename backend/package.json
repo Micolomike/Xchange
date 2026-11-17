@@ -1,6 +1,6 @@
 {
   "name": "xchange-backend",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "API REST de Xchange : gestion de tickets (Express + SQLite)",
   "main": "index.js",

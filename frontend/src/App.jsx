@@ -23,6 +23,11 @@ import CatalogForm from './pages/CatalogForm';
 import FormBuilder from './pages/admin/FormBuilder';
 import NotFound from './pages/NotFound';
 import Discussions from './pages/Discussions';
+import Dashboards from './pages/analytics/Dashboards';
+import DashboardView from './pages/analytics/DashboardView';
+import Reports from './pages/analytics/Reports';
+import ReportView from './pages/analytics/ReportView';
+import ReportEditor from './pages/analytics/ReportEditor';
 
 export default function App() {
   return (
@@ -53,6 +58,13 @@ export default function App() {
             <Route path="/catalogue/:id" element={<RequireAuth><CatalogForm /></RequireAuth>} />
             <Route path="/discussions" element={<RequireAuth><Discussions /></RequireAuth>} />
             <Route path="/discussions/:id" element={<RequireAuth><Discussions /></RequireAuth>} />
+            <Route path="/analyses" element={<Navigate to="/analyses/tableaux" replace />} />
+            <Route path="/analyses/tableaux" element={<RequireAuth><Dashboards /></RequireAuth>} />
+            <Route path="/analyses/tableaux/:id" element={<RequireAuth><DashboardView /></RequireAuth>} />
+            <Route path="/analyses/rapports" element={<RequireAuth><Reports /></RequireAuth>} />
+            <Route path="/analyses/rapports/nouveau" element={<RequireAuth><ReportEditor /></RequireAuth>} />
+            <Route path="/analyses/rapports/:id" element={<RequireAuth><ReportView /></RequireAuth>} />
+            <Route path="/analyses/rapports/:id/modifier" element={<RequireAuth><ReportEditor /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
             <Route path="/admin/catalogue/:id" element={<RequireAuth admin><FormBuilder /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />

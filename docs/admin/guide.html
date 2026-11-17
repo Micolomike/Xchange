@@ -73,14 +73,15 @@
     <li><span class="n">5</span>Le catalogue de formulaires<span class="d">Constructeur, règles d'affichage, publication</span></li>
     <li><span class="n">6</span>Le suivi des demandes<span class="d">Statuts, affectation, corbeille</span></li>
     <li><span class="n">7</span>Assistant et discussions<span class="d">Assistant guidé, discussions en direct, signalements</span></li>
-    <li><span class="n">8</span>Catégories, priorités et apparence<span class="d">Listes, délais, logo, couleurs, page d'accueil</span></li>
-    <li><span class="n">9</span>Les notifications par e-mail<span class="d">Configuration, événements, journal, dépannage</span></li>
-    <li><span class="n">10</span>RGPD<span class="d">Demandes des personnes, anonymisation, purge, textes juridiques, charte</span></li>
-    <li><span class="n">11</span>Sécurité des connexions<span class="d">Double authentification, navigateurs de confiance, blocages</span></li>
-    <li><span class="n">12</span>Sauvegardes et restauration<span class="d">Automatiques, à la demande, remise en état</span></li>
-    <li><span class="n">13</span>Le PC qui héberge Xchange<span class="d">Scripts, fichier de configuration, journaux, accès Internet</span></li>
-    <li><span class="n">14</span>Dépannage<span class="d">Les problèmes courants et leur solution</span></li>
-    <li><span class="n">15</span>Routine de l'administrateur<span class="d">Ce qu'il faut vérifier chaque semaine et chaque mois</span></li>
+    <li><span class="n">8</span>Analyses<span class="d">Rapports, envois programmés par e-mail, tableaux de bord en direct</span></li>
+    <li><span class="n">9</span>Catégories, priorités et apparence<span class="d">Listes, délais, logo, couleurs, page d'accueil</span></li>
+    <li><span class="n">10</span>Les notifications par e-mail<span class="d">Configuration, événements, journal, dépannage</span></li>
+    <li><span class="n">11</span>RGPD<span class="d">Demandes des personnes, anonymisation, purge, textes juridiques, charte</span></li>
+    <li><span class="n">12</span>Sécurité des connexions<span class="d">Double authentification, navigateurs de confiance, blocages</span></li>
+    <li><span class="n">13</span>Sauvegardes et restauration<span class="d">Automatiques, à la demande, remise en état</span></li>
+    <li><span class="n">14</span>Le PC qui héberge Xchange<span class="d">Scripts, fichier de configuration, journaux, accès Internet</span></li>
+    <li><span class="n">15</span>Dépannage<span class="d">Les problèmes courants et leur solution</span></li>
+    <li><span class="n">16</span>Routine de l'administrateur<span class="d">Ce qu'il faut vérifier chaque semaine et chaque mois</span></li>
   </ol>
 </section>
 
@@ -91,7 +92,7 @@
   <h3>Les garde-fous</h3>
   <ul>
     <li>Le premier compte créé devient administrateur. Le dernier administrateur ne peut être ni supprimé, ni rétrogradé, ni anonymisé.</li>
-    <li>Un administrateur doit utiliser la double authentification : il ne peut pas la refuser (voir chapitre 11).</li>
+    <li>Un administrateur doit utiliser la double authentification : il ne peut pas la refuser (voir chapitre 12).</li>
     <li>Vos actions sont tracées : prises de contrôle, réponses aux demandes RGPD, dispenses de double authentification, modifications de la charte.</li>
   </ul>
   <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient sept onglets : Utilisateurs, Groupes, Catalogue, Signalements, Corbeille, Sauvegardes et Paramètres. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
@@ -127,7 +128,7 @@
     <li>Chaque prise de contrôle est journalisée et visible par la personne dans « Mon compte ».</li>
   </ul>
   <h3>Supprimer ou anonymiser ?</h3>
-  <p>Supprimer un compte efface la ligne du compte ; ses demandes restent sans auteur. Pour une personne qui demande l'effacement de ses données, préférez l'<strong>anonymisation</strong> dans l'onglet RGPD (chapitre 10) : elle efface aussi ses pièces jointes, ses journaux et ses traces de sécurité, et laisse une trace propre de votre réponse.</p>
+  <p>Supprimer un compte efface la ligne du compte ; ses demandes restent sans auteur. Pour une personne qui demande l'effacement de ses données, préférez l'<strong>anonymisation</strong> dans l'onglet RGPD (chapitre 11) : elle efface aussi ses pièces jointes, ses journaux et ses traces de sécurité, et laisse une trace propre de votre réponse.</p>
 </section>
 
 <!-- 3 -->
@@ -183,6 +184,9 @@
   </ul>
   <h3>Réglages du formulaire</h3>
   <p>Rubrique, description, groupe qui traite les demandes, catégorie et priorité des demandes créées, visibilité (tout le monde ou certains groupes), publication. « Dupliquer » sert de point de départ pour un formulaire proche.</p>
+  <h3>Ce que voient les utilisateurs</h3>
+  <figure><img src="img/catalogue-demandeur.png" alt=""><figcaption>La page Catalogue : les rubriques à gauche, une rubrique à la fois à droite.</figcaption></figure>
+  <p>Le menu de gauche liste les rubriques avec leur nombre de formulaires (en pastilles sur téléphone). « Les plus demandés » apparaît en tête dès que des formulaires ont été envoyés : ce sont les 6 plus utilisés des trois derniers mois. La recherche porte sur tout le catalogue. Une rubrique sert de regroupement : évitez les rubriques d'un seul formulaire quand elles peuvent être fusionnées.</p>
   <div class="note"><strong>Bon à savoir</strong>Les réponses sont enregistrées avec la demande : modifier ou supprimer un formulaire ne change pas les demandes déjà envoyées.</div>
 </section>
 
@@ -237,7 +241,48 @@
 
 <!-- 8 -->
 <section class="chapter">
-  <h2><span class="num">8</span>Catégories, priorités et apparence</h2>
+  <h2><span class="num">8</span>Analyses</h2>
+  <p>Le menu « Analyses » est ouvert à tous les comptes. Il contient deux onglets : Tableaux de bord et Rapports.</p>
+  <div class="note"><strong>La règle des droits</strong>Dans l'application, un rapport ou un tableau de bord est toujours calculé avec les droits de la personne qui le regarde : partager ne donne accès à aucune demande en plus, et les demandes confidentielles restent cachées à ceux qui ne les voient pas. Les discussions n'entrent jamais dans les analyses.</div>
+
+  <h3>Les rapports</h3>
+  <figure><img src="img/rapport.png" alt=""><figcaption>Un rapport : filtres de période et de groupe, graphique, export CSV et envois programmés.</figcaption></figure>
+  <p>Cinq types : <strong>liste</strong> de demandes (colonnes et tri au choix), <strong>regroupement</strong> (par statut, priorité, catégorie, groupe, responsable, demandeur, formulaire, mois, jour de la semaine, avec un second regroupement possible), <strong>évolution</strong> (créées et résolues par jour, semaine ou mois), <strong>indicateur</strong> (un chiffre comparé à la période précédente) et <strong>carte de chaleur</strong> (les jours et heures d'arrivée des demandes). Filtres : période, statut, priorité, catégorie, groupe, formulaire, responsable, demandeur, confidentialité, retard, mot cherché. L'aperçu se met à jour pendant la saisie.</p>
+  <ul>
+    <li>Partage : privé, avec des groupes, ou avec tout le monde. Seul le créateur modifie ; les autres peuvent « Dupliquer » pour avoir leur propre copie.</li>
+    <li>« CSV » télécharge les données (séparateur point-virgule, lisible par Excel). Chaque graphique a aussi un bouton pour afficher ses valeurs en tableau.</li>
+    <li>« Moi » et « Mes groupes » dans les filtres désignent la personne qui regarde.</li>
+  </ul>
+
+  <h3>Les envois programmés</h3>
+  <figure><img src="img/envoi-programme.png" alt=""><figcaption>Programmer un envoi : fréquence, heure, destinataires.</figcaption></figure>
+  <p>Le créateur d'un rapport peut le faire envoyer par e-mail chaque jour, chaque semaine ou chaque mois, à une heure choisie (heure du PC). L'e-mail contient le rapport mis en forme (100 lignes au plus) et le détail en fichier CSV joint.</p>
+  <ul>
+    <li><strong>Destinataires</strong> : lui-même, des personnes choisies une par une, et les groupes dont il est membre (un administrateur peut choisir tous les groupes). 50 personnes et 10 groupes au plus par envoi, 20 envois par personne.</li>
+    <li><strong>Droits</strong> : le rapport est calculé avec les droits de son créateur, puis envoyé séparément à chaque destinataire, <strong>seulement si ce destinataire voit lui-même toutes les demandes du rapport</strong>. Les autres sont écartés. Le contrôle est refait à chaque envoi : si quelqu'un quitte un groupe, il ne reçoit plus le rapport.</li>
+    <li>Chaque personne peut refuser les rapports programmés par les autres (« Mon compte », Notifications). Les comptes sans adresse e-mail ne reçoivent rien.</li>
+    <li>« Envoyer maintenant » fait un envoi immédiat. L'historique (30 derniers envois) dit qui a reçu le rapport et pourquoi les autres ont été écartés, sans montrer les données.</li>
+    <li>Les envois partent de la boîte configurée pour les notifications : si l'envoi d'e-mails est coupé (chapitre 10), ils échouent et l'historique l'indique. Un PC éteint à l'heure prévue fait l'envoi à son redémarrage, une seule fois.</li>
+  </ul>
+  <h3>Surveiller les envois</h3>
+  <p class="path">Analyses &gt; Rapports, en bas de la page</p>
+  <p>Les administrateurs voient la liste des envois programmés de tous les comptes : rapport, créateur, fréquence, nombre de destinataires, prochain envoi. Le contenu des rapports n'y est pas. « Arrêter » coupe un envoi gênant ; son créateur voit qu'il a été arrêté par un administrateur.</p>
+
+  <h3>Les tableaux de bord</h3>
+  <figure><img src="img/tableau-de-bord.png" alt=""><figcaption>Le modèle « Activité générale » : indicateurs, évolution, répartitions.</figcaption></figure>
+  <p>Un tableau de bord est une grille de blocs ; chaque bloc est un petit rapport. Quatre modèles sont proposés : Activité générale, Mes groupes, Délais de traitement, Ma file. On peut aussi partir d'un tableau vide.</p>
+  <ul>
+    <li><strong>En direct</strong> : dès qu'une demande change, les blocs se recalculent (le navigateur reçoit un simple signal, sans contenu). Sinon, toutes les minutes.</li>
+    <li><strong>Filtres communs</strong> : une période et un groupe en haut s'appliquent à tous les blocs.</li>
+    <li><strong>Modifier</strong> : ajouter un bloc (nouveau ou repris d'un rapport), changer sa largeur (quart, tiers, moitié, deux tiers, pleine largeur) et sa hauteur, le déplacer (glisser, ou flèches), le retirer. « Réglages » pour le nom, la description et le partage.</li>
+    <li><strong>Plein écran</strong> : pour un affichage permanent sur un écran.</li>
+  </ul>
+  <p>Les rapports, tableaux de bord et envois d'une personne sont supprimés quand son compte est anonymisé ; l'historique des envois est purgé avec les journaux.</p>
+</section>
+
+<!-- 9 -->
+<section class="chapter">
+  <h2><span class="num">9</span>Catégories, priorités et apparence</h2>
   <h3>Catégories et priorités</h3>
   <p class="path">Administration &gt; Paramètres &gt; Catégories et priorités</p>
   <ul>
@@ -254,13 +299,13 @@
   <p>Chaque utilisateur choisit le mode clair, sombre ou automatique avec le bouton de la barre du haut ; ce n'est pas un réglage d'administration.</p>
 </section>
 
-<!-- 9 -->
+<!-- 10 -->
 <section class="chapter">
-  <h2><span class="num">9</span>Les notifications par e-mail</h2>
+  <h2><span class="num">10</span>Les notifications par e-mail</h2>
   <p class="path">Administration &gt; Paramètres &gt; Notifications</p>
   <figure><img src="img/notifications.png" alt=""><figcaption>L'état de l'envoi, les statistiques et l'e-mail de test.</figcaption></figure>
   <h3>La boîte d'envoi</h3>
-  <p>Les e-mails partent de la boîte configurée dans <code>C:\Xchange\xchange.env</code> (chapitre 13). Le mot de passe n'apparaît jamais dans l'application.</p>
+  <p>Les e-mails partent de la boîte configurée dans <code>C:\Xchange\xchange.env</code> (chapitre 14). Le mot de passe n'apparaît jamais dans l'application.</p>
   <pre>SMTP_HOST=smtp.orange.fr
 SMTP_PORT=465
 SMTP_USER=x.change@orange.fr
@@ -271,7 +316,7 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   <h3>Les réglages</h3>
   <ul>
     <li><strong>Interrupteur général</strong> : coupe tous les envois.</li>
-    <li><strong>Événements</strong> : nouvelle demande pour un groupe, transfert, demande confiée, nouveau message, changement de statut (avec le choix des statuts), demande d'adhésion et réponse, demande sur des données personnelles, message signalé dans les discussions. « Aperçu » montre un exemple de chaque e-mail.</li>
+    <li><strong>Événements</strong> : nouvelle demande pour un groupe, transfert, demande confiée, nouveau message, changement de statut (avec le choix des statuts), demande d'adhésion et réponse, demande sur des données personnelles, message signalé dans les discussions. Les rapports programmés ont leurs propres réglages (chapitre 8). « Aperçu » montre un exemple de chaque e-mail.</li>
     <li><strong>Contenu</strong> : nom d'expéditeur, début de l'objet, titre et extraits des messages montrés ou non, texte en bas des e-mails, adresse publique pour les liens.</li>
     <li><strong>Destinataires</strong> : les comptes sans adresse e-mail, qui ne reçoivent rien.</li>
     <li><strong>Journal</strong> : les 100 derniers envois, avec un filtre « Échecs seulement ».</li>
@@ -280,9 +325,9 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   <div class="warn"><strong>Erreur d'authentification avec Orange</strong>Orange peut exiger un mot de passe dédié aux logiciels tiers, créé dans l'espace client de la boîte. La dernière erreur s'affiche dans la carte « Envoi ».</div>
 </section>
 
-<!-- 10 -->
+<!-- 11 -->
 <section class="chapter">
-  <h2><span class="num">10</span>RGPD</h2>
+  <h2><span class="num">11</span>RGPD</h2>
   <p class="path">Administration &gt; Paramètres &gt; RGPD</p>
   <figure><img src="img/rgpd.png" alt=""><figcaption>Les demandes des personnes et la recherche d'un compte.</figcaption></figure>
   <h3>Les demandes des personnes</h3>
@@ -299,7 +344,7 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   <p>Une fois par jour, Xchange :</p>
   <ul>
     <li>prévient par e-mail les comptes inactifs un mois avant leur anonymisation, puis les anonymise s'ils ne se sont pas reconnectés (24 mois d'inactivité par défaut ; jamais les administrateurs ; sans adresse e-mail, pas d'avertissement possible) ;</li>
-    <li>supprime les journaux (e-mails envoyés, prises de contrôle, demandes d'adhésion traitées, signalements traités, besoins non trouvés par l'assistant) plus vieux que 12 mois par défaut ;</li>
+    <li>supprime les journaux (e-mails envoyés, prises de contrôle, demandes d'adhésion traitées, signalements traités, historique des envois de rapports, besoins non trouvés par l'assistant) plus vieux que 12 mois par défaut ;</li>
     <li>efface les messages de discussion plus vieux que la durée choisie par leur auteur, et les mentions « Message supprimé » de plus de 30 jours ;</li>
     <li>vide la corbeille après 30 jours par défaut, et oublie les navigateurs de confiance expirés.</li>
   </ul>
@@ -317,9 +362,9 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   </ul>
 </section>
 
-<!-- 11 -->
+<!-- 12 -->
 <section class="chapter">
-  <h2><span class="num">11</span>Sécurité des connexions</h2>
+  <h2><span class="num">12</span>Sécurité des connexions</h2>
   <h3>Double authentification</h3>
   <ul>
     <li>Elle est demandée à tous par défaut (<code>MFA_REQUIRED=true</code>) : code à 6 chiffres d'une appli (Microsoft Authenticator, Google Authenticator…), et 10 codes de secours à usage unique.</li>
@@ -336,9 +381,9 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
 node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifiant&gt;</pre>
 </section>
 
-<!-- 12 -->
+<!-- 13 -->
 <section class="chapter">
-  <h2><span class="num">12</span>Sauvegardes et restauration</h2>
+  <h2><span class="num">13</span>Sauvegardes et restauration</h2>
   <p class="path">Administration &gt; Sauvegardes</p>
   <figure><img src="img/sauvegardes.png" alt=""><figcaption>Sauvegarde automatique, copie vers un autre disque et sauvegarde à la demande.</figcaption></figure>
   <h3>Automatique</h3>
@@ -356,9 +401,9 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
   <div class="warn"><strong>Les sauvegardes contiennent toutes les données</strong>Rangez-les en lieu sûr ; un disque chiffré (BitLocker) est recommandé.</div>
 </section>
 
-<!-- 13 -->
+<!-- 14 -->
 <section class="chapter">
-  <h2><span class="num">13</span>Le PC qui héberge Xchange</h2>
+  <h2><span class="num">14</span>Le PC qui héberge Xchange</h2>
   <p>Xchange tourne sur le PC sous le compte Windows « Service local », sans droits administrateur, dans <code>C:\Xchange</code>, et n'écoute que sur le PC lui-même. L'accès depuis Internet passe par Tailscale Funnel, à l'adresse <code>https://micolomike.taila5de36.ts.net</code>, sans port ouvert sur la box.</p>
   <h3>Les scripts</h3>
   <p>Chacun se lance dans un PowerShell ouvert en administrateur :</p>
@@ -368,7 +413,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <tr><td><code>mettre-a-jour.ps1</code></td><td>Sauvegarde, récupère la dernière version, recompile et redémarre. Faites ensuite Ctrl+F5 dans le navigateur.</td></tr>
     <tr><td><code>etat.ps1</code></td><td>État de l'application, de l'accès Internet, des sauvegardes, fin du journal.</td></tr>
     <tr><td><code>redemarrer.ps1</code></td><td>Redémarre Xchange, par exemple après une modification de <code>xchange.env</code>.</td></tr>
-    <tr><td><code>restaurer.ps1</code></td><td>Remet une sauvegarde (chapitre 12).</td></tr>
+    <tr><td><code>restaurer.ps1</code></td><td>Remet une sauvegarde (chapitre 13).</td></tr>
     <tr><td><code>autoriser-dossier.ps1 -Dossier &lt;chemin&gt;</code></td><td>Crée un dossier et autorise Xchange à y écrire.</td></tr>
     <tr><td><code>installer.ps1</code></td><td>Installe ou réinstalle, en conservant configuration et données.</td></tr>
     <tr><td><code>desinstaller.ps1</code></td><td>Coupe l'accès Internet, supprime les tâches et le compte ; <code>-SupprimerDonnees</code> efface tout.</td></tr>
@@ -381,7 +426,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <tr><td><code>ALLOW_REGISTRATION</code></td><td><code>false</code> pour fermer l'inscription libre.</td></tr>
     <tr><td><code>MFA_REQUIRED</code></td><td><code>false</code> pour rendre la double authentification facultative.</td></tr>
     <tr><td><code>TRUSTED_DEVICE_DAYS</code></td><td>Durée de confiance d'un navigateur (30 par défaut).</td></tr>
-    <tr><td><code>SMTP_*</code>, <code>MAIL_FROM</code>, <code>APP_URL</code></td><td>Envoi des e-mails (chapitre 9).</td></tr>
+    <tr><td><code>SMTP_*</code>, <code>MAIL_FROM</code>, <code>APP_URL</code></td><td>Envoi des e-mails (chapitre 10).</td></tr>
     <tr><td><code>BACKUP_DIR</code></td><td>Dossier des sauvegardes automatiques. L'heure, le nombre gardé et la copie se règlent dans l'onglet Sauvegardes.</td></tr>
     <tr><td><code>MAX_UPLOAD_MB</code></td><td>Taille maximale d'une pièce jointe (10 par défaut).</td></tr>
     <tr><td><code>LOGIN_MAX_FAILURES</code>, <code>LOGIN_LOCK_MINUTES</code></td><td>Blocage après des échecs de connexion.</td></tr>
@@ -391,9 +436,9 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
   <p><code>C:\Xchange\journaux\xchange.log</code> trace les démarrages, sauvegardes, purges et erreurs. Il est remplacé quand il dépasse 5 Mo (l'ancien est gardé en <code>xchange.ancien.log</code>). Il ne contient ni mot de passe ni adresse e-mail.</p>
 </section>
 
-<!-- 14 -->
+<!-- 15 -->
 <section class="chapter">
-  <h2><span class="num">14</span>Dépannage</h2>
+  <h2><span class="num">15</span>Dépannage</h2>
   <table>
     <tr><th>Situation</th><th>Que faire</th></tr>
     <tr><td>Le site ne répond pas depuis Internet</td><td>Vérifiez que le PC est allumé et connecté, puis lancez <code>etat.ps1</code>. Si l'application tourne mais pas l'accès Internet, vérifiez Tailscale.</td></tr>
@@ -406,18 +451,21 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <tr><td>La sauvegarde vers D: échoue</td><td>Disque débranché, plein, ou dossier non autorisé : relancez <code>autoriser-dossier.ps1</code>.</td></tr>
     <tr><td>Les messages des discussions n'arrivent qu'en rechargeant la page</td><td>La page affiche « Connexion perdue, nouvelle tentative » : le PC ou l'accès Internet a été coupé, la connexion revient seule. Si cela dure, relancez <code>redemarrer.ps1</code>.</td></tr>
     <tr><td>Quelqu'un ne voit pas le salon de son groupe</td><td>Vérifiez qu'il est bien membre du groupe (Groupes), puis qu'il recharge la page Discussions.</td></tr>
+    <tr><td>Quelqu'un ne reçoit pas un rapport programmé</td><td>Ouvrez l'historique de l'envoi (créateur du rapport) : il dit si la personne a été écartée (droits insuffisants, choix de ne pas recevoir, pas d'adresse) ou si l'envoi a échoué.</td></tr>
+    <tr><td>Un tableau de bord ne se met plus à jour en direct</td><td>Le point vert « En direct » est gris : la connexion a été coupée, elle revient seule ; sinon les blocs se recalculent chaque minute.</td></tr>
     <tr><td>Un compte est bloqué</td><td>Attendez 15 minutes, ou réinitialisez son mot de passe.</td></tr>
   </table>
 </section>
 
-<!-- 15 -->
+<!-- 16 -->
 <section class="chapter">
-  <h2><span class="num">15</span>Routine de l'administrateur</h2>
+  <h2><span class="num">16</span>Routine de l'administrateur</h2>
   <h3>Chaque semaine</h3>
   <ul class="check">
     <li>Traiter les demandes d'adhésion en attente (Groupes).</li>
     <li>Traiter les demandes RGPD, avant leur date limite.</li>
     <li>Traiter les messages signalés (Signalements).</li>
+    <li>Jeter un œil aux envois programmés de tous (Analyses &gt; Rapports) : un envoi en échec, ou vers beaucoup de monde ?</li>
     <li>Regarder les demandes sans responsable sur le tableau de bord.</li>
     <li>Vérifier l'état de la dernière sauvegarde et de la copie sur l'autre disque.</li>
   </ul>

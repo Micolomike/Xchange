@@ -641,6 +641,59 @@ test('discussions : message privé en direct, signalement et modération', async
   await ctx.close();
 });
 
+test('analyses : tableau de bord, rapport, envoi programmé', async () => {
+  await page.goto('/analyses');
+  await expect(page).toHaveURL(/\/analyses\/tableaux$/);
+  await page.getByRole('button', { name: /Activité générale/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Activité générale' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Par statut', exact: true })).toBeVisible();
+  await expect(page.getByText('En direct')).toBeVisible();
+  // Vue en tableau d'un graphique.
+  const statusBlock = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Par statut', exact: true }) });
+  await statusBlock.getByRole('button', { name: 'Voir les valeurs en tableau' }).click();
+  await expect(statusBlock.getByRole('rowheader', { name: 'Ouvert' })).toBeVisible();
+
+  // Modification : un bloc de plus.
+  await page.getByRole('button', { name: 'Modifier' }).click();
+  await expect(page.getByText('Mode modification')).toBeVisible();
+  await page.getByRole('button', { name: 'Ajouter un bloc' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ajouter un bloc' });
+  await dialog.getByLabel('Titre du bloc').fill('Mes demandes en retard');
+  await dialog.getByText('Indicateur', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Ajouter' }).click();
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Tableau de bord enregistré')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes demandes en retard' })).toBeVisible();
+
+  // Rapport.
+  await page.getByRole('link', { name: 'Tableaux de bord' }).click();
+  await page.getByRole('navigation', { name: 'Analyses' }).getByRole('link', { name: 'Rapports' }).click();
+  await page.getByRole('link', { name: 'Nouveau rapport' }).first().click();
+  await page.getByLabel('Nom').fill('Demandes par priorité');
+  await page.getByLabel('Regrouper par').selectOption('priority');
+  await expect(page.getByRole('region', { name: 'Aperçu' }).getByText('Urgente')).toBeVisible();
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Demandes par priorité' })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'CSV' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^rapport-Demandes-par-priorite-\d{4}-\d{2}-\d{2}\.csv$/);
+
+  await page.getByRole('button', { name: 'Programmer un envoi' }).click();
+  const sch = page.getByRole('dialog', { name: 'Programmer un envoi par e-mail' });
+  await expect(sch.getByText('avec vos droits')).toBeVisible();
+  await sch.getByRole('button', { name: 'Programmer' }).click();
+  await expect(page.getByText('Chaque lundi à 08:00')).toBeVisible();
+  // Pas de boîte d'envoi configurée dans ce test : l'échec est expliqué et tracé.
+  await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
+  await expect(page.getByText(/e-mails ne sont pas configurés/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Historique' }).click();
+  await expect(page.getByRole('dialog', { name: 'Historique des envois' }).getByText('Échec')).toBeVisible();
+  await page.getByRole('dialog', { name: 'Historique des envois' }).getByRole('button', { name: 'Fermer' }).click();
+  // L'administrateur voit les envois de tous.
+  await page.goto('/analyses/rapports');
+  await expect(page.getByRole('heading', { name: 'Envois programmés de tous les comptes' })).toBeVisible();
+});
+
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
   const display = page.getByRole('radiogroup', { name: 'Thème' });

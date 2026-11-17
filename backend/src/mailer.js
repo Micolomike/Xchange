@@ -39,11 +39,11 @@ function createMailer({ db, config, logger = console, transport } = {}) {
     }
   }
 
-  async function send({ to, subject, text, html }, meta = {}) {
+  async function send({ to, subject, text, html, attachments }, meta = {}) {
     if (!transporter) return { skipped: true };
     const { senderName } = await getSetting(db, 'mail');
     const name = (senderName || 'Xchange').replace(/["<>]/g, '');
-    const message = { from: `"${name}" <${smtp.from}>`, to, subject, text, html };
+    const message = { from: `"${name}" <${smtp.from}>`, to, subject, text, html, ...(attachments?.length ? { attachments } : {}) };
     try {
       const info = await transporter.sendMail(message);
       sent.push(message);

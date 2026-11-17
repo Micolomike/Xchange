@@ -73,6 +73,10 @@ async function anonymizeUser(db, config, id, { mode = 'keep', actorId = null } =
       counts.chat = (await db.run('DELETE FROM chat_messages WHERE author_id = ?', [id])).changes;
       await db.run('DELETE FROM chat_reports WHERE author_id = ?', [id]);
     }
+    // Analyses : ses rapports, tableaux de bord et envois programmés sont supprimés ; elle ne reçoit plus ceux des autres.
+    await db.run('DELETE FROM reports WHERE owner_id = ?', [id]);
+    await db.run('DELETE FROM dashboards WHERE owner_id = ?', [id]);
+    await db.run('DELETE FROM report_schedule_users WHERE user_id = ?', [id]);
     // Discussions : la personne quitte ses conversations ; ses messages restent signés « Utilisateur supprimé » (mode conserver).
     await db.run('DELETE FROM chat_members WHERE user_id = ?', [id]);
     await db.run('DELETE FROM chat_reads WHERE user_id = ?', [id]);
@@ -197,6 +201,27 @@ async function exportUser(db, id) {
       ),
       reports_made: await db.all('SELECT reason, snapshot AS message, status, created_at, handled_at FROM chat_reports WHERE reporter_id = ? ORDER BY id', [id]),
     },
+    analyses: {
+      reports: (await db.all('SELECT name, description, definition, visibility, created_at, updated_at FROM reports WHERE owner_id = ? ORDER BY id', [id])).map((r) => ({
+        ...r,
+        definition: JSON.parse(r.definition),
+      })),
+      dashboards: (await db.all('SELECT name, description, widgets, visibility, created_at, updated_at FROM dashboards WHERE owner_id = ? ORDER BY id', [id])).map((d) => ({
+        ...d,
+        widgets: JSON.parse(d.widgets),
+      })),
+      scheduled_sends: await db.all(
+        `SELECT r.name AS report, s.frequency, s.weekday, s.monthday, s.time, s.active, s.created_at FROM report_schedules s JOIN reports r ON r.id = s.report_id
+         WHERE s.owner_id = ? ORDER BY s.id`,
+        [id]
+      ),
+      receives: (
+        await db.all(
+          `SELECT r.name FROM report_schedule_users x JOIN report_schedules s ON s.id = x.schedule_id JOIN reports r ON r.id = s.report_id WHERE x.user_id = ?`,
+          [id]
+        )
+      ).map((r) => r.name),
+    },
     impersonations: await db.all(
       `SELECT i.started_at, i.ended_at, a.username AS by_admin FROM impersonations i LEFT JOIN users a ON a.id = i.admin_id
        WHERE i.target_id = ? ORDER BY i.id`,
@@ -254,7 +279,7 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
   const settings = await getSetting(db, 'rgpd');
   const canMail = notifier ? await notifier.canSend() : false;
   const todo = await purgeCandidates(db, settings, now, { canMail });
-  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, trash: 0 };
+  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, reportRuns: 0, trash: 0 };
   for (const u of todo.toWarn) {
     if (await notifier.inactivityWarning(u.row, { lastSeen: u.last_seen, deadline: u.deadline })) {
       await db.run('UPDATE users SET inactivity_warned_at = ? WHERE id = ?', [now.toISOString(), u.id]);
@@ -270,6 +295,7 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
     done.mail = (await db.run('DELETE FROM mail_log WHERE created_at < ?', [limit])).changes;
     done.impersonations = (await db.run('DELETE FROM impersonations WHERE started_at < ?', [limit])).changes;
     done.assistant = (await db.run('DELETE FROM assistant_misses WHERE created_at < ?', [limit])).changes;
+    done.reportRuns = (await db.run('DELETE FROM report_runs WHERE ran_at < ?', [limit])).changes;
     done.chatReports = (await db.run("DELETE FROM chat_reports WHERE status <> 'pending' AND COALESCE(handled_at, created_at) < ?", [limit])).changes;
     done.groupRequests = (
       await db.run("DELETE FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])

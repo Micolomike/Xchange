@@ -90,6 +90,15 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Case « J'accepte la charte et la politique de confidentialité » à l'inscription (désactivable). La charte est versionnée : chaque modification crée une version archivée telle quelle, et chacun doit relire et accepter la nouvelle version (bandeau) ; chaque acceptation est enregistrée avec sa version et sa date.
 - « Mon compte » : téléchargement de ses propres données et formulaire de demande (anonymisation, suppression, correction, autre) ; les administrateurs sont prévenus par e-mail, voient les demandes avec le délai d'un mois dans l'onglet RGPD et les traitent en un clic (anonymisation, réponse ou refus motivé).
 
+**Catalogue**
+- Rubriques dans un menu à gauche (pastilles sur téléphone), une rubrique à la fois, « Les plus demandés » en tête (6 formulaires les plus envoyés sur 90 jours), recherche sur tout le catalogue et demande libre toujours proposée.
+
+**Analyses** (menu « Analyses », ouvert à tous)
+- Rapports : liste de demandes, regroupement (deux axes possibles), évolution, indicateur avec comparaison à la période précédente, carte de chaleur jour × heure ; filtres (période, statut, priorité, catégorie, groupe, formulaire, responsable, demandeur, confidentialité, retard, mot cherché), aperçu en direct, export CSV, vue en tableau de chaque graphique. Partage privé, avec des groupes ou avec tous ; copie possible.
+- Droits : dans l'application, tout est calculé avec les droits de la personne qui regarde. Un envoi par e-mail est calculé avec les droits du créateur et n'est envoyé qu'aux destinataires qui voient eux-mêmes toutes les demandes du rapport (contrôle à chaque envoi).
+- Envois programmés : chaque jour, semaine ou mois à l'heure choisie ; destinataires : soi, des personnes, les groupes dont on est membre (tous pour un administrateur) ; e-mail mis en forme avec CSV joint ; historique des envois et des personnes écartées ; refus possible des rapports des autres dans « Mon compte » ; liste de tous les envois pour les administrateurs, avec arrêt possible.
+- Tableaux de bord : grille de blocs (indicateurs, courbes, barres, anneaux, barres empilées, listes, carte de chaleur), filtres communs période et groupe, mise à jour en direct quand une demande change, plein écran, quatre modèles (Activité générale, Mes groupes, Délais de traitement, Ma file), partage et copie.
+
 **Assistant guidé** (sans intelligence artificielle)
 - Bouton « Besoin d'aide ? » sur chaque page : quelques mots suffisent pour obtenir les réponses de la foire aux questions et les formulaires du catalogue qui correspondent ; le formulaire choisi s'ouvre avec la description déjà remplie.
 - Les besoins restés sans réponse sont gardés sans nom pendant 90 jours (Administration > Catalogue, « Besoins non trouvés ») pour compléter le catalogue.
@@ -240,6 +249,12 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `POST` | `/api/chat/conversations/:id/messages` (`before`, `limit`) ; `POST` `/api/chat/conversations/:id/read` | participant |
 | `DELETE` | `/api/chat/messages/:id` (auteur) ; `POST` `/api/chat/messages/:id/report` (`reason`) | participant |
 | `GET`, `PUT` | `/api/chat/me/settings` (`retentionDays` : 0, 30, 180, 365) ; `DELETE` `/api/chat/me/messages` | connecté |
+| `GET` | `/api/analytics/meta` ; `POST` `/api/analytics/preview` (`definition`) | connecté |
+| `GET`, `POST` | `/api/analytics/reports` ; `GET`, `PUT`, `DELETE` `/api/analytics/reports/:id` ; `POST` `/api/analytics/reports/:id/duplicate` | connecté (modification : créateur) |
+| `GET` | `/api/analytics/reports/:id/run`, `/api/analytics/reports/:id/csv` (`period`, `group`) | selon partage, droits de la personne |
+| `GET`, `POST` | `/api/analytics/reports/:id/schedules` ; `PUT`, `DELETE` `/api/analytics/schedules/:id` ; `POST` `/api/analytics/schedules/:id/send` ; `GET` `/api/analytics/schedules/:id/runs` ; `GET` `/api/analytics/recipients?q=` | créateur |
+| `GET`, `POST` | `/api/analytics/dashboards` (`template` possible) ; `GET`, `PUT`, `DELETE` `/api/analytics/dashboards/:id` ; `POST` `…/duplicate` ; `GET` `…/data?period=&group=` | connecté (modification : créateur) |
+| `GET` | `/api/admin/analytics/schedules` ; `POST` `/api/admin/analytics/schedules/:id/disable` | admin |
 | `GET` | `/api/admin/chat/reports?status=` ; `POST` `/api/admin/chat/reports/:id/remove`, `/api/admin/chat/reports/:id/dismiss` | admin |
 
 ## Tests et intégration continue

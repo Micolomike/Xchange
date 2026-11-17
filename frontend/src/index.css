@@ -42,6 +42,34 @@
   --color-accent-soft: var(--accent-soft-light, #e8ecfc);
 }
 
+/*
+ * Graphiques (Analyses) : 8 couleurs de séries, dans un ordre fixe, vérifiées pour la vision des couleurs
+ * (daltonisme compris) sur le fond clair et sur le fond sombre. Trois couleurs claires ont un contraste
+ * faible sur fond blanc : chaque graphique propose donc aussi une vue en tableau.
+ */
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --chart-grid: #e8ecf1;
+}
+:root[data-theme="dark"] {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #0ca30c;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --chart-grid: #232b36;
+}
+
 /* Mode sombre : mêmes rôles, valeurs choisies pour garder un contraste suffisant sur fond sombre. */
 :root[data-theme="dark"] {
   color-scheme: dark;

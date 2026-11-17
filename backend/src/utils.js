@@ -14,7 +14,7 @@ const CATEGORIES = ['', 'bug', 'feature', 'support'];
 const ROLES = ['user', 'admin'];
 
 /** Choix de notifications proposés à chacun (« Mon compte ») ; absent = accepté. */
-const NOTIFY_PREFS = ['mine', 'assigned', 'handled', 'group_new', 'admin'];
+const NOTIFY_PREFS = ['mine', 'assigned', 'handled', 'group_new', 'admin', 'reports'];
 function parseNotifyPrefs(raw) {
   let stored = {};
   try {

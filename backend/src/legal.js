@@ -28,6 +28,7 @@ Xchange sert à demander de l'aide et à en proposer. Nous traitons :
 - votre compte : identifiant, prénom, nom, adresse e-mail, mot de passe (stocké sous une forme hachée, illisible), réglages de double authentification (y compris, le cas échéant, votre choix de ne pas l'utiliser et sa date), navigateurs de confiance, préférences de notification, versions de la charte acceptées et leurs dates ;
 - vos demandes et messages, vos réponses aux formulaires, leurs pièces jointes et l'historique de leur traitement ;
 - vos messages dans les discussions (salons, messages privés, conversations de groupe), les conversations dont vous faites partie, ce que vous avez déjà lu, la durée de conservation que vous avez choisie et les messages que vous avez signalés ;
+- vos rapports et tableaux de bord (leurs réglages, pas de copie des demandes), vos envois programmés, leurs destinataires et l'historique de ces envois ;
 - vos groupes et vos demandes pour rejoindre un groupe ;
 - vos demandes concernant vos données personnelles ;
 - des journaux techniques : historique de sécurité de votre compte, e-mails de notification envoyés, actions faites par un administrateur à votre place, date de votre dernière activité.
@@ -51,6 +52,8 @@ N'indiquez pas d'informations de santé, de numéros de compte bancaire, de mots
 
 Être administrateur ne donne aucun accès aux discussions : un administrateur ne lit que les conversations dont il fait partie, comme tout le monde. Quand un participant signale un message aux administrateurs, ils voient ce message seul, son auteur, la personne qui l'a signalé et le motif, puis le retirent ou le laissent en place. L'auteur ne sait pas qui l'a signalé.
 
+Les rapports et tableaux de bord sont calculés avec les droits de la personne qui les consulte : les partager ne donne accès à aucune demande en plus. Un rapport envoyé par e-mail est calculé avec les droits de la personne qui l'a programmé, et n'est envoyé qu'aux destinataires qui voient eux-mêmes toutes les demandes qu'il contient. Les administrateurs voient la liste des envois programmés (qui envoie quoi, à qui, quand), sans leur contenu.
+
 Vous pouvez choisir, à l'inscription ou dans « Mon compte », de n'afficher que votre pseudonyme : les autres membres ne voient alors ni votre prénom ni votre nom ; les administrateurs les voient toujours.
 
 Pour vous aider, un administrateur peut agir à votre place. Chaque prise de contrôle est enregistrée, et elle ne donne accès ni aux demandes confidentielles ni aux discussions.
@@ -67,7 +70,8 @@ Sur l'ordinateur de l'éditeur, en France, et dans ses sauvegardes.
 - vos demandes et messages : tant que votre compte existe, puis sans votre nom, sauf si vous demandez leur suppression ;
 - une demande supprimée : {{trashDays}} dans la corbeille, puis effacée définitivement avec ses pièces jointes ;
 - vos messages de discussion : tant que votre compte existe, ou la durée que vous choisissez dans « Mon compte » (30 jours, 6 mois ou 1 an) ; vous pouvez aussi les effacer à tout moment, un par un ou tous ensemble. Un message supprimé laisse la mention « Message supprimé » pendant 30 jours ;
-- les journaux techniques, les demandes d'adhésion et les signalements déjà traités, les questions de l'assistant restées sans réponse : {{logMonths}} ;
+- vos rapports, tableaux de bord et envois programmés : tant que vous les gardez ; ils sont supprimés avec votre compte ;
+- les journaux techniques, les demandes d'adhésion et les signalements déjà traités, l'historique des envois de rapports, les questions de l'assistant restées sans réponse : {{logMonths}} ;
 - l'historique de sécurité de votre compte : tant que votre compte existe ;
 - un navigateur de confiance : 30 jours au plus, ou jusqu'à ce que vous le retiriez ou changiez de mot de passe ;
 - vos demandes concernant vos données : gardées pour prouver qu'elles ont été traitées, sans votre nom une fois votre compte anonymisé ;
@@ -79,7 +83,7 @@ Quand un compte est anonymisé, le nom, l'adresse e-mail et l'identifiant sont r
 Vous pouvez accéder à vos données, les corriger, les exporter, demander leur effacement, vous opposer à un traitement fondé sur notre intérêt légitime ou demander sa limitation.
 
 Dans « Mon compte », vous pouvez :
-- modifier votre profil et choisir les e-mails que vous recevez ;
+- modifier votre profil et choisir les e-mails que vous recevez, y compris refuser les rapports programmés par d'autres personnes ;
 - choisir combien de temps vos messages de discussion sont gardés, et les effacer ;
 - télécharger toutes vos données (rubrique « Mes données ») ;
 - demander l'anonymisation ou la suppression de votre compte, la correction d'une information, ou faire une autre demande.
@@ -102,7 +106,8 @@ Xchange met en relation des personnes qui cherchent de l'aide et des personnes q
 - décrire votre besoin honnêtement, sans demande illégale ;
 - ne pas publier d'informations sensibles : santé, numéros de compte, mots de passe, documents d'identité ;
 - respecter la vie privée des autres : ne pas diffuser ce que vous lisez dans une demande ou une conversation ;
-- ne pas utiliser Xchange pour faire de la publicité ou du démarchage.
+- ne pas utiliser Xchange pour faire de la publicité ou du démarchage ;
+- n'envoyer des rapports programmés qu'aux personnes qu'ils concernent, et arrêter un envoi dès qu'une personne ne souhaite plus le recevoir.
 
 ## Les discussions
 Les discussions servent à s'entraider en direct. Les mêmes règles s'y appliquent, et en plus :
@@ -113,7 +118,7 @@ Les discussions servent à s'entraider en direct. Les mêmes règles s'y appliqu
 Les administrateurs ne lisent que les conversations dont ils font partie. Si un message vous choque, signalez-le avec le drapeau placé à côté : seul ce message leur est montré.
 
 ## En cas de problème
-Un administrateur peut modifier ou supprimer un contenu qui ne respecte pas la charte, retirer un message signalé, et désactiver un compte. Pour signaler un contenu : le drapeau à côté d'un message de discussion, ou [adresse e-mail].
+Un administrateur peut modifier ou supprimer un contenu qui ne respecte pas la charte, retirer un message signalé, arrêter un envoi programmé, et désactiver un compte. Pour signaler un contenu : le drapeau à côté d'un message de discussion, ou [adresse e-mail].
 
 ## Les conseils donnés
 Les conseils sont donnés de bonne foi par des bénévoles. Pour une question médicale, juridique, fiscale ou financière importante, consultez un professionnel.`;

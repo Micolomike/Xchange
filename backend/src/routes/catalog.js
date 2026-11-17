@@ -65,8 +65,15 @@ function catalogRoutes({ db, notifier }) {
   router.get('/', async (req, res) => {
     const w = visibleWhere(req.user);
     const items = await loadItems(db, w.sql, w.params);
+    // « Les plus demandés » : nombre d'envois de chaque formulaire sur 90 jours (un total, sans nom).
+    const since = new Date(Date.now() - 90 * 86400_000).toISOString();
+    const counts = new Map(
+      (await db.all('SELECT catalog_item AS id, COUNT(*) AS n FROM tickets WHERE catalog_item IS NOT NULL AND created_at >= ? GROUP BY catalog_item', [since])).map(
+        (r) => [r.id, r.n]
+      )
+    );
     // Le demandeur n'a pas besoin des réglages internes.
-    res.json(items.map(({ visible_groups: _v, ticket_count: _c, ...item }) => item));
+    res.json(items.map(({ visible_groups: _v, ticket_count: _c, ...item }) => ({ ...item, popularity: counts.get(item.id) || 0 })));
   });
 
   async function findVisible(user, id) {

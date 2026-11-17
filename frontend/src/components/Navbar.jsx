@@ -10,7 +10,7 @@ import { useChat } from '../chat/context';
 export function Logo() {
   const { settings } = useSettings();
   return (
-    <Link to="/" className="flex min-w-0 items-center gap-2 text-lg font-extrabold tracking-tight text-ink">
+    <Link to="/" className="flex min-w-0 items-center gap-2 text-lg font-extrabold tracking-tight text-ink lg:shrink-0">
       <img src={settings.logoSrc || '/favicon.svg'} alt="" className="size-7 shrink-0 rounded object-contain" />
       <span className="truncate">{settings.appName}</span>
     </Link>
@@ -18,7 +18,7 @@ export function Logo() {
 }
 
 const linkClass = ({ isActive }) =>
-  `rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+  `whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-semibold transition-colors xl:px-3 ${
     isActive ? 'bg-accent-soft text-accent-strong' : 'text-ink-soft hover:bg-ink/5 hover:text-ink'
   }`;
 
@@ -70,6 +70,9 @@ export default function Navbar() {
       <NavLink to="/catalogue" className={linkClass}>
         Catalogue
       </NavLink>
+      <NavLink to="/analyses" className={linkClass}>
+        Analyses
+      </NavLink>
       {chat?.enabled && (
         <NavLink to="/discussions" className={(s) => `${linkClass(s)} inline-flex items-center gap-1.5`}>
           Discussions
@@ -91,20 +94,20 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4 sm:px-6" aria-label="Navigation principale">
+      <nav className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 xl:gap-4" aria-label="Navigation principale">
         <Logo />
-        {user && <div className="hidden items-center gap-1 md:flex">{links}</div>}
+        {user && <div className="hidden items-center gap-0.5 lg:flex xl:gap-1">{links}</div>}
 
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
           {user ? (
             <>
               {canCreate && (
-                <Link to="/tickets/new" className="btn btn-primary hidden sm:inline-flex">
-                  <FiPlus aria-hidden="true" /> Nouveau ticket
+                <Link to="/tickets/new" className="btn btn-primary hidden whitespace-nowrap sm:inline-flex" aria-label="Nouveau ticket" title="Nouveau ticket">
+                  <FiPlus aria-hidden="true" /> <span className="lg:max-xl:hidden">Nouveau ticket</span>
                 </Link>
               )}
-              <div className="relative hidden md:block" ref={menuRef}>
+              <div className="relative hidden lg:block" ref={menuRef}>
                 <button
                   type="button"
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-ink-soft hover:bg-ink/5"
@@ -113,7 +116,7 @@ export default function Navbar() {
                   onClick={() => setMenuOpen((v) => !v)}
                 >
                   <Avatar user={user} />
-                  <span className="max-w-[10rem] truncate">{user.name}</span>
+                  <span className="hidden max-w-[10rem] truncate xl:inline">{user.name}</span>
                 </button>
                 {menuOpen && (
                   <div role="menu" className="panel absolute right-0 mt-2 w-56 overflow-hidden py-1 shadow-lg">
@@ -136,7 +139,7 @@ export default function Navbar() {
               </div>
               <button
                 type="button"
-                className="btn btn-ghost relative px-2 md:hidden"
+                className="btn btn-ghost relative px-2 lg:hidden"
                 aria-expanded={open}
                 aria-controls="mobile-menu"
                 aria-label={`${open ? 'Fermer le menu' : 'Ouvrir le menu'}${unread ? ` (${unread} message${unread > 1 ? 's' : ''} non lu${unread > 1 ? 's' : ''})` : ''}`}
@@ -160,7 +163,7 @@ export default function Navbar() {
       </nav>
 
       {user && open && (
-        <div id="mobile-menu" className="border-t border-line bg-surface px-4 pb-4 pt-2 md:hidden">
+        <div id="mobile-menu" className="border-t border-line bg-surface px-4 pb-4 pt-2 lg:hidden">
           <div className="flex flex-col gap-1">
             {links}
             {canCreate && (
