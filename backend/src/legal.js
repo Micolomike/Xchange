@@ -49,7 +49,7 @@ N'indiquez pas d'informations de santé, de numéros de compte bancaire, de mots
 - une demande confidentielle n'est visible que par vous, la personne qui la traite et les administrateurs qui y participent ;
 - un message de discussion n'est visible que par les participants de la conversation : tous les membres pour le salon général, les membres du groupe pour un salon de groupe, les personnes invitées pour un message privé ou une conversation de groupe.
 
-Les administrateurs ne lisent pas les discussions. Quand un participant leur signale un message, ils voient ce message seul, son auteur, la personne qui l'a signalé et le motif, puis le retirent ou le laissent en place. L'auteur ne sait pas qui l'a signalé.
+Être administrateur ne donne aucun accès aux discussions : un administrateur ne lit que les conversations dont il fait partie, comme tout le monde. Quand un participant signale un message aux administrateurs, ils voient ce message seul, son auteur, la personne qui l'a signalé et le motif, puis le retirent ou le laissent en place. L'auteur ne sait pas qui l'a signalé.
 
 Vous pouvez choisir, à l'inscription ou dans « Mon compte », de n'afficher que votre pseudonyme : les autres membres ne voient alors ni votre prénom ni votre nom ; les administrateurs les voient toujours.
 
@@ -110,7 +110,7 @@ Les discussions servent à s'entraider en direct. Les mêmes règles s'y appliqu
 - pas de messages répétés en masse ni de chaînes ;
 - un message privé reste privé : ne le recopiez pas ailleurs sans l'accord de son auteur.
 
-Les administrateurs ne lisent pas les discussions. Si un message vous choque, signalez-le avec le drapeau placé à côté : seul ce message leur est montré.
+Les administrateurs ne lisent que les conversations dont ils font partie. Si un message vous choque, signalez-le avec le drapeau placé à côté : seul ce message leur est montré.
 
 ## En cas de problème
 Un administrateur peut modifier ou supprimer un contenu qui ne respecte pas la charte, retirer un message signalé, et désactiver un compte. Pour signaler un contenu : le drapeau à côté d'un message de discussion, ou [adresse e-mail].
