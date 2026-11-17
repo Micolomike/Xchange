@@ -58,9 +58,11 @@ function serializeTicket(row) {
     comment_count: row.comment_count || 0,
     attachment_count: row.attachment_count || 0,
     confidential: Boolean(row.confidential),
+    sla: describeTicketSla(row),
   };
 }
 
+const { describeTicketSla } = require('./sla');
 const MY_GROUPS_SQL = 'SELECT group_id FROM group_members WHERE user_id = ?';
 const { visibilityClause, permissionsFor } = require('./access');
 const { currentImpersonatorId } = require('./requestContext');

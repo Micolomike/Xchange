@@ -28,6 +28,7 @@ import DashboardView from './pages/analytics/DashboardView';
 import Reports from './pages/analytics/Reports';
 import ReportView from './pages/analytics/ReportView';
 import ReportEditor from './pages/analytics/ReportEditor';
+import SlaDashboard from './pages/analytics/SlaDashboard';
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/analyses" element={<Navigate to="/analyses/tableaux" replace />} />
             <Route path="/analyses/tableaux" element={<RequireAuth><Dashboards /></RequireAuth>} />
             <Route path="/analyses/tableaux/:id" element={<RequireAuth><DashboardView /></RequireAuth>} />
+            <Route path="/analyses/sla" element={<RequireAuth><SlaDashboard /></RequireAuth>} />
             <Route path="/analyses/rapports" element={<RequireAuth><Reports /></RequireAuth>} />
             <Route path="/analyses/rapports/nouveau" element={<RequireAuth><ReportEditor /></RequireAuth>} />
             <Route path="/analyses/rapports/:id" element={<RequireAuth><ReportView /></RequireAuth>} />

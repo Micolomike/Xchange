@@ -11,17 +11,19 @@ import GroupsPanel from './admin/GroupsPanel';
 import CatalogPanel from './admin/CatalogPanel';
 import SettingsPanel from './admin/SettingsPanel';
 import ChatReportsPanel from './admin/ChatReportsPanel';
+import SlaPanel from './admin/SlaPanel';
 
 const TABS = [
   { value: 'users', label: 'Utilisateurs' },
   { value: 'groups', label: 'Groupes' },
   { value: 'catalog', label: 'Catalogue' },
+  { value: 'sla', label: 'SLA' },
   { value: 'chat', label: 'Signalements' },
   { value: 'trash', label: 'Corbeille' },
   { value: 'backup', label: 'Sauvegardes' },
   { value: 'settings', label: 'Paramètres' },
 ];
-const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
+const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, sla: SlaPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
 
 export default function Admin() {
   const [params, setParams] = useSearchParams();
@@ -64,7 +66,7 @@ export default function Admin() {
           </button>
         }
       >
-        Comptes, groupes, catalogue, signalements, corbeille, sauvegardes et paramètres.
+        Comptes, groupes, catalogue, délais (SLA), signalements, corbeille, sauvegardes et paramètres.
       </PageHeader>
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Sections d'administration">
         {TABS.map((t) => (

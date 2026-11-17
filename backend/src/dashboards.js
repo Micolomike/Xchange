@@ -71,6 +71,37 @@ const summary = (id, title, dimension, chart, opts = {}) => ({
 });
 
 const TEMPLATES = {
+  sla: {
+    name: 'Délais (SLA)',
+    description: 'Respect des engagements de prise en charge et de résolution.',
+    filters: {},
+    widgets: [
+      kpi('k1', 'Résolutions dans les délais', 'sla_rate', '90d'),
+      kpi('k2', 'Prises en charge dans les délais', 'sla_response_rate', '90d'),
+      kpi('k3', 'En cours, délai dépassé', 'sla_breached'),
+      kpi('k4', 'En cours, bientôt dépassé', 'sla_at_risk'),
+      { id: 't1', title: 'Résolues dans les délais, par semaine de résolution (%)', w: 8, h: 2, definition: { type: 'trend', chart: 'line', interval: 'week', series: ['sla_rate'], filters: { period: { range: '90d' } } } },
+      summary('s1', 'Demandes en cours, par état du délai', 'sla_state', 'donut', { w: 4, filters: { status: ['open', 'in_progress'] } }),
+      summary('s2', 'Respect par priorité (%)', 'priority', 'bar', { metric: 'sla_rate', range: '90d' }),
+      summary('s3', 'Respect par groupe (%)', 'group', 'hbar', { metric: 'sla_rate', range: '90d' }),
+      summary('s4', 'Dépassements par catégorie', 'category', 'hbar', { metric: 'sla_breached', range: '90d' }),
+      summary('s5', 'Prise en charge par groupe', 'group', 'stacked', { split: 'sla_response_state', range: '90d' }),
+      {
+        id: 'l1',
+        title: 'À traiter en priorité : délai dépassé ou bientôt dépassé',
+        w: 12,
+        h: 3,
+        definition: {
+          type: 'list',
+          chart: 'table',
+          columns: ['id', 'title', 'priority', 'group', 'assignee', 'sla_state', 'sla_resolution_due'],
+          sort: { field: 'sla_resolution_due', dir: 'asc' },
+          limit: 50,
+          filters: { status: ['open', 'in_progress'], sla: 'attention', period: { range: 'all' } },
+        },
+      },
+    ],
+  },
   activite: {
     name: 'Activité générale',
     description: 'Vue d’ensemble des demandes que vous pouvez voir.',

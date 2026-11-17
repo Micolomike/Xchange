@@ -55,6 +55,19 @@ const DEFAULTS = {
   // Conservation des données : 0 = pas de purge automatique.
   rgpd: { inactiveMonths: 24, logMonths: 12, trashDays: 30, requireTerms: true },
   rgpd_state: { lastRunAt: null, lastResult: null, lastError: null },
+  // Engagements de délai (SLA). Durées en minutes ouvrées ; null = pas d'engagement.
+  sla: {
+    enabled: true,
+    calendar: { mode: 'business', days: [1, 2, 3, 4, 5], start: '09:00', end: '18:00', holidays: true },
+    warnPercent: 75,
+    targets: {
+      high: { response: 240, resolution: 1080 }, // 4 h et 2 jours ouvrés
+      medium: { response: 540, resolution: 2700 }, // 1 jour et 5 jours ouvrés
+      low: { response: 1080, resolution: 5400 }, // 2 jours et 10 jours ouvrés
+    },
+    rules: [],
+    notify: { warning: true, breach: true },
+  },
   backup_state: {
     lastRunAt: null,
     lastStatus: null,
@@ -182,7 +195,7 @@ function validateAppearance(input, current) {
   return out;
 }
 
-const MAIL_EVENTS = ['ticket_created', 'ticket_transferred', 'comment', 'status_changed', 'assigned', 'join_requested', 'join_decided', 'rgpd_request', 'chat_report'];
+const MAIL_EVENTS = ['ticket_created', 'ticket_transferred', 'comment', 'status_changed', 'assigned', 'join_requested', 'join_decided', 'rgpd_request', 'chat_report', 'sla_warning', 'sla_breach'];
 const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
 
 /** Réglages des notifications, avec chaque événement explicitement actif ou non. */

@@ -21,6 +21,11 @@ function colorIndex(dimension, key, i) {
   if (dimension === 'status' && STATUS_ORDER.includes(key)) return STATUS_ORDER.indexOf(key);
   if (dimension === 'priority' && PRIORITY_ORDER.includes(key)) return [7, 1, 0][PRIORITY_ORDER.indexOf(key)];
   if (dimension === 'trend') return key === 'resolved' ? 2 : 0;
+  if (dimension === 'sla_state' || dimension === 'sla_response_state') {
+    // Respecté : vert ; dans les temps : bleu ; à risque : jaune ; dépassé : rouge ; non respecté : orange ; sans engagement : violet.
+    const map = { met: 5, running: 0, at_risk: 3, breached: 7, missed: 1, none: 6 };
+    if (key in map) return map[key];
+  }
   return i;
 }
 
@@ -102,7 +107,7 @@ const barPath = (x, y, w, h, horizontal, r = 4) => {
 };
 
 /** Barres verticales (simples, groupées ou empilées). */
-function Columns({ categories, series, stacked, height, decimals, colors, single = false }) {
+function Columns({ categories, series, stacked, height, decimals, colors, single = false, unit = '' }) {
   const [ref, width] = useWidth();
   const [tip, setTip] = useState(null);
   const left = 40;
@@ -182,8 +187,8 @@ function Columns({ categories, series, stacked, height, decimals, colors, single
                       flip: px > width / 2,
                       title: c.label,
                       rows: single
-                        ? [{ label: 'Valeur', value: fmt(series[i].values[i], decimals), color: colors[i] }]
-                        : series.map((s, si) => ({ label: s.label, value: fmt(s.values[i], decimals), color: colors[si] })),
+                        ? [{ label: 'Valeur', value: `${fmt(series[i].values[i], decimals)}${unit}`, color: colors[i] }]
+                        : series.map((s, si) => ({ label: s.label, value: `${fmt(s.values[i], decimals)}${unit}`, color: colors[si] })),
                     });
                   }}
                 />
@@ -199,7 +204,7 @@ function Columns({ categories, series, stacked, height, decimals, colors, single
 }
 
 /** Barres horizontales : libellés longs (catégories, groupes, personnes). Valeur en bout de barre. */
-function HBars({ categories, series, stacked, decimals, colors, maxHeight }) {
+function HBars({ categories, series, stacked, decimals, colors, maxHeight, unit = '' }) {
   const [ref, width] = useWidth();
   const [tip, setTip] = useState(null);
   const row = 30;
@@ -240,6 +245,7 @@ function HBars({ categories, series, stacked, decimals, colors, maxHeight }) {
                 {value != null && (
                   <text x={labelW + ((stacked ? totals[i] : series[0].values[i] || 0) / max) * plotW + 6} y={yy + barH / 2} dy="0.32em" className="fill-ink text-xs font-semibold tabular-nums">
                     {fmt(value, decimals)}
+                    {unit}
                   </text>
                 )}
                 <rect
@@ -256,7 +262,7 @@ function HBars({ categories, series, stacked, decimals, colors, maxHeight }) {
                       y: e.clientY - box.top,
                       flip: px > width / 2,
                       title: c.label,
-                      rows: series.map((s, si) => ({ label: s.label, value: fmt(s.values[i], decimals), color: colors[si] })),
+                      rows: series.map((s, si) => ({ label: s.label, value: `${fmt(s.values[i], decimals)}${unit}`, color: colors[si] })),
                     });
                   }}
                 />
@@ -271,7 +277,7 @@ function HBars({ categories, series, stacked, decimals, colors, maxHeight }) {
 }
 
 /** Courbes (ou aires) dans le temps, avec un repère vertical au survol. */
-function Lines({ categories, series, area, height, colors }) {
+function Lines({ categories, series, area, height, colors, unit = '', decimals = 0 }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState(null);
   const left = 40;
@@ -279,7 +285,7 @@ function Lines({ categories, series, area, height, colors }) {
   const top = 10;
   const plotW = Math.max(0, width - left - 12);
   const plotH = height - top - bottom;
-  const max = Math.max(0, ...series.flatMap((s) => s.values));
+  const max = Math.max(0, ...series.flatMap((s) => s.values.filter((v) => v != null)));
   const ticks = niceTicks(max);
   const top_ = ticks[ticks.length - 1] || 1;
   const n = categories.length;
@@ -312,12 +318,33 @@ function Lines({ categories, series, area, height, colors }) {
             ) : null
           )}
           {series.map((s, si) => {
-            const pts = s.values.map((v, i) => `${x(i)},${y(v || 0)}`).join(' ');
+            // Une valeur absente (période sans données) coupe la courbe au lieu de la faire tomber à zéro.
+            const segments = [];
+            let cur = [];
+            s.values.forEach((v, i) => {
+              if (v == null) {
+                if (cur.length) segments.push(cur);
+                cur = [];
+              } else cur.push([x(i), y(v)]);
+            });
+            if (cur.length) segments.push(cur);
+            const lastIndex = s.values.findLastIndex((v) => v != null);
             return (
               <g key={s.key}>
-                {area && <polygon points={`${x(0)},${y(0)} ${pts} ${x(n - 1)},${y(0)}`} fill={colors[si]} opacity="0.1" />}
-                <polyline points={pts} fill="none" stroke={colors[si]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-                <circle cx={x(n - 1)} cy={y(s.values[n - 1] || 0)} r="4" fill={colors[si]} stroke="var(--color-surface)" strokeWidth="2" />
+                {segments.map((seg, k) => {
+                  const pts = seg.map((p) => p.join(',')).join(' ');
+                  return (
+                    <g key={k}>
+                      {area && seg.length > 1 && <polygon points={`${seg[0][0]},${y(0)} ${pts} ${seg[seg.length - 1][0]},${y(0)}`} fill={colors[si]} opacity="0.1" />}
+                      {seg.length > 1 ? (
+                        <polyline points={pts} fill="none" stroke={colors[si]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                      ) : (
+                        <circle cx={seg[0][0]} cy={seg[0][1]} r="3" fill={colors[si]} />
+                      )}
+                    </g>
+                  );
+                })}
+                {lastIndex >= 0 && <circle cx={x(lastIndex)} cy={y(s.values[lastIndex])} r="4" fill={colors[si]} stroke="var(--color-surface)" strokeWidth="2" />}
               </g>
             );
           })}
@@ -325,9 +352,11 @@ function Lines({ categories, series, area, height, colors }) {
           {hover && (
             <g>
               <line x1={x(hover.i)} x2={x(hover.i)} y1={top} y2={y(0)} stroke="var(--color-line-strong)" strokeWidth="1" />
-              {series.map((s, si) => (
-                <circle key={s.key} cx={x(hover.i)} cy={y(s.values[hover.i] || 0)} r="4.5" fill={colors[si]} stroke="var(--color-surface)" strokeWidth="2" />
-              ))}
+              {series.map((s, si) =>
+                s.values[hover.i] == null ? null : (
+                  <circle key={s.key} cx={x(hover.i)} cy={y(s.values[hover.i])} r="4.5" fill={colors[si]} stroke="var(--color-surface)" strokeWidth="2" />
+                )
+              )}
             </g>
           )}
         </svg>
@@ -339,7 +368,7 @@ function Lines({ categories, series, area, height, colors }) {
             y: hover.y,
             flip: x(hover.i) > width / 2,
             title: categories[hover.i].label,
-            rows: series.map((s, si) => ({ label: s.label, value: fmt(s.values[hover.i]), color: colors[si] })),
+            rows: series.map((s, si) => ({ label: s.label, value: s.values[hover.i] == null ? 'Aucune donnée' : `${fmt(s.values[hover.i], decimals)}${unit}`, color: colors[si] })),
           }}
         />
       )}
@@ -511,7 +540,7 @@ function Kpi({ result }) {
 
 const cellText = (key, v) => {
   if (v == null || v === '') return '-';
-  if (/_at$/.test(key)) return new Date(v).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  if (/_at$|_due$/.test(key)) return new Date(v).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
   if (key === 'due_date') return new Date(`${v}T12:00:00`).toLocaleDateString('fr-FR');
   if (key === 'id') return `#${String(v).padStart(4, '0')}`;
   if (typeof v === 'number') return fmt(v, 1);
@@ -617,7 +646,7 @@ function DataTable({ result, maxHeight }) {
               </th>
               {result.series.map((s) => (
                 <td key={s.key} className="px-2 py-1.5 text-right tabular-nums">
-                  {fmt(s.values[i], d)}
+                  {s.values[i] == null ? '-' : `${fmt(s.values[i], d)}${result.metric?.unit ? `\u00a0${result.metric.unit}` : ''}`}
                 </td>
               ))}
             </tr>
@@ -635,7 +664,7 @@ const isEmpty = (r) =>
       ? !r.total
       : r.type === 'kpi'
         ? false
-        : !r.categories.length || r.series.every((s) => s.values.every((v) => !v));
+        : !r.categories.length || r.series.every((s) => s.values.every((v) => v == null || (v === 0 && !s.unit)));
 
 /**
  * Affiche un résultat de rapport. `height` : hauteur disponible pour le graphique.
@@ -674,6 +703,7 @@ export function ResultView({ result, height = 260, toggle = true }) {
 
   let chart;
   const decimals = result.metric?.decimals || 0;
+  const unit = result.metric?.unit ? `\u00a0${result.metric.unit}` : '';
   if (table) chart = <DataTable result={result} maxHeight={height} />;
   else if (result.type === 'heatmap') chart = <Heatmap result={result} />;
   else if (result.chart === 'table') chart = <DataTable result={result} maxHeight={height} />;
@@ -691,22 +721,22 @@ export function ResultView({ result, height = 260, toggle = true }) {
     chart = (
       <>
         <Legend items={view.series.map((s, i) => ({ label: s.label, color: view.colors[i] }))} />
-        <HBars categories={result.categories} series={view.series} stacked={result.chart === 'stacked'} decimals={decimals} colors={view.colors} maxHeight={height - 24} />
+        <HBars categories={result.categories} series={view.series} stacked={result.chart === 'stacked'} decimals={decimals} colors={view.colors} maxHeight={height - 24} unit={unit} />
       </>
     );
   } else if (result.type === 'trend' && result.chart !== 'bar') {
     chart = (
       <>
         <Legend items={view.series.map((s, i) => ({ label: s.label, color: view.colors[i] }))} />
-        <Lines categories={result.categories} series={view.series} area={result.chart === 'area'} height={height - (view.series.length > 1 ? 24 : 0)} colors={view.colors} />
+        <Lines categories={result.categories} series={view.series} area={result.chart === 'area'} height={height - (view.series.length > 1 ? 24 : 0)} colors={view.colors} unit={unit} decimals={decimals} />
       </>
     );
   } else {
     // Barres verticales : une seule série prend la couleur de chaque valeur si l'axe en a une (statut, priorité).
-    const single = view.series.length === 1 && result.type === 'summary' && ['status', 'priority'].includes(result.dimension.key);
+    const single = view.series.length === 1 && result.type === 'summary' && ['status', 'priority', 'sla_state', 'sla_response_state'].includes(result.dimension.key);
     if (single) {
       const per = result.categories.map((c, i) => seriesColor(colorIndex(result.dimension.key, c.key, i)));
-      chart = <PerValueColumns result={result} colors={per} height={height} decimals={decimals} />;
+      chart = <PerValueColumns result={result} colors={per} height={height} decimals={decimals} unit={unit} />;
     } else {
       chart = (
         <>
@@ -718,6 +748,7 @@ export function ResultView({ result, height = 260, toggle = true }) {
             height={height - (view.series.length > 1 ? 24 : 0)}
             decimals={decimals}
             colors={view.colors}
+            unit={unit}
           />
         </>
       );
@@ -732,9 +763,9 @@ export function ResultView({ result, height = 260, toggle = true }) {
 }
 
 /** Colonnes d'une seule série où chaque valeur garde sa couleur (statuts, priorités). */
-function PerValueColumns({ result, colors, height, decimals }) {
+function PerValueColumns({ result, colors, height, decimals, unit }) {
   // Une série par valeur, chacune nulle ailleurs : réutilise le dessin groupé sans décalage.
   const s = result.series[0];
   const series = result.categories.map((c, i) => ({ key: c.key, label: c.label, values: result.categories.map((_, j) => (i === j ? s.values[j] : 0)) }));
-  return <Columns categories={result.categories} series={series} stacked single height={height} decimals={decimals} colors={colors} />;
+  return <Columns categories={result.categories} series={series} stacked single height={height} decimals={decimals} colors={colors} unit={unit} />;
 }

@@ -363,6 +363,7 @@ const NOTIFY_CHOICES = [
   { key: 'handled', label: 'Messages sur les demandes que je traite', hint: 'Ou que mon groupe peut prendre, tant que personne ne s’en occupe.' },
   { key: 'group_new', label: 'Nouvelles demandes dans mes groupes', hint: 'Y compris les demandes transférées à un de mes groupes.' },
   { key: 'admin', label: 'Demandes pour rejoindre un groupe, à valider', adminOnly: true },
+  { key: 'sla', label: 'Délais (SLA) bientôt dépassés ou dépassés', hint: 'Pour les demandes qui me sont confiées, ou celles de mes groupes sans responsable.' },
   { key: 'reports', label: 'Rapports programmés envoyés par d’autres personnes', hint: 'Les rapports que vous programmez vous-même vous sont toujours envoyés.' },
 ];
 

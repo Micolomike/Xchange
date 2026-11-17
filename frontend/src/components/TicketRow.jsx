@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { FiCalendar, FiLock, FiMessageSquare, FiPaperclip, FiUsers } from 'react-icons/fi';
 import { PriorityBadge, StatusBadge, TicketStub } from './Badges';
 import { formatDate, formatRelative, isOverdue } from '../lib/format';
+import { SlaBadge } from './Sla';
 
 /** Ligne de ticket compacte, utilisée sur le tableau de bord. */
 export default function TicketRow({ ticket, meta = 'updated' }) {
@@ -21,6 +22,7 @@ export default function TicketRow({ ticket, meta = 'updated' }) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-mute">
             <StatusBadge status={ticket.status} />
             <PriorityBadge priority={ticket.priority} />
+            <SlaBadge ticket={ticket} />
             {ticket.due_date && (
               <span className={`inline-flex items-center gap-1 ${overdue ? 'font-semibold text-danger' : ''}`}>
                 <FiCalendar aria-hidden="true" />

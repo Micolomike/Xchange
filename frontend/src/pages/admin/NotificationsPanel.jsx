@@ -17,6 +17,8 @@ const MAIL_EVENTS = [
   { key: 'join_decided', label: 'Réponse à une demande d’adhésion', who: 'La personne qui a demandé' },
   { key: 'rgpd_request', label: 'Demande sur des données personnelles (RGPD)', who: 'Les administrateurs' },
   { key: 'chat_report', label: 'Message signalé dans les discussions', who: 'Les administrateurs' },
+  { key: 'sla_warning', label: 'Délai (SLA) bientôt dépassé', who: 'Le responsable, sinon les membres du groupe' },
+  { key: 'sla_breach', label: 'Délai (SLA) dépassé', who: 'Le responsable, sinon les membres du groupe' },
 ];
 const EVENT_LABELS = Object.fromEntries([
   ...MAIL_EVENTS.map((e) => [e.key, e.label]),

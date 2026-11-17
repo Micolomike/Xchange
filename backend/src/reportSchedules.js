@@ -70,7 +70,7 @@ function renderResult(result, appUrl) {
     for (const r of rows) {
       html += `<tr>${result.columns
         .map((c) => {
-          let v = /_at$|due_date/.test(c.key) ? fmtDate(r[c.key]) : fmt(r[c.key]);
+          let v = /_at$|due_date|_due$/.test(c.key) ? fmtDate(r[c.key]) : fmt(r[c.key]);
           if (c.key === 'title' && appUrl) return `<td style="${TD}"><a href="${escapeHtml(`${appUrl}/tickets/${r.id}`)}" style="color:#2f4bd8">${escapeHtml(v)}</a></td>`;
           if (c.key === 'id') v = `#${String(r.id).padStart(4, '0')}`;
           return `<td style="${TD}">${escapeHtml(v)}</td>`;

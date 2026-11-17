@@ -16,6 +16,9 @@ export function AnalyticsTabs() {
       <NavLink to="/analyses/rapports" className={cls}>
         Rapports
       </NavLink>
+      <NavLink to="/analyses/sla" className={cls}>
+        Délais (SLA)
+      </NavLink>
     </nav>
   );
 }

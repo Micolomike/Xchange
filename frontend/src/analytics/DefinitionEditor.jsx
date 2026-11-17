@@ -122,7 +122,11 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
             <MultiPick
               label="Courbes"
               allLabel="Créées et résolues"
-              options={[{ key: 'created', label: 'Créées' }, { key: 'resolved', label: 'Résolues' }]}
+              options={[
+                { key: 'created', label: 'Créées' },
+                { key: 'resolved', label: 'Résolues' },
+                { key: 'sla_rate', label: 'Résolutions dans les délais (%), seule' },
+              ]}
               value={def.series}
               onChange={(series) => set({ series })}
             />
@@ -191,6 +195,21 @@ export default function DefinitionEditor({ value, onChange, meta, idPrefix = 'de
               value={f.assignee || 'any'}
               onChange={(v) => setF({ assignee: v })}
               options={[['any', 'Peu importe'], ['me', 'Moi'], ['assigned', 'Quelqu’un'], ['none', 'Personne']]}
+            />
+            <Select
+              id={id('sla')}
+              label="Délai de résolution (SLA)"
+              value={f.sla || 'any'}
+              onChange={(v) => setF({ sla: v })}
+              options={[
+                ['any', 'Peu importe'],
+                ['attention', 'En cours : dépassé ou bientôt'],
+                ['breached', 'En cours : dépassé'],
+                ['at_risk', 'En cours : bientôt dépassé'],
+                ['met', 'Respecté'],
+                ['missed', 'Non respecté'],
+                ['late', 'Dépassé (en cours ou terminé)'],
+              ]}
             />
             <Select id={id('creator')} label="Demandeur" value={f.creator || 'any'} onChange={(v) => setF({ creator: v })} options={[['any', 'Peu importe'], ['me', 'Moi']]} />
             <Select

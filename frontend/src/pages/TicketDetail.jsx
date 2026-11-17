@@ -15,6 +15,7 @@ import { useAuth } from '../auth/context';
 import { api, downloadAttachment } from '../lib/api';
 import { ACTIVE_CATEGORY_KEYS, CATEGORIES, PRIORITIES, PRIORITY_ORDER, STATUSES, STATUS_ORDER } from '../lib/constants';
 import { formatDate, formatDateTime, formatRelative, formatSize, isOverdue } from '../lib/format';
+import { SlaDetail } from '../components/Sla';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Avatar, PriorityBadge, StatusBadge, TicketStub } from '../components/Badges';
 import FileDrop from '../components/FileDrop';
@@ -651,6 +652,9 @@ export default function TicketDetail() {
               ) : (
                 <span className="text-ink-mute">Aucune</span>
               )}
+            </SideItem>
+            <SideItem label="Délais (SLA)">
+              <SlaDetail sla={ticket.sla} />
             </SideItem>
             {perms.canSetConfidential && (
               <SideItem label="Confidentialité">

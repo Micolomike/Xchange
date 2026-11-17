@@ -694,6 +694,30 @@ test('analyses : tableau de bord, rapport, envoi programmé', async () => {
   await expect(page.getByRole('heading', { name: 'Envois programmés de tous les comptes' })).toBeVisible();
 });
 
+test('SLA : réglages, demande, tableau de bord', async () => {
+  await page.goto('/admin?tab=sla');
+  await expect(page.getByRole('heading', { name: 'Délais par priorité' })).toBeVisible();
+  await expect(page.getByLabel('Résolution, Urgente')).toHaveValue('2');
+  await page.getByLabel('Résolution, Urgente').fill('3');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText(/Délais enregistrés/)).toBeVisible();
+  await page.getByRole('button', { name: 'Appliquer aux demandes en cours' }).click();
+  await page.locator('.swal2-confirm').click();
+  await expect(page.getByText(/demande\(s\) recalculée\(s\)/)).toBeVisible();
+
+  await page.goto(`/tickets/${ids[0]}`);
+  const sla = page.getByRole('definition').filter({ hasText: 'Prise en charge' });
+  await expect(sla).toBeVisible();
+  await expect(sla.getByText('Résolution')).toBeVisible();
+
+  await page.goto('/admin?tab=sla');
+  await page.getByRole('link', { name: 'Tableau de bord SLA' }).click();
+  await expect(page).toHaveURL(/\/analyses\/sla$/);
+  await expect(page.getByRole('heading', { name: 'Délais (SLA)', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'En cours, délai dépassé' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /À traiter en priorité/ })).toBeVisible();
+});
+
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
   const display = page.getByRole('radiogroup', { name: 'Thème' });

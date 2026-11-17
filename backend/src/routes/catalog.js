@@ -1,4 +1,5 @@
 const express = require('express');
+const { refreshSla } = require('../sla');
 const { HttpError, parseId, nowIso } = require('../utils');
 const { validateItemInput, validateSubmission, describeAnswers } = require('../catalog');
 const { addEvent, MY_GROUPS_SQL } = require('../tickets');
@@ -114,6 +115,7 @@ function catalogRoutes({ db, notifier }) {
     await addEvent(db, lastID, req.user.id, 'created', null, item.name, now);
     if (group) await addEvent(db, lastID, req.user.id, 'group', null, group, now);
     if (group && notifier) notifier.ticketCreated(lastID, req.user.id);
+    await refreshSla(db, lastID);
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
 

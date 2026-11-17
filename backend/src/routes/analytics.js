@@ -496,6 +496,30 @@ function analyticsRoutes({ db, mailer }) {
     res.status(201).json({ dashboard: await saveDashboard(req, null, copy) });
   });
 
+  // Tableaux prêts à l'emploi (dont celui des SLA), consultables sans en créer de copie.
+  router.get('/templates/:key', async (req, res) => {
+    const t = D.TEMPLATES[req.params.key];
+    if (!t) throw new HttpError(404, 'Modèle inconnu.');
+    const widgets = D.validateWidgets(t.widgets, await R.definitionContext(db));
+    res.json({ dashboard: { id: null, template: req.params.key, name: t.name, description: t.description, widgets, filters: t.filters, mine: false, groups: [], owner: null } });
+  });
+
+  router.get('/templates/:key/data', async (req, res) => {
+    const t = D.TEMPLATES[req.params.key];
+    if (!t) throw new HttpError(404, 'Modèle inconnu.');
+    const ctx = await R.definitionContext(db);
+    const filters = D.validateFilters({ period: req.query.period || t.filters.period || undefined, group: req.query.group || t.filters.group || undefined }, ctx);
+    const data = {};
+    for (const w of D.validateWidgets(t.widgets, ctx)) {
+      try {
+        data[w.id] = { result: await R.runReport(db, w.definition, req.user, { overrides: D.overridesFor(w.definition, filters) }) };
+      } catch (err) {
+        data[w.id] = { error: err.message };
+      }
+    }
+    res.json({ filters, data, generatedAt: nowIso() });
+  });
+
   // Données de tous les blocs, avec les droits de la personne qui regarde et les filtres choisis.
   router.get('/dashboards/:id/data', async (req, res) => {
     const d = await loadDashboard(req, parseId(req.params.id, 'Tableau de bord'));

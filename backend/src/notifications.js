@@ -14,6 +14,8 @@ const { RGPD_TYPES } = require('./rgpdRequests');
 /** Prénom et nom, masqués pour qui a choisi de n'afficher que son pseudonyme. */
 const PUBLIC_NAME = "CASE WHEN hide_real_name = 1 THEN '' ELSE firstname END AS firstname, CASE WHEN hide_real_name = 1 THEN '' ELSE lastname END AS lastname";
 const frDate = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+const frDateTime = (iso) =>
+  new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const ticketNumber = (id) => `#${String(id).padStart(4, '0')}`;
 const STATUS = { open: 'Ouvert', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
 
@@ -85,6 +87,21 @@ const BUILDERS = {
     link: '/admin?tab=settings&section=rgpd',
     linkLabel: 'Traiter la demande',
   }),
+  sla_warning: ({ t, step, due }, mail) => ({
+    subject: `Délai bientôt dépassé : ${label(t, mail)}`,
+    lines: [
+      `${step === 'response' ? 'La prise en charge' : 'La résolution'} de la demande ${named(t, mail)} est attendue avant le ${frDateTime(due)}.`,
+      step === 'response' ? 'Prenez-la en charge (responsable, statut ou message) pour respecter l’engagement.' : 'Il reste peu de temps pour la résoudre.',
+    ],
+    link: `/tickets/${t.id}`,
+    linkLabel: 'Voir la demande',
+  }),
+  sla_breach: ({ t, step, due }, mail) => ({
+    subject: `Délai dépassé : ${label(t, mail)}`,
+    lines: [`${step === 'response' ? 'La prise en charge' : 'La résolution'} de la demande ${named(t, mail)} était attendue avant le ${frDateTime(due)}.`],
+    link: `/tickets/${t.id}`,
+    linkLabel: 'Voir la demande',
+  }),
   chat_report: ({ place }) => ({
     subject: 'Message signalé dans les discussions',
     lines: [`Un message a été signalé (${place}).`, 'Seul ce message vous est montré : le reste de la conversation reste privé.'],
@@ -121,6 +138,8 @@ const SAMPLE = {
   lastSeen: '2024-11-02T10:00:00.000Z',
   deadline: '2026-12-17T10:00:00.000Z',
   place: 'salon général',
+  step: 'resolution',
+  due: '2026-12-17T16:00:00.000Z',
 };
 
 function createNotifier({ db, mailer, logger = console }) {
@@ -295,6 +314,16 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
           list: await recipients(admins.map((a) => ({ id: a.id, pref: 'admin' })), r.user_id),
           data: { who: displayName(r), typeLabel: RGPD_TYPES[r.type]?.toLowerCase() || r.type },
         };
+      });
+    },
+
+    /** Alerte SLA : le responsable, ou les membres du groupe s'il n'y en a pas. */
+    slaAlert(ticketId, { step, kind, due }) {
+      return run(kind === 'breach' ? 'sla_breach' : 'sla_warning', async () => {
+        const t = await loadTicket(ticketId);
+        if (!t) return null;
+        const ids = t.assigned_to ? [t.assigned_to] : await groupMembers(t.assigned_group);
+        return { list: await recipients(ids.map((id) => ({ id, pref: 'sla' })), null), data: { t, step, due } };
       });
     },
 

@@ -143,8 +143,10 @@ function SettingsDialog({ open, value, meta, onClose, onSave }) {
   );
 }
 
-export default function DashboardView() {
-  const { id } = useParams();
+export default function DashboardView({ templateKey = null }) {
+  const { id: routeId } = useParams();
+  const id = templateKey ? null : routeId;
+  const base = templateKey ? `/api/analytics/templates/${templateKey}` : `/api/analytics/dashboards/${id}`;
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const chat = useChat();
@@ -163,24 +165,24 @@ export default function DashboardView() {
   const editing = Boolean(draft);
 
   const loadDash = useCallback(() => {
-    api(`/api/analytics/dashboards/${id}`)
+    api(base)
       .then(({ dashboard }) => {
         setDash(dashboard);
         setFilters((f) => f ?? { period: dashboard.filters.period || '', group: dashboard.filters.group ? String(dashboard.filters.group) : '' });
       })
       .catch(setError);
-  }, [id]);
+  }, [base]);
   useEffect(loadDash, [loadDash]);
 
   const refresh = useCallback(() => {
     if (!filters) return;
-    api(`/api/analytics/dashboards/${id}/data`, { query: { period: filters.period || '', group: filters.group || '' } })
+    api(`${base}/data`, { query: { period: filters.period || '', group: filters.group || '' } })
       .then((r) => {
         setData(r.data);
         setUpdatedAt(new Date(r.generatedAt));
       })
       .catch((err) => toastError(err));
-  }, [id, filters]);
+  }, [base, filters]);
   useEffect(refresh, [refresh, dash?.updatedAt]);
 
   // En direct : recalcul quand une demande change (signal sans contenu), et toutes les minutes.
@@ -240,7 +242,9 @@ export default function DashboardView() {
   };
   const duplicate = async () => {
     try {
-      const { dashboard } = await api(`/api/analytics/dashboards/${id}/duplicate`, { method: 'POST' });
+      const { dashboard } = templateKey
+        ? await api('/api/analytics/dashboards', { method: 'POST', body: { template: templateKey } })
+        : await api(`/api/analytics/dashboards/${id}/duplicate`, { method: 'POST' });
       toast('Copie créée : elle vous appartient');
       navigate(`/analyses/tableaux/${dashboard.id}`);
     } catch (err) {
@@ -273,17 +277,21 @@ export default function DashboardView() {
 
   return (
     <div ref={wrapper} className={full ? 'overflow-auto bg-paper p-6' : ''}>
-      {!full && (
+      {!full && !templateKey && (
         <Link to="/analyses/tableaux" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink">
           <FiArrowLeft aria-hidden="true" /> Tableaux de bord
         </Link>
       )}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">{editing ? draft.name : dash.name}</h1>
+          {templateKey ? (
+            <h2 className="text-xl font-bold tracking-tight text-ink">{dash.name}</h2>
+          ) : (
+            <h1 className="text-2xl font-bold tracking-tight text-ink">{editing ? draft.name : dash.name}</h1>
+          )}
           <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-ink-mute">
             {(editing ? draft.description : dash.description) && <span>{editing ? draft.description : dash.description}</span>}
-            {!dash.mine && <span>Partagé par {dash.owner.name}</span>}
+            {!dash.mine && dash.owner && <span>Partagé par {dash.owner.name}</span>}
             {!editing && (
               <span className="inline-flex items-center gap-1.5" aria-live="polite">
                 <span className={`size-2 rounded-full ${chat?.status === 'online' ? 'bg-resolved' : 'bg-line-strong'}`} aria-hidden="true" />
@@ -344,8 +352,14 @@ export default function DashboardView() {
                 </button>
               )}
               {!full && (
-                <button type="button" className="btn btn-secondary" onClick={duplicate} aria-label="Dupliquer" title="Dupliquer">
-                  <FiCopy aria-hidden="true" />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={duplicate}
+                  aria-label={templateKey ? 'Personnaliser (crée votre copie)' : 'Dupliquer'}
+                  title={templateKey ? 'Personnaliser (crée votre copie)' : 'Dupliquer'}
+                >
+                  <FiCopy aria-hidden="true" /> {templateKey && 'Personnaliser'}
                 </button>
               )}
               {!full && dash.mine && (

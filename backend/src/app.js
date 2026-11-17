@@ -21,6 +21,7 @@ const { legalPublicRoutes, rgpdAdminRoutes } = require('./routes/rgpd');
 const { assistantRoutes, assistantAdminRoutes } = require('./routes/assistant');
 const { chatRoutes, chatAdminRoutes } = require('./routes/chat');
 const { analyticsRoutes, analyticsAdminRoutes } = require('./routes/analytics');
+const { slaAdminRoutes } = require('./routes/sla');
 const { createHub } = require('./chat');
 const { createMailer } = require('./mailer');
 const { createNotifier } = require('./notifications');
@@ -107,6 +108,7 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/chat', auth, chatRoutes({ db, hub, notifier }));
   app.use('/api/analytics', auth, analyticsRoutes({ db, mailer }));
   app.use('/api/admin/analytics', auth, requireAdmin, analyticsAdminRoutes({ db }));
+  app.use('/api/admin/sla', auth, requireAdmin, slaAdminRoutes({ db }));
   app.use('/api/admin/chat', auth, requireAdmin, chatAdminRoutes({ db, hub }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));

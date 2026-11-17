@@ -93,6 +93,12 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 **Catalogue**
 - Rubriques dans un menu à gauche (pastilles sur téléphone), une rubrique à la fois, « Les plus demandés » en tête (6 formulaires les plus envoyés sur 90 jours), recherche sur tout le catalogue et demande libre toujours proposée.
 
+**Délais (SLA)** (Administration > SLA)
+- Deux engagements par demande : prise en charge (responsable, changement de statut ou message d'une autre personne que l'auteur) et résolution (« Résolu » ou « Fermé »).
+- Par défaut : Haute 4 h / 2 jours, Moyenne 1 jour / 5 jours, Basse 2 jours / 10 jours, en temps ouvré du lundi au vendredi de 9 h à 18 h, hors jours fériés français (calculés, Pâques comprise) ; décompte 24 h sur 24 possible ; règles par catégorie ; alerte à 75 % du délai.
+- Échéances fixées à la création (recalculées si la priorité ou la catégorie change), recalcul des demandes en cours à la demande, rattrapage des demandes anciennes au démarrage.
+- Encart sur chaque demande, pastille et filtre dans la liste, e-mails à l'approche et au dépassement (responsable, sinon groupe), tableau de bord dédié (Analyses > Délais (SLA)).
+
 **Analyses** (menu « Analyses », ouvert à tous)
 - Rapports : liste de demandes, regroupement (deux axes possibles), évolution, indicateur avec comparaison à la période précédente, carte de chaleur jour × heure ; filtres (période, statut, priorité, catégorie, groupe, formulaire, responsable, demandeur, confidentialité, retard, mot cherché), aperçu en direct, export CSV, vue en tableau de chaque graphique. Partage privé, avec des groupes ou avec tous ; copie possible.
 - Droits : dans l'application, tout est calculé avec les droits de la personne qui regarde. Un envoi par e-mail est calculé avec les droits du créateur et n'est envoyé qu'aux destinataires qui voient eux-mêmes toutes les demandes du rapport (contrôle à chaque envoi).
@@ -214,7 +220,7 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `POST` | `/api/auth/mfa/verify`, `/api/auth/mfa/setup/start`, `/api/auth/mfa/setup/confirm` | jeton d'étape |
 | `POST` | `/api/auth/mfa/recovery-codes` | connecté |
 | `GET`, `PUT` | `/api/auth/me` | connecté |
-| `GET` | `/api/tickets?status=&priority=&category=&assignee=&group=&scope=&overdue=&q=&sort=&order=&page=&pageSize=` | connecté |
+| `GET` | `/api/tickets?status=&priority=&category=&assignee=&group=&scope=&overdue=&sla=&q=&sort=&order=&page=&pageSize=` | connecté |
 | `POST` | `/api/tickets` | connecté |
 | `GET`, `PATCH` | `/api/tickets/:id` | selon droits sur le ticket |
 | `DELETE` | `/api/tickets/:id` (mise à la corbeille) | admin |
@@ -254,6 +260,8 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET` | `/api/analytics/reports/:id/run`, `/api/analytics/reports/:id/csv` (`period`, `group`) | selon partage, droits de la personne |
 | `GET`, `POST` | `/api/analytics/reports/:id/schedules` ; `PUT`, `DELETE` `/api/analytics/schedules/:id` ; `POST` `/api/analytics/schedules/:id/send` ; `GET` `/api/analytics/schedules/:id/runs` ; `GET` `/api/analytics/recipients?q=` | créateur |
 | `GET`, `POST` | `/api/analytics/dashboards` (`template` possible) ; `GET`, `PUT`, `DELETE` `/api/analytics/dashboards/:id` ; `POST` `…/duplicate` ; `GET` `…/data?period=&group=` | connecté (modification : créateur) |
+| `GET` | `/api/analytics/templates/:key`, `/api/analytics/templates/:key/data` (tableaux prêts à l'emploi, dont `sla`) | connecté |
+| `GET`, `PUT` | `/api/admin/sla` ; `POST` `/api/admin/sla/preview`, `/api/admin/sla/recalculate` | admin |
 | `GET` | `/api/admin/analytics/schedules` ; `POST` `/api/admin/analytics/schedules/:id/disable` | admin |
 | `GET` | `/api/admin/chat/reports?status=` ; `POST` `/api/admin/chat/reports/:id/remove`, `/api/admin/chat/reports/:id/dismiss` | admin |
 

@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { CATEGORIES, PRIORITIES, PRIORITY_ORDER } from '../lib/constants';
 import { formatDate, formatRelative, isOverdue, plural } from '../lib/format';
 import { Avatar, PriorityBadge, StatusBadge, TicketStub } from '../components/Badges';
+import { SlaBadge } from '../components/Sla';
 import TicketRow from '../components/TicketRow';
 import { EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui';
 
@@ -27,7 +28,7 @@ const SORTS = [
 ];
 
 const PAGE_SIZE = 20;
-const FILTER_KEYS = ['q', 'priority', 'category', 'assignee', 'scope', 'group', 'overdue'];
+const FILTER_KEYS = ['q', 'priority', 'category', 'assignee', 'scope', 'group', 'overdue', 'sla'];
 
 export default function TicketList() {
   const { isAdmin, canCreate } = useAuth();
@@ -55,6 +56,7 @@ export default function TicketList() {
       scope: params.get('scope'),
       group: params.get('group'),
       overdue: params.get('overdue'),
+      sla: params.get('sla'),
       sort: sortField,
       order,
       page,
@@ -241,6 +243,11 @@ export default function TicketList() {
               ))}
             </select>
           )}
+          <select className="field" aria-label="Délais (SLA)" value={params.get('sla') || ''} onChange={(e) => setParam('sla', e.target.value)}>
+            <option value="">Tous les délais</option>
+            <option value="at_risk">Délai bientôt dépassé</option>
+            <option value="breached">Délai dépassé</option>
+          </select>
           <select className="field" aria-label="Trier par" value={sort} onChange={(e) => setParam('sort', e.target.value)}>
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -356,6 +363,9 @@ export default function TicketList() {
                         <td className={`whitespace-nowrap px-4 py-3 ${overdue ? 'font-semibold text-danger' : 'text-ink-soft'}`}>
                           {t.due_date ? formatDate(t.due_date) : <span className="text-ink-mute">Aucune</span>}
                           {overdue && <span className="block text-xs">En retard</span>}
+                          <span className="mt-1 block">
+                            <SlaBadge ticket={t} />
+                          </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-ink-mute">{formatRelative(t.updated_at)}</td>
                       </tr>

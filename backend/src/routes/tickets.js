@@ -1,4 +1,5 @@
 const express = require('express');
+const { refreshSla } = require('../sla');
 const {
   HttpError,
   STATUSES,
@@ -258,6 +259,20 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
       params.push(todayIso());
     }
 
+    // SLA : demandes en cours dont un délai est dépassé, ou proche de l'être.
+    if (q.sla === 'breached' || q.sla === 'at_risk') {
+      const n = new Date().toISOString();
+      where.push("t.status IN ('open', 'in_progress')");
+      if (q.sla === 'breached') {
+        where.push('((t.sla_responded_at IS NULL AND t.sla_response_due < ?) OR t.sla_resolution_due < ?)');
+        params.push(n, n);
+      } else {
+        where.push(`(((t.sla_responded_at IS NULL AND t.sla_response_warn <= ? AND t.sla_response_due >= ?) OR (t.sla_resolution_warn <= ? AND t.sla_resolution_due >= ?))
+          AND NOT ((t.sla_responded_at IS NULL AND t.sla_response_due < ?) OR t.sla_resolution_due < ?))`);
+        params.push(n, n, n, n, n, n);
+      }
+    }
+
     const search = typeof q.q === 'string' ? q.q.trim() : '';
     if (search) {
       const like = `%${search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
@@ -313,6 +328,7 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
     if (assignedTo) await addEvent(db, lastID, req.user.id, 'assignee', null, assignedTo, now);
     if (assignedGroup) notifier.ticketCreated(lastID, req.user.id);
     if (assignedTo) notifier.assigned(lastID, req.user.id);
+    await refreshSla(db, lastID);
 
     res.status(201).json(await loadTicketDetail(db, req.user, lastID));
   });
@@ -421,6 +437,7 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
     if (changes.assigned_group) notifier.groupChanged(id, req.user.id);
     const edited = ['title', 'description', 'category', 'due_date'].filter((f) => f in changes);
     if (edited.length) await addEvent(db, id, req.user.id, 'edited', null, edited.join(','), now);
+    await refreshSla(db, id);
 
     res.json(await detailAfterChange(db, req.user, id));
   });
@@ -449,6 +466,7 @@ function ticketRoutes({ db, notifier = NOOP_NOTIFIER }) {
       [id, req.user.id, body, now, req.user.impersonator?.id ?? null]
     );
     await db.run('UPDATE tickets SET updated_at = ? WHERE id = ?', [now, id]);
+    await refreshSla(db, id);
     notifier.commentAdded(id, req.user.id, body);
     res.status(201).json({
       id: lastID,
