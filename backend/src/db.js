@@ -239,6 +239,7 @@ const ADDED_COLUMNS = {
     terms_accepted_at: 'TEXT',
     mfa_exempt_by: 'TEXT',
     terms_version: 'INTEGER NOT NULL DEFAULT 0',
+    hide_real_name: 'INTEGER NOT NULL DEFAULT 0',
     inactivity_warned_at: 'TEXT',
     mfa_exempt_at: 'TEXT',
   },

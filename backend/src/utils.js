@@ -58,6 +58,7 @@ function publicUser(row) {
     notify_prefs: parseNotifyPrefs(row.notify_prefs),
     terms_accepted_at: row.terms_accepted_at || null,
     terms_version: row.terms_version || 0,
+    hide_real_name: Boolean(row.hide_real_name),
     last_seen_at: row.last_seen_at || null,
     name: displayName(row),
     created_at: toIso(row.created_at),

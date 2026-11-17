@@ -45,6 +45,8 @@ N'indiquez pas d'informations de santé, de numéros de compte bancaire, de mots
 - les administrateurs du site ;
 - une demande confidentielle n'est visible que par vous, la personne qui la traite et les administrateurs qui y participent.
 
+Vous pouvez choisir, à l'inscription ou dans « Mon compte », de n'afficher que votre pseudonyme : les autres membres ne voient alors ni votre prénom ni votre nom ; les administrateurs les voient toujours.
+
 Pour vous aider, un administrateur peut agir à votre place. Chaque prise de contrôle est enregistrée, et elle ne donne pas accès aux demandes confidentielles.
 
 Prestataires techniques :

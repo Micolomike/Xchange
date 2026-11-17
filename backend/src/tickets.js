@@ -2,9 +2,9 @@ const { HttpError, toIso, displayName } = require('./utils');
 
 const TICKET_SELECT = `
   SELECT t.*,
-    c.username AS c_username, c.firstname AS c_firstname, c.lastname AS c_lastname,
-    a.username AS a_username, a.firstname AS a_firstname, a.lastname AS a_lastname,
-    d.username AS d_username, d.firstname AS d_firstname, d.lastname AS d_lastname,
+    c.username AS c_username, CASE WHEN c.hide_real_name = 1 THEN '' ELSE c.firstname END AS c_firstname, CASE WHEN c.hide_real_name = 1 THEN '' ELSE c.lastname END AS c_lastname,
+    a.username AS a_username, CASE WHEN a.hide_real_name = 1 THEN '' ELSE a.firstname END AS a_firstname, CASE WHEN a.hide_real_name = 1 THEN '' ELSE a.lastname END AS a_lastname,
+    d.username AS d_username, CASE WHEN d.hide_real_name = 1 THEN '' ELSE d.firstname END AS d_firstname, CASE WHEN d.hide_real_name = 1 THEN '' ELSE d.lastname END AS d_lastname,
     g.name AS g_name, ci.name AS ci_name,
     (SELECT COUNT(*) FROM comments WHERE ticket_id = t.id) AS comment_count,
     (SELECT COUNT(*) FROM attachments WHERE ticket_id = t.id) AS attachment_count

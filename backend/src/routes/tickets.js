@@ -80,23 +80,23 @@ async function loadTicketDetail(db, user, id) {
 
   const comments = await db.all(
     `SELECT c.id, c.body, c.created_at, u.id AS author_id, u.username AS author_username,
-            u.firstname AS author_firstname, u.lastname AS author_lastname,
-            i.id AS imp_id, i.username AS imp_username, i.firstname AS imp_firstname, i.lastname AS imp_lastname
+            CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS author_firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS author_lastname,
+            i.id AS imp_id, i.username AS imp_username, CASE WHEN i.hide_real_name = 1 THEN '' ELSE i.firstname END AS imp_firstname, CASE WHEN i.hide_real_name = 1 THEN '' ELSE i.lastname END AS imp_lastname
      FROM comments c LEFT JOIN users u ON u.id = c.author_id LEFT JOIN users i ON i.id = c.impersonator_id
      WHERE c.ticket_id = ? ORDER BY c.created_at ASC, c.id ASC`,
     [id]
   );
   const attachments = await db.all(
     `SELECT a.id, a.original_name, a.mime_type, a.size, a.created_at, u.id AS up_id,
-            u.username AS up_username, u.firstname AS up_firstname, u.lastname AS up_lastname
+            u.username AS up_username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS up_firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS up_lastname
      FROM attachments a LEFT JOIN users u ON u.id = a.uploaded_by
      WHERE a.ticket_id = ? ORDER BY a.created_at ASC, a.id ASC`,
     [id]
   );
   const events = await db.all(
     `SELECT e.id, e.type, e.from_value, e.to_value, e.created_at, u.id AS actor_id,
-            u.username AS actor_username, u.firstname AS actor_firstname, u.lastname AS actor_lastname,
-            i.id AS imp_id, i.username AS imp_username, i.firstname AS imp_firstname, i.lastname AS imp_lastname
+            u.username AS actor_username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS actor_firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS actor_lastname,
+            i.id AS imp_id, i.username AS imp_username, CASE WHEN i.hide_real_name = 1 THEN '' ELSE i.firstname END AS imp_firstname, CASE WHEN i.hide_real_name = 1 THEN '' ELSE i.lastname END AS imp_lastname
      FROM ticket_events e LEFT JOIN users u ON u.id = e.actor_id LEFT JOIN users i ON i.id = e.impersonator_id
      WHERE e.ticket_id = ? ORDER BY e.created_at ASC, e.id ASC`,
     [id]
@@ -114,7 +114,7 @@ async function loadTicketDetail(db, user, id) {
   if (userIds.size) {
     const ids = [...userIds];
     const rows = await db.all(
-      `SELECT id, username, firstname, lastname FROM users WHERE id IN (${ids.map(() => '?').join(',')})`,
+      `SELECT id, username, CASE WHEN hide_real_name = 1 THEN '' ELSE firstname END AS firstname, CASE WHEN hide_real_name = 1 THEN '' ELSE lastname END AS lastname FROM users WHERE id IN (${ids.map(() => '?').join(',')})`,
       ids
     );
     for (const r of rows) names.set(r.id, displayName(r));

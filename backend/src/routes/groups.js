@@ -38,9 +38,9 @@ async function listGroups(db) {
          AND t.status IN ('open', 'in_progress')) AS active_count
     FROM user_groups g ORDER BY g.name COLLATE NOCASE`);
   const members = await db.all(`
-    SELECT m.group_id, u.id, u.username, u.firstname, u.lastname
+    SELECT m.group_id, u.id, u.username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS lastname
     FROM group_members m JOIN users u ON u.id = m.user_id
-    ORDER BY u.firstname COLLATE NOCASE, u.lastname COLLATE NOCASE, u.username COLLATE NOCASE`);
+    ORDER BY firstname COLLATE NOCASE, lastname COLLATE NOCASE, u.username COLLATE NOCASE`);
   const byGroup = new Map(groups.map((g) => [g.id, []]));
   for (const m of members) {
     byGroup.get(m.group_id)?.push({ id: m.id, username: m.username, name: displayName(m) });

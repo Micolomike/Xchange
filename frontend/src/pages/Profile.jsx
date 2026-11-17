@@ -606,7 +606,12 @@ function DataSection() {
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();
-  const [info, setInfo] = useState({ firstname: user.firstname, lastname: user.lastname, email: user.email });
+  const [info, setInfo] = useState({
+    firstname: user.firstname,
+    lastname: user.lastname,
+    email: user.email,
+    hide_real_name: Boolean(user.hide_real_name),
+  });
   const [infoErrors, setInfoErrors] = useState({});
   const [savingInfo, setSavingInfo] = useState(false);
 
@@ -669,6 +674,21 @@ export default function Profile() {
         <Field id="p-email" label="E-mail" error={infoErrors.email}>
           {(p) => <input {...p} type="email" className="field" value={info.email} onChange={(e) => setInfo({ ...info, email: e.target.value })} />}
         </Field>
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4"
+            checked={Boolean(info.hide_real_name)}
+            onChange={(e) => setInfo({ ...info, hide_real_name: e.target.checked })}
+          />
+          <span>
+            N’afficher que mon pseudonyme ({user.username})
+            <span className="block text-xs text-ink-mute">
+              Les autres membres ne verront ni votre prénom ni votre nom, dans les demandes, les messages, les groupes et les e-mails.
+              Les administrateurs les voient.
+            </span>
+          </span>
+        </label>
         <div className="flex justify-end">
           <button type="submit" className="btn btn-primary" disabled={savingInfo}>
             {savingInfo ? 'Enregistrement…' : 'Enregistrer'}

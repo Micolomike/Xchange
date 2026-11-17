@@ -76,6 +76,9 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Administration > Paramètres > Notifications : état de l'envoi et statistiques sur 7 jours, interrupteur général, chaque événement activable avec aperçu de l'e-mail, statuts qui déclenchent un e-mail, nom d'expéditeur, début de l'objet, contenu détaillé ou non, texte de bas de page, adresse publique pour les liens, comptes sans adresse e-mail, journal des 100 derniers envois et e-mail de test vers n'importe quelle adresse.
 - « Mon compte » : chacun coupe tout ou choisit ce qu'il reçoit (ses demandes, demandes confiées, messages sur ce qu'il traite, nouvelles demandes de ses groupes, adhésions à valider pour les administrateurs).
 
+**Pseudonyme seul**
+- À l'inscription ou dans « Mon compte », chacun peut n'afficher que son nom d'utilisateur : prénom et nom sont cachés aux autres membres (demandes, messages, historique, groupes, e-mails). Les administrateurs les voient dans la gestion des comptes (badge « Pseudonyme seul »).
+
 **Double authentification au choix**
 - À l'inscription ou à la première connexion, une personne (pas un administrateur) peut refuser la double authentification : les risques sont expliqués, une case doit être cochée, et le choix est enregistré sur son compte avec sa date (« Refusée par la personne » dans la liste des utilisateurs, distinct d'une dispense donnée par un administrateur). Elle peut l'activer plus tard dans « Mon compte ».
 - « Faire confiance à ce navigateur pendant 30 jours » à la saisie du code (`TRUSTED_DEVICE_DAYS`, 1 à 90). Le mot de passe reste demandé ; la confiance tombe à l'expiration, au changement de mot de passe ou à la réinitialisation de la double authentification. « Mon compte » liste les navigateurs de confiance (retrait un par un ou tous) et l'historique de sécurité du compte.

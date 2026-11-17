@@ -119,9 +119,9 @@ async function exportUser(db, id) {
     }
     t.messages = (
       await db.all(
-        `SELECT c.body, c.created_at, u.username, u.firstname, u.lastname FROM comments c
+        `SELECT c.body, c.created_at, u.username, CASE WHEN u.hide_real_name = 1 AND u.id <> ? THEN '' ELSE u.firstname END AS firstname, CASE WHEN u.hide_real_name = 1 AND u.id <> ? THEN '' ELSE u.lastname END AS lastname FROM comments c
          LEFT JOIN users u ON u.id = c.author_id WHERE c.ticket_id = ? ORDER BY c.id`,
-        [t.id]
+        [id, id, t.id]
       )
     ).map((c) => ({ author: c.username ? displayName(c) : 'Compte supprimé', body: c.body, created_at: c.created_at }));
     t.attachments = await db.all('SELECT original_name, mime_type, size, created_at FROM attachments WHERE ticket_id = ?', [t.id]);
@@ -151,6 +151,7 @@ async function exportUser(db, id) {
       double_authentication_declined: u.mfa_exempt ? { by: u.mfa_exempt_by === 'self' ? 'vous-même' : 'un administrateur', at: u.mfa_exempt_at } : null,
       email_notifications: Boolean(u.notify_email),
       notification_choices: prefs,
+      shown_to_others_as: u.hide_real_name ? 'pseudonyme seul' : 'prénom et nom',
     },
     groups: (await db.all('SELECT g.name FROM group_members m JOIN user_groups g ON g.id = m.group_id WHERE m.user_id = ?', [id])).map((g) => g.name),
     group_requests: await db.all(

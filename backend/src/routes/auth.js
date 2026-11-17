@@ -129,9 +129,9 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const role = count === 0 ? 'admin' : 'user';
     const hash = await bcrypt.hash(values.password, 10);
     const { lastID } = await db.run(
-      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso()]
+      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at, last_seen_at, hide_real_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso(), req.body?.hideRealName === true ? 1 : 0]
     );
     if (req.body?.acceptTerms === true) await acceptTerms(db, lastID, (await syncTerms(db)).version);
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
@@ -270,7 +270,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
   // Transparence : chaque utilisateur voit quand un administrateur a utilisé son compte.
   router.get('/impersonations', authenticate, forbidImpersonation, async (req, res) => {
     const rows = await db.all(
-      `SELECT i.started_at, i.ended_at, u.username, u.firstname, u.lastname
+      `SELECT i.started_at, i.ended_at, u.username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS lastname
        FROM impersonations i LEFT JOIN users u ON u.id = i.admin_id
        WHERE i.target_id = ? ORDER BY i.started_at DESC LIMIT 20`,
       [req.user.id]
@@ -333,7 +333,7 @@ function authRoutes({ db, config, authenticate, notifier }) {
       [req.user.id, nowIso(), req.user.id]
     );
     const events = await db.all(
-      `SELECT e.type, e.detail, e.created_at, e.actor_id, a.username, a.firstname, a.lastname FROM security_events e
+      `SELECT e.type, e.detail, e.created_at, e.actor_id, a.username, CASE WHEN a.hide_real_name = 1 THEN '' ELSE a.firstname END AS firstname, CASE WHEN a.hide_real_name = 1 THEN '' ELSE a.lastname END AS lastname FROM security_events e
        LEFT JOIN users a ON a.id = e.actor_id WHERE e.user_id = ? ORDER BY e.id DESC LIMIT 50`,
       [req.user.id]
     );
@@ -409,6 +409,11 @@ function authRoutes({ db, config, authenticate, notifier }) {
     }
     for (const field of ['email', 'firstname', 'lastname']) {
       if (field in values) await db.run(`UPDATE users SET ${field} = ? WHERE id = ?`, [values[field], row.id]);
+    }
+    // Pseudonyme seul : prénom et nom cachés aux autres (les administrateurs les voient toujours).
+    if ('hide_real_name' in body) {
+      if (typeof body.hide_real_name !== 'boolean') throw new HttpError(400, 'Choix d’affichage du nom invalide.');
+      await db.run('UPDATE users SET hide_real_name = ? WHERE id = ?', [body.hide_real_name ? 1 : 0, row.id]);
     }
     if ('notify_email' in body) {
       if (typeof body.notify_email !== 'boolean') throw new HttpError(400, 'Préférence de notification invalide.');

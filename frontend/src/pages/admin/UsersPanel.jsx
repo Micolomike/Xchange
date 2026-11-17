@@ -279,6 +279,11 @@ export default function UsersPanel() {
                       <span className="block font-semibold">
                         {u.name}
                         {u.id === me.id && <span className="ml-1 text-xs font-normal text-ink-mute">(vous)</span>}
+                        {u.hide_real_name && (
+                          <span className="ml-2 rounded-full bg-closed-soft px-2 py-0.5 text-xs font-semibold text-closed" title="Les autres membres ne voient que son pseudonyme">
+                            Pseudonyme seul
+                          </span>
+                        )}
                       </span>
                       <span className="block text-xs text-ink-mute">{u.username}</span>
                     </span>

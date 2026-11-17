@@ -21,6 +21,7 @@ export default function Register() {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [hideRealName, setHideRealName] = useState(false);
   const { data: legal } = useLegal();
   const navigate = useNavigate();
 
@@ -59,7 +60,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       const { confirmPassword: _ignored, ...payload } = form;
-      const next = await register({ ...payload, groups: wantedGroups, acceptTerms });
+      const next = await register({ ...payload, groups: wantedGroups, acceptTerms, hideRealName });
       toast(next.user.role === 'admin' ? 'Compte créé : vous êtes administrateur' : 'Compte créé');
       navigate(next.kind === 'setup' ? '/double-authentification' : '/', { replace: true });
     } catch (err) {
@@ -82,7 +83,13 @@ export default function Register() {
         <h1 className="mb-1 text-xl font-bold">Créer un compte</h1>
         <p className="mb-6 text-sm text-ink-mute">Le premier compte créé devient administrateur.</p>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <Field id="reg-username" label="Nom d'utilisateur" required error={errors.username} hint="3 à 32 caractères, sans espace.">
+          <Field
+            id="reg-username"
+            label="Nom d'utilisateur (pseudonyme)"
+            required
+            error={errors.username}
+            hint="3 à 32 caractères, sans espace. Visible par tous."
+          >
             {input('username', { autoComplete: 'username', autoFocus: true })}
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -93,6 +100,15 @@ export default function Register() {
               {input('lastname', { autoComplete: 'family-name' })}
             </Field>
           </div>
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" className="mt-0.5 size-4" checked={hideRealName} onChange={(e) => setHideRealName(e.target.checked)} />
+            <span>
+              N’afficher que mon pseudonyme
+              <span className="block text-xs text-ink-mute">
+                Les autres membres ne verront ni votre prénom ni votre nom. Les administrateurs les voient. Modifiable dans « Mon compte ».
+              </span>
+            </span>
+          </label>
           <Field id="reg-email" label="E-mail" error={errors.email}>
             {input('email', { type: 'email', autoComplete: 'email' })}
           </Field>

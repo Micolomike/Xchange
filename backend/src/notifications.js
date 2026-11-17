@@ -11,6 +11,8 @@ const { displayName, parseNotifyPrefs: parsePrefs } = require('./utils');
 const { getMailSettings } = require('./settings');
 const { RGPD_TYPES } = require('./rgpdRequests');
 
+/** Prénom et nom, masqués pour qui a choisi de n'afficher que son pseudonyme. */
+const PUBLIC_NAME = "CASE WHEN hide_real_name = 1 THEN '' ELSE firstname END AS firstname, CASE WHEN hide_real_name = 1 THEN '' ELSE lastname END AS lastname";
 const frDate = (iso) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
 const ticketNumber = (id) => `#${String(id).padStart(4, '0')}`;
 const STATUS = { open: 'Ouvert', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
@@ -197,7 +199,7 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
     groupId ? (await db.all('SELECT user_id FROM group_members WHERE group_id = ?', [groupId])).map((r) => r.user_id) : [];
 
   const actorName = async (id) => {
-    const row = id && (await db.get('SELECT username, firstname, lastname FROM users WHERE id = ?', [id]));
+    const row = id && (await db.get(`SELECT username, ${PUBLIC_NAME} FROM users WHERE id = ?`, [id]));
     return row ? displayName(row) : 'Quelqu’un';
   };
 
@@ -247,7 +249,7 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
     joinRequested(requestId) {
       return run('join_requested', async () => {
         const r = await db.get(
-          `SELECT r.*, g.name AS group_name, u.username, u.firstname, u.lastname FROM group_requests r
+          `SELECT r.*, g.name AS group_name, u.username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS lastname FROM group_requests r
            JOIN user_groups g ON g.id = r.group_id JOIN users u ON u.id = r.user_id WHERE r.id = ?`,
           [requestId]
         );
@@ -277,7 +279,7 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
     rgpdRequested(requestId) {
       return run('rgpd_request', async () => {
         const r = await db.get(
-          'SELECT r.*, u.username, u.firstname, u.lastname FROM rgpd_requests r JOIN users u ON u.id = r.user_id WHERE r.id = ?',
+          `SELECT r.*, u.username, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.firstname END AS firstname, CASE WHEN u.hide_real_name = 1 THEN '' ELSE u.lastname END AS lastname FROM rgpd_requests r JOIN users u ON u.id = r.user_id WHERE r.id = ?`,
           [requestId]
         );
         if (!r) return null;
