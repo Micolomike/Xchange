@@ -4,6 +4,7 @@ const { createApp, ensureAdmin } = require('./src/app');
 const { startBackupScheduler } = require('./src/backupScheduler');
 const { startRgpdScheduler } = require('./src/rgpd');
 const { applyContent } = require('./src/content');
+const { syncTerms } = require('./src/terms');
 
 async function main() {
   const config = loadConfig();
@@ -16,6 +17,8 @@ async function main() {
   const db = await openDatabase(config.databasePath, { legacyDeletedLogPath: config.legacyDeletedLogPath });
   await ensureAdmin(db, config);
   if (config.seedContent) await applyContent(db);
+  // Version de la charte prête avant la première requête (comptes ayant déjà accepté : version 1).
+  await syncTerms(db);
 
   const app = createApp({ db, config });
   const server = app.listen(config.port, config.host, () => {

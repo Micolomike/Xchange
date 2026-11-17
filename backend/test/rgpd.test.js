@@ -239,6 +239,22 @@ describe('RGPD', () => {
     assert.equal(archived.text, '## Règle\nNouvelle charte.');
   });
 
+  test('mise à jour : un compte qui avait accepté avant les versions reçoit la version 1 dès /me', async () => {
+    const other = await setup();
+    try {
+      const u = await other.register('ancien');
+      // Base d'avant les versions : acceptation datée, aucune version, aucune trace.
+      await other.db.run('DELETE FROM terms_versions');
+      await other.db.run('DELETE FROM terms_acceptances');
+      await other.db.run('UPDATE users SET terms_version = 0');
+      const me = (await other.api.get('/api/auth/me').set(u.auth).expect(200)).body.user;
+      assert.equal(me.terms_version, 1);
+      assert.equal((await other.api.get('/api/legal')).body.termsVersion, 1);
+    } finally {
+      await other.cleanup();
+    }
+  });
+
   test('une connexion met à jour la dernière activité', async () => {
     const u = await ctx.register('actif');
     await ctx.db.run('UPDATE users SET last_seen_at = ? WHERE id = ?', ['2020-01-01T00:00:00.000Z', u.user.id]);

@@ -279,6 +279,12 @@ function authRoutes({ db, config, authenticate, notifier }) {
   });
 
   router.get('/me', authenticate, async (req, res) => {
+    // La version acceptée doit être lue après l'initialisation des versions de la charte.
+    if (!req.user.terms_version && req.user.terms_accepted_at) {
+      await syncTerms(db);
+      const row = await db.get('SELECT terms_version FROM users WHERE id = ?', [req.user.id]);
+      req.user.terms_version = row.terms_version;
+    }
     res.json({ user: req.user, recoveryCodesLeft: await recoveryCodesLeft(req.user.id) });
   });
 
