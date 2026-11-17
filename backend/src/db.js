@@ -187,6 +187,9 @@ const ADDED_COLUMNS = {
     mfa_exempt: 'INTEGER NOT NULL DEFAULT 0',
     notify_email: 'INTEGER NOT NULL DEFAULT 1',
     notify_prefs: 'TEXT',
+    last_seen_at: 'TEXT',
+    anonymized_at: 'TEXT',
+    terms_accepted_at: 'TEXT',
   },
   tickets: {
     status: "TEXT NOT NULL DEFAULT 'open'",
@@ -253,6 +256,8 @@ async function normalizeLegacyData(db) {
     UPDATE tickets SET created_at = COALESCE(created_at, datetime('now')) WHERE created_at IS NULL;
     UPDATE tickets SET updated_at = created_at WHERE updated_at IS NULL;
     UPDATE users SET role = 'user' WHERE role NOT IN ('user', 'admin');
+    -- Comptes antérieurs au suivi de connexion : considérés actifs aujourd'hui, pour ne pas les purger à tort.
+    UPDATE users SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE last_seen_at IS NULL AND anonymized_at IS NULL;
   `);
 }
 

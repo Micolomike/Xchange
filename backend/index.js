@@ -2,6 +2,7 @@ const { loadConfig } = require('./src/config');
 const { openDatabase } = require('./src/db');
 const { createApp, ensureAdmin } = require('./src/app');
 const { startBackupScheduler } = require('./src/backupScheduler');
+const { startRgpdScheduler } = require('./src/rgpd');
 const { applyContent } = require('./src/content');
 
 async function main() {
@@ -30,10 +31,12 @@ async function main() {
     config,
     logger: { info: stampLog(console.log), error: stampLog(console.error) },
   });
+  const stopPurge = startRgpdScheduler({ db, config, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
   if (config.backupDir) console.log(`Sauvegardes automatiques dans : ${config.backupDir}`);
 
   const shutdown = () => {
     stopBackups();
+    stopPurge();
     server.close(() => db.close().finally(() => process.exit(0)));
   };
   process.on('SIGTERM', shutdown);

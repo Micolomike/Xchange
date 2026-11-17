@@ -1,6 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
+const { getSetting } = require('../settings');
+const { exportUser } = require('../rgpd');
+const { exportFileName } = require('./rgpd');
 const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PREFS, parseNotifyPrefs } = require('../utils');
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
@@ -109,6 +112,12 @@ function authRoutes({ db, config, authenticate, notifier }) {
       throw new HttpError(403, "Les inscriptions sont fermées. Demandez un compte à un administrateur.");
     }
     const values = validateUserInput(req.body || {}, { partial: false });
+    const rgpd = await getSetting(db, 'rgpd');
+    if (rgpd.requireTerms !== false && req.body?.acceptTerms !== true) {
+      throw new HttpError(400, 'Acceptez la charte et la politique de confidentialité pour créer un compte.', {
+        acceptTerms: 'Obligatoire pour créer un compte.',
+      });
+    }
     const exists = await db.get('SELECT id FROM users WHERE username = ? COLLATE NOCASE', [values.username]);
     if (exists) throw new HttpError(409, "Ce nom d'utilisateur est déjà pris.", { username: 'Déjà utilisé.' });
 
@@ -117,9 +126,9 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const role = count === 0 ? 'admin' : 'user';
     const hash = await bcrypt.hash(values.password, 10);
     const { lastID } = await db.run(
-      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso()]
+      `INSERT INTO users (username, password, email, firstname, lastname, role, created_at, last_seen_at, terms_accepted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [values.username, hash, values.email, values.firstname, values.lastname, role, nowIso(), nowIso(), req.body?.acceptTerms === true ? nowIso() : null]
     );
     const row = await db.get('SELECT * FROM users WHERE id = ?', [lastID]);
     // Groupes choisis à l'inscription : des demandes à valider par un administrateur.
@@ -238,6 +247,20 @@ function authRoutes({ db, config, authenticate, notifier }) {
 
   router.get('/me', authenticate, async (req, res) => {
     res.json({ user: req.user, recoveryCodesLeft: await recoveryCodesLeft(req.user.id) });
+  });
+
+  // Droit d'accès et de portabilité : la personne télécharge elle-même ses données.
+  router.get('/me/export', authenticate, forbidImpersonation, async (req, res) => {
+    const data = await exportUser(db, req.user.id);
+    res.set('Content-Disposition', `attachment; filename="${exportFileName(data)}"`);
+    res.json(data);
+  });
+
+  // Acceptation de la charte par un compte créé avant qu'elle existe (ou par un administrateur).
+  router.post('/me/accept-terms', authenticate, forbidImpersonation, async (req, res) => {
+    await db.run('UPDATE users SET terms_accepted_at = ? WHERE id = ?', [nowIso(), req.user.id]);
+    const row = await db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    res.json({ user: publicUser(row), token: signToken(row, config, { mfa: req.sessionMfa }) });
   });
 
   // Nouveaux codes de secours (les anciens deviennent inutilisables) : exige un code de l'appli.

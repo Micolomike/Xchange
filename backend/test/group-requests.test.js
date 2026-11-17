@@ -60,7 +60,7 @@ describe("demandes d'adhésion aux groupes", () => {
     assert.deepEqual(config.body.joinableGroups.map((g) => g.name), ['Cuisiniers']);
     const reg = await ctx.api
       .post('/api/auth/register')
-      .send({ username: 'bob', password: 'motdepasse1', groups: [open.id, closed.id] });
+      .send({ username: 'bob', password: 'motdepasse1', acceptTerms: true, groups: [open.id, closed.id] });
     assert.equal(reg.status, 201);
     const pending = (await ctx.api.get('/api/groups/requests').set(admin.auth)).body;
     assert.deepEqual(pending.map((r) => [r.user.username, r.group.name]), [['bob', 'Cuisiniers']]);

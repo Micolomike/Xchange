@@ -54,6 +54,8 @@ function publicUser(row) {
     mfa_exempt: Boolean(row.mfa_exempt),
     notify_email: row.notify_email === undefined ? true : Boolean(row.notify_email),
     notify_prefs: parseNotifyPrefs(row.notify_prefs),
+    terms_accepted_at: row.terms_accepted_at || null,
+    last_seen_at: row.last_seen_at || null,
     name: displayName(row),
     created_at: toIso(row.created_at),
   };

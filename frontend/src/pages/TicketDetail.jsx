@@ -495,7 +495,7 @@ export default function TicketDetail() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) postComment(e);
                 }}
-                placeholder="Une précision, une question, la solution trouvée…"
+                placeholder="Votre message. Restez courtois, sans vulgarité, et n’indiquez pas d’informations sensibles (santé, numéros de compte, mots de passe)."
               />
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="hidden text-xs text-ink-mute sm:inline">Ctrl + Entrée pour envoyer</span>

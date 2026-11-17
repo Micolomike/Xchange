@@ -18,7 +18,7 @@ describe('authentification', () => {
   });
 
   test("refuse un nom d'utilisateur déjà pris, même avec une casse différente", async () => {
-    const res = await ctx.api.post('/api/auth/register').send({ username: 'ALICE', password: 'motdepasse1' });
+    const res = await ctx.api.post('/api/auth/register').send({ username: 'ALICE', password: 'motdepasse1', acceptTerms: true });
     assert.equal(res.status, 409);
   });
 

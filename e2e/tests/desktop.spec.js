@@ -41,8 +41,10 @@ test('le premier inscrit devient administrateur', async () => {
   await page.fill('#reg-confirm', 'autre-chose');
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
   await expect(page.getByText('Les deux mots de passe ne correspondent pas.')).toBeVisible();
+  await expect(page.getByText('Cochez cette case pour créer un compte.')).toBeVisible();
 
   await page.fill('#reg-confirm', ADMIN.password);
+  await page.getByRole('checkbox', { name: /J’accepte la charte/ }).check();
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
 
   // La double authentification est obligatoire : configuration de l'appli avant d'entrer.
@@ -458,6 +460,39 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
   await expect(page.locator('header').getByText('Confidentielle')).toBeVisible();
   await expect(page.locator('dl').getByText('Matériel')).toBeVisible();
   await expect(page.locator('dl').getByText('Aucune')).toHaveCount(0);
+});
+
+test('RGPD : pages légales, onglet d’administration, export et anonymisation', async () => {
+  const admin = await login(ADMIN);
+  await api('POST', '/api/users', { username: 'lucie', password: 'motdepasse-lucie', firstname: 'Lucie', email: 'lucie@exemple.fr' }, admin);
+  await page.goto('/');
+  await page.getByRole('contentinfo').getByRole('link', { name: 'Politique de confidentialité' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Politique de confidentialité' })).toBeVisible();
+  await expect(page.getByText('après 2 ans d')).toBeVisible();
+
+  await page.goto('/admin?tab=settings&section=rgpd');
+  await expect(page.getByRole('heading', { name: 'Données d’une personne' })).toBeVisible();
+  await page.fill('#rgpd-search', 'lucie');
+  await page.getByRole('button', { name: /Lucie/ }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exporter ses données (JSON)' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^xchange-donnees-lucie-\d{4}-\d{2}-\d{2}\.json$/);
+
+  await page.getByRole('button', { name: 'Anonymiser…' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Anonymiser définitivement' })).toBeDisabled();
+  await dialog.getByLabel(/tapez son identifiant/).fill('lucie');
+  await dialog.getByRole('button', { name: 'Anonymiser définitivement' }).click();
+  await expect(page.getByText(/Compte anonymisé/)).toBeVisible();
+  await expect(page.getByText('1 compte(s) anonymisé(s) à ce jour.')).toBeVisible();
+
+  // Texte juridique modifié puis visible publiquement.
+  await page.getByRole('tab', { name: 'Charte d’utilisation' }).click();
+  await page.fill('#rgpd-legal-text', '## Règle\nSoyez sympas.');
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).last().click();
+  await expect(page.getByText('Texte personnalisé')).toBeVisible();
+  await page.goto('/charte');
+  await expect(page.getByText('Soyez sympas.')).toBeVisible();
 });
 
 test('mode sombre : choix retenu après rechargement', async () => {

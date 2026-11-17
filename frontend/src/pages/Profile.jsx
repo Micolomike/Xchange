@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiBell, FiMonitor, FiShield, FiUsers } from 'react-icons/fi';
+import { FiBell, FiDatabase, FiDownload, FiMonitor, FiShield, FiUsers } from 'react-icons/fi';
+import { exportFileName, saveJson } from '../lib/saveJson';
 import { THEMES } from '../lib/theme';
 import { useTheme } from '../lib/useTheme';
 import { useAuth } from '../auth/context';
@@ -347,6 +348,39 @@ function DisplaySection() {
   );
 }
 
+function DataSection() {
+  const [busy, setBusy] = useState(false);
+  const download = async () => {
+    setBusy(true);
+    try {
+      const data = await api('/api/auth/me/export');
+      saveJson(data, exportFileName(data));
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="panel mb-6 p-5 sm:p-6" aria-labelledby="data-title">
+      <h2 id="data-title" className="flex items-center gap-2 font-bold">
+        <FiDatabase aria-hidden="true" /> Mes données
+      </h2>
+      <p className="mt-1 text-sm text-ink-mute">
+        Téléchargez tout ce qu’Xchange conserve sur vous : compte, demandes, messages, groupes. Pour supprimer votre compte, écrivez à
+        un administrateur. Détails dans la{' '}
+        <Link to="/confidentialite" className="font-semibold text-accent-strong underline">
+          politique de confidentialité
+        </Link>
+        .
+      </p>
+      <button type="button" className="btn btn-secondary mt-4" onClick={download} disabled={busy}>
+        <FiDownload aria-hidden="true" /> {busy ? 'Préparation…' : 'Télécharger mes données'}
+      </button>
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, updateProfile } = useAuth();
   const [info, setInfo] = useState({ firstname: user.firstname, lastname: user.lastname, email: user.email });
@@ -423,6 +457,7 @@ export default function Profile() {
       {!user.impersonator && <NotificationsSection user={user} />}
       <GroupsSection />
       <DisplaySection />
+      {!user.impersonator && <DataSection />}
       {!user.impersonator && <AdminAccessSection />}
       {!user.impersonator && <MfaSection user={user} />}
 

@@ -56,7 +56,7 @@ async function readSession(req, { db, config }) {
   }
   if (payload.typ !== 'session') return null;
   const row = await db.get('SELECT * FROM users WHERE id = ?', [payload.sub]);
-  if (!row || (row.token_version || 0) !== payload.tv) return null;
+  if (!row || row.anonymized_at || (row.token_version || 0) !== payload.tv) return null;
   // Session sans code : refusée quand la double authentification est obligatoire, sauf compte dispensé.
   if (config.mfaRequired && !payload.mfa && !row.mfa_exempt) return null;
   let impersonator = null;
@@ -76,6 +76,13 @@ function authenticate({ db, config }) {
     if (!session) throw new HttpError(401, 'Session expirée, veuillez vous reconnecter.');
     req.user = { ...publicUser(session.row), access: await computeAccess(db, session.row) };
     req.sessionMfa = session.mfa;
+    // Dernière activité (au plus une écriture par heure) : sert à la purge des comptes inactifs.
+    if (!session.impersonator) {
+      const seen = session.row.last_seen_at ? new Date(session.row.last_seen_at).getTime() : 0;
+      if (Date.now() - seen > 3600_000) {
+        await db.run('UPDATE users SET last_seen_at = ? WHERE id = ?', [new Date().toISOString(), session.row.id]);
+      }
+    }
     if (session.impersonator) {
       const admin = publicUser(session.impersonator);
       req.user.impersonator = { id: admin.id, username: admin.username, name: admin.name };

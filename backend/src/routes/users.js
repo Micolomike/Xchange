@@ -35,7 +35,7 @@ function userRoutes({ db, config }) {
         (SELECT COUNT(*) FROM tickets t WHERE t.created_by = u.id AND t.deleted_at IS NULL) AS created_count,
         (SELECT COUNT(*) FROM tickets t WHERE t.assigned_to = u.id AND t.deleted_at IS NULL
            AND t.status IN ('open', 'in_progress')) AS assigned_active_count
-      FROM users u ORDER BY u.username COLLATE NOCASE`);
+      FROM users u WHERE u.anonymized_at IS NULL ORDER BY u.username COLLATE NOCASE`);
     const memberships = await db.all(
       `SELECT m.user_id, g.id, g.name FROM group_members m JOIN user_groups g ON g.id = m.group_id
        ORDER BY g.name COLLATE NOCASE`

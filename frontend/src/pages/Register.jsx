@@ -4,6 +4,7 @@ import { useAuth } from '../auth/context';
 import { Field } from '../components/ui';
 import { Logo } from '../components/Navbar';
 import { toast } from '../lib/notify';
+import { useLegal } from '../legal/useLegal';
 
 export default function Register() {
   const { user, register, registrationOpen, challenge, joinableGroups } = useAuth();
@@ -19,6 +20,8 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const { data: legal } = useLegal();
   const navigate = useNavigate();
 
   if (user) return <Navigate to="/" replace />;
@@ -48,6 +51,7 @@ export default function Register() {
     const local = {};
     if (form.password.length < 8) local.password = 'Au moins 8 caractères.';
     if (form.password !== form.confirmPassword) local.confirmPassword = 'Les deux mots de passe ne correspondent pas.';
+    if (legal?.requireTerms !== false && !acceptTerms) local.acceptTerms = 'Cochez cette case pour créer un compte.';
     if (Object.keys(local).length) {
       setErrors(local);
       return;
@@ -55,7 +59,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       const { confirmPassword: _ignored, ...payload } = form;
-      const next = await register({ ...payload, groups: wantedGroups });
+      const next = await register({ ...payload, groups: wantedGroups, acceptTerms });
       toast(next.user.role === 'admin' ? 'Compte créé : vous êtes administrateur' : 'Compte créé');
       navigate(next.kind === 'setup' ? '/double-authentification' : '/', { replace: true });
     } catch (err) {
@@ -127,6 +131,38 @@ export default function Register() {
                 ))}
               </div>
             </fieldset>
+          )}
+          {legal?.requireTerms !== false && (
+            <div>
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4"
+                  checked={acceptTerms}
+                  aria-invalid={Boolean(errors.acceptTerms)}
+                  aria-describedby={errors.acceptTerms ? 'reg-terms-error' : undefined}
+                  onChange={(e) => {
+                    setAcceptTerms(e.target.checked);
+                    setErrors((errs) => ({ ...errs, acceptTerms: undefined }));
+                  }}
+                />
+                <span>
+                  J’accepte la{' '}
+                  <Link to="/charte" target="_blank" className="font-semibold text-accent-strong underline">
+                    charte d’utilisation
+                  </Link>{' '}
+                  et la{' '}
+                  <Link to="/confidentialite" target="_blank" className="font-semibold text-accent-strong underline">
+                    politique de confidentialité
+                  </Link>
+                </span>
+              </label>
+              {errors.acceptTerms && (
+                <p id="reg-terms-error" role="alert" className="mt-1 text-sm text-danger">
+                  {errors.acceptTerms}
+                </p>
+              )}
+            </div>
           )}
           {error && !Object.keys(errors).some((k) => errors[k]) && (
             <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">

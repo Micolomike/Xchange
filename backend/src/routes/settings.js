@@ -103,10 +103,10 @@ function settingsAdminRoutes({ db, config, mailer, notifier }) {
       `SELECT COUNT(*) AS total,
               SUM(email IS NULL OR email = '') AS noEmail,
               SUM(notify_email = 0) AS optedOut
-       FROM users`
+       FROM users WHERE anonymized_at IS NULL`
     );
     const noEmail = await db.all(
-      "SELECT id, username, firstname, lastname FROM users WHERE email IS NULL OR email = '' ORDER BY lower(username) LIMIT 30"
+      "SELECT id, username, firstname, lastname FROM users WHERE anonymized_at IS NULL AND (email IS NULL OR email = '') ORDER BY lower(username) LIMIT 30"
     );
     return {
       configured: Boolean(mailer?.configured),

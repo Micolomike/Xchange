@@ -17,6 +17,7 @@ const backupRoutes = require('./routes/backup');
 const { groupRoutes } = require('./routes/groups');
 const { catalogRoutes, catalogAdminRoutes } = require('./routes/catalog');
 const { settingsPublicRoutes, settingsAdminRoutes } = require('./routes/settings');
+const { legalPublicRoutes, rgpdAdminRoutes } = require('./routes/rgpd');
 const { createMailer } = require('./mailer');
 const { createNotifier } = require('./notifications');
 
@@ -60,6 +61,7 @@ function createApp({ db, config, logger = console }) {
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: nowIso() }));
 
   app.use('/api/settings', settingsPublicRoutes({ db, config }));
+  app.use('/api/legal', legalPublicRoutes({ db }));
   app.use('/api/auth', authRoutes({ db, config, authenticate: auth, notifier }));
   app.use('/api', attachmentRoutes({ db, config, auth }));
   app.use('/api/tickets', auth, ticketRoutes({ db, config, notifier }));
@@ -69,6 +71,7 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/catalog', auth, catalogRoutes({ db, config, notifier }));
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
   app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config, mailer, notifier }));
+  app.use('/api/admin/rgpd', auth, requireAdmin, rgpdAdminRoutes({ db, config }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

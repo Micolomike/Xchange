@@ -150,6 +150,11 @@ export default function AuthProvider({ children }) {
     [openSession]
   );
 
+  const acceptTerms = useCallback(
+    async () => openSession(await api('/api/auth/me/accept-terms', { method: 'POST' })),
+    [openSession]
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -170,6 +175,7 @@ export default function AuthProvider({ children }) {
       impersonate,
       stopImpersonating,
       updateProfile,
+      acceptTerms,
       retry: loadSession,
     }),
     [
@@ -189,6 +195,7 @@ export default function AuthProvider({ children }) {
       impersonate,
       stopImpersonating,
       updateProfile,
+      acceptTerms,
       loadSession,
     ]
   );

@@ -44,7 +44,7 @@ async function setup(env = {}, { prepare } = {}) {
   async function register(username, extra = {}) {
     const res = await api
       .post('/api/auth/register')
-      .send({ username, password: 'motdepasse1', email: `${username}@exemple.fr`, ...extra });
+      .send({ username, password: 'motdepasse1', email: `${username}@exemple.fr`, acceptTerms: true, ...extra });
     if (res.status !== 201) throw new Error(`register ${username}: ${res.status} ${JSON.stringify(res.body)}`);
     return { token: res.body.token, user: res.body.user, auth: { Authorization: `Bearer ${res.body.token}` } };
   }

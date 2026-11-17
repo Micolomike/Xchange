@@ -76,6 +76,13 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Administration > Paramètres > Notifications : état de l'envoi et statistiques sur 7 jours, interrupteur général, chaque événement activable avec aperçu de l'e-mail, statuts qui déclenchent un e-mail, nom d'expéditeur, début de l'objet, contenu détaillé ou non, texte de bas de page, adresse publique pour les liens, comptes sans adresse e-mail, journal des 100 derniers envois et e-mail de test vers n'importe quelle adresse.
 - « Mon compte » : chacun coupe tout ou choisit ce qu'il reçoit (ses demandes, demandes confiées, messages sur ce qu'il traite, nouvelles demandes de ses groupes, adhésions à valider pour les administrateurs).
 
+**RGPD** (Administration > Paramètres > RGPD)
+- Données d'une personne : recherche d'un compte, export JSON de toutes ses données, anonymisation irréversible en conservant ses demandes (signées « Utilisateur supprimé n°X ») ou en les supprimant. Identité, e-mail, mot de passe, double authentification, sessions, pièces jointes déposées, groupes, demandes d'adhésion et journaux la concernant sont effacés dans les deux cas.
+- Conservation : anonymisation automatique des comptes inactifs (24 mois par défaut, jamais les administrateurs) et suppression des journaux anciens (12 mois), une fois par jour ; aperçu de la prochaine purge et lancement manuel.
+- Textes juridiques modifiables : mentions légales, politique de confidentialité (durées de conservation remplies automatiquement), charte d'utilisation ; pages publiques `/mentions-legales`, `/confidentialite`, `/charte`, en lien en bas de chaque page.
+- Case « J'accepte la charte et la politique de confidentialité » à l'inscription (désactivable) ; bandeau d'acceptation pour les comptes plus anciens.
+- « Mon compte » : téléchargement de ses propres données.
+
 **Affichage**
 - Mode clair, sombre ou automatique (suit le réglage de l'appareil), depuis le bouton de la barre de navigation ou « Mon compte ». Retenu sur chaque appareil.
 

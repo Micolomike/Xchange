@@ -1,4 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import Footer from './components/Footer';
+import TermsBanner from './components/TermsBanner';
+import LegalPage from './legal/LegalPage';
 import AuthProvider from './auth/AuthProvider';
 import SettingsProvider from './settings/SettingsProvider';
 import Navbar from './components/Navbar';
@@ -29,9 +32,11 @@ export default function App() {
         >
           Aller au contenu
         </a>
+        <div className="flex min-h-screen flex-col">
         <ImpersonationBanner />
         <Navbar />
-        <main id="contenu" className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+        <TermsBanner />
+        <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -45,12 +50,17 @@ export default function App() {
             <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
             <Route path="/admin/catalogue/:id" element={<RequireAuth admin><FormBuilder /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/mentions-legales" element={<LegalPage kind="legalNotice" />} />
+            <Route path="/confidentialite" element={<LegalPage kind="privacyPolicy" />} />
+            <Route path="/charte" element={<LegalPage kind="charter" />} />
             {/* Anciennes adresses de la première version */}
             <Route path="/create" element={<Navigate to="/tickets/new" replace />} />
             <Route path="/admin/data" element={<Navigate to="/admin" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <Footer />
+        </div>
       </AuthProvider>
       </SettingsProvider>
     </BrowserRouter>

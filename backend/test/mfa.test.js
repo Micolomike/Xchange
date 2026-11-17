@@ -9,7 +9,7 @@ describe('double authentification (obligatoire)', () => {
   const bearer = (token) => ({ Authorization: `Bearer ${token}` });
 
   async function enroll(username) {
-    const reg = await ctx.api.post('/api/auth/register').send({ username, password: 'motdepasse1' });
+    const reg = await ctx.api.post('/api/auth/register').send({ username, password: 'motdepasse1', acceptTerms: true });
     assert.equal(reg.status, 201);
     assert.equal(reg.body.mfaSetupRequired, true);
     assert.equal(reg.body.token, undefined, 'aucune session avant la double authentification');
@@ -24,7 +24,7 @@ describe('double authentification (obligatoire)', () => {
   }
 
   async function login(username) {
-    const res = await ctx.api.post('/api/auth/login').send({ username, password: 'motdepasse1' });
+    const res = await ctx.api.post('/api/auth/login').send({ username, password: 'motdepasse1', acceptTerms: true });
     return res.body;
   }
 
@@ -34,7 +34,7 @@ describe('double authentification (obligatoire)', () => {
   after(() => ctx.cleanup());
 
   test('inscription : configuration de l’appli puis session et 10 codes de secours', async () => {
-    const reg = await ctx.api.post('/api/auth/register').send({ username: 'admin', password: 'motdepasse1' });
+    const reg = await ctx.api.post('/api/auth/register').send({ username: 'admin', password: 'motdepasse1', acceptTerms: true });
     assert.equal((await ctx.api.get('/api/tickets').set(bearer(reg.body.setupToken))).status, 401);
 
     const start = await ctx.api.post('/api/auth/mfa/setup/start').send({ setupToken: reg.body.setupToken });

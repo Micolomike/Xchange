@@ -143,6 +143,7 @@ export default function CreateTicket() {
               {...props}
               className="field min-h-40 resize-y"
               maxLength={10000}
+              placeholder="Décrivez votre besoin avec vos mots. Restez courtois, sans vulgarité, et n’indiquez pas d’informations sensibles (santé, numéros de compte, mots de passe)."
               value={form.description}
               onChange={(e) => update('description', e.target.value)}
             />

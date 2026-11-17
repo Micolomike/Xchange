@@ -7,6 +7,8 @@ import { toast, toastError } from '../../lib/notify';
 import { useSettings } from '../../settings/context';
 import { accentShades } from '../../settings/apply';
 import NotificationsPanel from './NotificationsPanel';
+import RgpdPanel from './RgpdPanel';
+import { useAuth } from '../../auth/context';
 import { ErrorState, Field, Spinner } from '../../components/ui';
 
 function ListsSection({ initial }) {
@@ -523,12 +525,14 @@ const SECTIONS = [
   { value: 'notifications', label: 'Notifications' },
   { value: 'listes', label: 'Catégories et priorités' },
   { value: 'apparence', label: 'Apparence' },
+  { value: 'rgpd', label: 'RGPD' },
 ];
 
 export default function SettingsPanel() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [params, setParams] = useSearchParams();
+  const { user } = useAuth();
   const current = SECTIONS.some((s) => s.value === params.get('section')) ? params.get('section') : 'droits';
 
   const load = () => {
@@ -571,6 +575,9 @@ export default function SettingsPanel() {
       </div>
       <div id="settings-panel-apparence" role="tabpanel" aria-labelledby="settings-tab-apparence" hidden={current !== 'apparence'}>
         <AppearanceSection initial={data} />
+      </div>
+      <div id="settings-panel-rgpd" role="tabpanel" aria-labelledby="settings-tab-rgpd" hidden={current !== 'rgpd'}>
+        {current === 'rgpd' && <RgpdPanel me={user} />}
       </div>
     </div>
   );
