@@ -1,4 +1,5 @@
 const express = require('express');
+const { parseFormat } = require('../exports');
 const { HttpError, parseId, STATUSES, PRIORITIES } = require('../utils');
 const { getSetting } = require('../settings');
 const { forbidImpersonation } = require('../middleware/auth');
@@ -210,7 +211,8 @@ function analyticsRoutes({ db, mailer }) {
     res.json({ result: await R.runReport(db, def, req.user, { overrides: D.overridesFor(def, filters) }) });
   });
 
-  router.get('/reports/:id/csv', async (req, res) => {
+  // Export du rapport : CSV, Excel (.xlsx) ou JSON (« /csv » reste accepté pour les anciens liens).
+  async function exportReport(req, res, format) {
     const r = await loadReport(req, parseId(req.params.id, 'Rapport'));
     const ctx = await R.definitionContext(db);
     const def = R.validateDefinition(parseJson(r.definition, {}), ctx);
@@ -218,16 +220,13 @@ function analyticsRoutes({ db, mailer }) {
     // Une liste exportée contient toutes ses lignes (500 au plus).
     const full = def.type === 'list' ? { ...def, limit: 500 } : def;
     const result = await R.runReport(db, full, req.user, { overrides: D.overridesFor(def, filters) });
-    const slug = r.name
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 40);
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', `attachment; filename="rapport-${slug || r.id}-${new Date().toISOString().slice(0, 10)}.csv"`);
-    res.send(R.toCsv(result));
-  });
+    const out = await R.reportExport(format, result, { name: r.name, baseName: `rapport-${r.name}-${new Date().toISOString().slice(0, 10)}` });
+    res.set('Content-Type', out.type);
+    res.set('Content-Disposition', `attachment; filename="${out.fileName}"`);
+    res.send(out.body);
+  }
+  router.get('/reports/:id/csv', (req, res) => exportReport(req, res, 'csv'));
+  router.get('/reports/:id/export', (req, res) => exportReport(req, res, parseFormat(req.query.format)));
 
   // ----------------------------------------------------------------------------------------------- Envois
 
@@ -284,6 +283,7 @@ function analyticsRoutes({ db, mailer }) {
       groups,
       includeSelf,
       skipEmpty: Boolean(body.skipEmpty),
+      fileFormat: parseFormat(body.fileFormat || 'csv'),
       message: String(body.message || '').trim().slice(0, 500),
       active: body.active !== false,
     };
@@ -307,6 +307,7 @@ function analyticsRoutes({ db, mailer }) {
       label: S.describeFrequency(s),
       includeSelf: Boolean(s.include_self),
       skipEmpty: Boolean(s.skip_empty),
+      fileFormat: s.file_format || 'csv',
       message: s.message,
       active: Boolean(s.active),
       disabledReason: s.disabled_reason || null,
@@ -337,9 +338,9 @@ function analyticsRoutes({ db, mailer }) {
     const v = await cleanSchedule(req, req.body || {});
     const next = v.active ? S.nextRun(v).toISOString() : null;
     const x = await db.run(
-      `INSERT INTO report_schedules (report_id, owner_id, frequency, weekday, monthday, time, include_self, skip_empty, message, active, next_run_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [r.id, req.user.id, v.frequency, v.weekday, v.monthday, v.time, v.includeSelf ? 1 : 0, v.skipEmpty ? 1 : 0, v.message, v.active ? 1 : 0, next, nowIso()]
+      `INSERT INTO report_schedules (report_id, owner_id, frequency, weekday, monthday, time, include_self, skip_empty, file_format, message, active, next_run_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [r.id, req.user.id, v.frequency, v.weekday, v.monthday, v.time, v.includeSelf ? 1 : 0, v.skipEmpty ? 1 : 0, v.fileFormat, v.message, v.active ? 1 : 0, next, nowIso()]
     );
     await writeRecipients(x.lastID, v);
     res.status(201).json({ schedule: await serializeSchedule(await db.get('SELECT * FROM report_schedules WHERE id = ?', [x.lastID])) });
@@ -356,9 +357,9 @@ function analyticsRoutes({ db, mailer }) {
     const v = await cleanSchedule(req, req.body || {});
     const next = v.active ? S.nextRun(v).toISOString() : null;
     await db.run(
-      `UPDATE report_schedules SET frequency = ?, weekday = ?, monthday = ?, time = ?, include_self = ?, skip_empty = ?, message = ?, active = ?,
+      `UPDATE report_schedules SET frequency = ?, weekday = ?, monthday = ?, time = ?, include_self = ?, skip_empty = ?, file_format = ?, message = ?, active = ?,
          disabled_reason = NULL, next_run_at = ? WHERE id = ?`,
-      [v.frequency, v.weekday, v.monthday, v.time, v.includeSelf ? 1 : 0, v.skipEmpty ? 1 : 0, v.message, v.active ? 1 : 0, next, s.id]
+      [v.frequency, v.weekday, v.monthday, v.time, v.includeSelf ? 1 : 0, v.skipEmpty ? 1 : 0, v.fileFormat, v.message, v.active ? 1 : 0, next, s.id]
     );
     await writeRecipients(s.id, v);
     res.json({ schedule: await serializeSchedule(await db.get('SELECT * FROM report_schedules WHERE id = ?', [s.id])) });

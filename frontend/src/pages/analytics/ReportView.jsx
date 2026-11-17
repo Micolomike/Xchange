@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiClock, FiCopy, FiDownload, FiEdit2, FiMail, FiPlus, FiSend, FiTrash2, FiX } from 'react-icons/fi';
-import { api } from '../../lib/api';
+import { api, downloadFile } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
 import { confirmAction, toast, toastError } from '../../lib/notify';
 import { ErrorState, Field, PageHeader, Spinner } from '../../components/ui';
@@ -9,6 +9,7 @@ import Modal from '../../components/Modal';
 import { useMeta } from '../../analytics/useMeta';
 import { ResultView } from '../../analytics/Charts';
 import { TYPE_LABELS } from '../../analytics/labels';
+import ExportMenu from '../../components/ExportMenu';
 
 const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const RUN_STATUS = { ok: 'Envoyé', empty: 'Rien à envoyer (rapport vide)', error: 'Échec' };
@@ -97,8 +98,10 @@ function RecipientsPicker({ value, onChange }) {
   );
 }
 
+const FILE_FORMATS = { xlsx: 'Excel (.xlsx)', csv: 'CSV (.csv)', json: 'JSON (.json)' };
+
 function ScheduleDialog({ open, onClose, reportId, schedule, onSaved }) {
-  const blank = { frequency: 'weekly', weekday: 1, monthday: 1, time: '08:00', includeSelf: true, users: [], groups: [], message: '', skipEmpty: false, active: true };
+  const blank = { frequency: 'weekly', weekday: 1, monthday: 1, time: '08:00', includeSelf: true, users: [], groups: [], message: '', skipEmpty: false, fileFormat: 'xlsx', active: true };
   const [v, setV] = useState(blank);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -190,6 +193,17 @@ function ScheduleDialog({ open, onClose, reportId, schedule, onSaved }) {
       <RecipientsPicker value={v} onChange={setV} />
       <Field id="sch-msg" label="Message ajouté à l’e-mail (facultatif)">
         {(p) => <textarea {...p} className="field" rows={2} maxLength={500} value={v.message} onChange={(e) => setV({ ...v, message: e.target.value })} />}
+      </Field>
+      <Field id="sch-format" label="Fichier joint">
+        {(p) => (
+          <select {...p} className="field" value={v.fileFormat} onChange={(e) => setV({ ...v, fileFormat: e.target.value })}>
+            {Object.entries(FILE_FORMATS).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        )}
       </Field>
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={v.skipEmpty} onChange={(e) => setV({ ...v, skipEmpty: e.target.checked })} /> Ne rien envoyer quand le rapport est vide
@@ -289,7 +303,7 @@ function Schedules({ reportId }) {
       {!list ? (
         <Spinner />
       ) : !list.length ? (
-        <p className="text-sm text-ink-mute">Recevez ce rapport par e-mail, chaque jour, chaque semaine ou chaque mois, avec le détail en fichier joint (CSV).</p>
+        <p className="text-sm text-ink-mute">Recevez ce rapport par e-mail, chaque jour, chaque semaine ou chaque mois, avec le détail en fichier joint (Excel, CSV ou JSON).</p>
       ) : (
         <ul className="divide-y divide-line">
           {list.map((s) => (
@@ -297,7 +311,8 @@ function Schedules({ reportId }) {
               <div className="min-w-0">
                 <p className="font-semibold first-letter:uppercase">{s.label}</p>
                 <p className="text-ink-soft">
-                  À {[s.includeSelf && 'moi', ...s.groups.map((g) => `groupe ${g.name}`), ...s.users.map((u) => u.name)].filter(Boolean).join(', ') || 'personne'}
+                  À {[s.includeSelf && 'moi', ...s.groups.map((g) => `groupe ${g.name}`), ...s.users.map((u) => u.name)].filter(Boolean).join(', ') || 'personne'}, fichier{' '}
+                  {FILE_FORMATS[s.fileFormat] || FILE_FORMATS.csv}
                 </p>
                 <p className="text-xs text-ink-mute">
                   {s.active ? `Prochain envoi : ${formatDateTime(s.nextRunAt)}` : `Arrêté${s.disabledReason ? ` : ${s.disabledReason}` : ''}`}
@@ -364,18 +379,9 @@ export default function ReportView() {
   }, [id, period, group]);
   useEffect(run, [run]);
 
-  const download = async () => {
+  const download = async (format) => {
     try {
-      const res = await api(`/api/analytics/reports/${id}/csv`, { query: { period, group }, raw: true });
-      const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'rapport.csv';
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      await downloadFile(`/api/analytics/reports/${id}/export`, { query: { period, group, format } });
     } catch (err) {
       toastError(err);
     }
@@ -417,9 +423,7 @@ export default function ReportView() {
                 <FiEdit2 aria-hidden="true" /> Modifier
               </Link>
             )}
-            <button type="button" className="btn btn-secondary" onClick={download}>
-              <FiDownload aria-hidden="true" /> CSV
-            </button>
+            <ExportMenu onExport={download} />
             <button type="button" className="btn btn-secondary" onClick={duplicate}>
               <FiCopy aria-hidden="true" /> Dupliquer
             </button>

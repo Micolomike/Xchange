@@ -1,5 +1,6 @@
 const express = require('express');
 const { LEVELS, SOURCES } = require('../systemLog');
+const { parseFormat, sendExport } = require('../exports');
 
 const person = (id, username, firstname, lastname) =>
   id == null ? null : username ? [firstname, lastname].filter(Boolean).join(' ') || username : `Compte n°${id}`;
@@ -89,23 +90,32 @@ function systemLogRoutes({ db }) {
     });
   });
 
-  // Export CSV (séparateur « ; », lisible par Excel), mêmes filtres, 10 000 lignes au plus.
-  router.get('/csv', async (req, res) => {
+  // Export CSV, Excel (.xlsx) ou JSON, mêmes filtres, 10 000 lignes au plus (« /csv » reste accepté).
+  async function exportLog(req, res, format) {
     const { where, params } = filters(req.query);
     const rows = await db.all(`${SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY l.id DESC LIMIT 10000`, params);
     const LABELS = { info: 'Information', warn: 'Avertissement', error: 'Erreur' };
-    const cell = (v) => {
-      const s = v == null ? '' : String(v);
-      const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-      return /[";\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-    };
-    const lines = [['Date', 'Niveau', 'Source', 'Message', 'Compte concerné', 'Par', 'Détails']].concat(
-      rows.map((r) => [new Date(r.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }), LABELS[r.level], SOURCES[r.source] || r.source, r.message, subjectName(r) || '', actorName(r) || '', r.details || ''])
-    );
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', `attachment; filename="journal-systeme-${new Date().toISOString().slice(0, 10)}.csv"`);
-    res.send(`\ufeff${lines.map((l) => l.map(cell).join(';')).join('\r\n')}\r\n`);
-  });
+    const headers = ['Date', 'Niveau', 'Source', 'Message', 'Compte concerné', 'Par', 'Détails'];
+    // CSV : date lisible ; Excel : vraie date ; JSON : date ISO.
+    const date = (iso) => (format === 'csv' ? new Date(iso).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) : iso);
+    const table = rows.map((r) => [date(r.created_at), LABELS[r.level], SOURCES[r.source] || r.source, r.message, subjectName(r) || '', actorName(r) || '', r.details || '']);
+    await sendExport(res, format, {
+      baseName: `journal-systeme-${new Date().toISOString().slice(0, 10)}`,
+      title: 'Journal système Xchange',
+      sheets: [{ name: 'Journal système', headers, rows: table }],
+      json: rows.map((r) => ({
+        date: r.created_at,
+        niveau: r.level,
+        source: r.source,
+        message: r.message,
+        compte_concerne: r.subject_id == null ? null : { id: r.subject_id, nom: subjectName(r) },
+        par: r.actor_id == null ? null : { id: r.actor_id, nom: actorName(r) },
+        details: r.details || null,
+      })),
+    });
+  }
+  router.get('/csv', (req, res) => exportLog(req, res, 'csv'));
+  router.get('/export', (req, res) => exportLog(req, res, parseFormat(req.query.format)));
 
   return router;
 }

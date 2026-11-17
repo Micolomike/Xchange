@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiBell, FiDatabase, FiDownload, FiMessageCircle, FiMonitor, FiShield, FiTrash2, FiUsers } from 'react-icons/fi';
-import { exportFileName, saveJson } from '../lib/saveJson';
+import ExportMenu from '../components/ExportMenu';
 import { trustedDevice } from '../lib/trustedDevice';
 import { THEMES } from '../lib/theme';
 import { useTheme } from '../lib/useTheme';
 import { useAuth } from '../auth/context';
 import { formatDateTime } from '../lib/format';
-import { api } from '../lib/api';
+import { api, downloadFile } from '../lib/api';
 import RecoveryCodes from '../components/RecoveryCodes';
 import { ROLES } from '../lib/constants';
 import { confirmAction, toast, toastError } from '../lib/notify';
@@ -620,21 +620,16 @@ function DataRequestForm({ onSent }) {
 }
 
 function DataSection() {
-  const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState([]);
   useEffect(() => {
     api('/api/auth/me/rgpd-requests').then(setRequests).catch(() => {});
   }, []);
 
-  const download = async () => {
-    setBusy(true);
+  const download = async (format) => {
     try {
-      const data = await api('/api/auth/me/export');
-      saveJson(data, exportFileName(data));
+      await downloadFile('/api/auth/me/export', { query: { format } });
     } catch (err) {
       toastError(err);
-    } finally {
-      setBusy(false);
     }
   };
   return (
@@ -649,9 +644,9 @@ function DataSection() {
         </Link>
         .
       </p>
-      <button type="button" className="btn btn-secondary mt-4" onClick={download} disabled={busy}>
-        <FiDownload aria-hidden="true" /> {busy ? 'Préparation…' : 'Télécharger mes données'}
-      </button>
+      <div className="mt-4">
+        <ExportMenu onExport={download} label="Télécharger mes données" align="left" />
+      </div>
 
       {requests.length > 0 && (
         <div className="mt-5 border-t border-line pt-5">

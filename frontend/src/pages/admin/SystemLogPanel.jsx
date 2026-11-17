@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiAlertCircle, FiAlertTriangle, FiChevronDown, FiDownload, FiInfo, FiRefreshCw, FiUser, FiX } from 'react-icons/fi';
-import { api } from '../../lib/api';
+import { FiAlertCircle, FiAlertTriangle, FiChevronDown, FiInfo, FiRefreshCw, FiUser, FiX } from 'react-icons/fi';
+import { api, downloadFile } from '../../lib/api';
+import ExportMenu from '../../components/ExportMenu';
 import { toastError } from '../../lib/notify';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui';
 
@@ -76,18 +77,9 @@ export default function SystemLogPanel() {
     }
   };
 
-  const download = async () => {
+  const download = async (format) => {
     try {
-      const res = await api('/api/admin/system-log/csv', { query: filters, raw: true });
-      const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || 'journal-systeme.csv';
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      await downloadFile('/api/admin/system-log/export', { query: { ...filters, format } });
     } catch (err) {
       toastError(err);
     }
@@ -211,9 +203,7 @@ export default function SystemLogPanel() {
           <button type="button" className="btn btn-secondary" onClick={load} aria-label="Actualiser" title="Actualiser">
             <FiRefreshCw aria-hidden="true" />
           </button>
-          <button type="button" className="btn btn-secondary" onClick={download}>
-            <FiDownload aria-hidden="true" /> CSV
-          </button>
+          <ExportMenu onExport={download} />
         </div>
       </div>
 

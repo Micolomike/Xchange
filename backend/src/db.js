@@ -366,6 +366,9 @@ CREATE TABLE IF NOT EXISTS ticket_events (
 
 // Colonnes ajoutées depuis la première version : ajoutées à chaud sur une base existante.
 const ADDED_COLUMNS = {
+  report_schedules: {
+    file_format: "TEXT NOT NULL DEFAULT 'csv'",
+  },
   system_logs: {
     subject_id: 'INTEGER REFERENCES users(id) ON DELETE SET NULL',
   },

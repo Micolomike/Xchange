@@ -5,7 +5,8 @@ const { getSetting } = require('../settings');
 const { exportUser } = require('../rgpd');
 const { syncTerms, acceptTerms } = require('../terms');
 const { RGPD_TYPES, dueDate } = require('../rgpdRequests');
-const { exportFileName } = require('./rgpd');
+const { sendPersonalData } = require('./rgpd');
+const { FORMATS, parseFormat } = require('../exports');
 const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PREFS, parseNotifyPrefs } = require('../utils');
 const QRCode = require('qrcode');
 const { signToken, signChallenge, verifyChallenge, readSession, forbidImpersonation } = require('../middleware/auth');
@@ -317,9 +318,9 @@ function authRoutes({ db, config, authenticate, notifier }) {
   // Droit d'accès et de portabilité : la personne télécharge elle-même ses données.
   router.get('/me/export', authenticate, forbidImpersonation, async (req, res) => {
     const data = await exportUser(db, req.user.id);
-    await logUserEvent(db, 'Export de ses données personnelles', { subjectId: req.user.id });
-    res.set('Content-Disposition', `attachment; filename="${exportFileName(data)}"`);
-    res.json(data);
+    const format = req.query.format ? parseFormat(req.query.format) : null;
+    await logUserEvent(db, `Export de ses données personnelles${format ? ` (${FORMATS[format].label})` : ''}`, { subjectId: req.user.id });
+    await sendPersonalData(req, res, data);
   });
 
   // Demandes sur ses données personnelles (anonymisation, suppression, rectification, autre).

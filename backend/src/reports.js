@@ -7,6 +7,7 @@
  *   demandes du rapport (contrôle fait à chaque envoi).
  * Les discussions n'en font jamais partie.
  */
+const { toCsv: exportCsv, buildExport } = require('./exports');
 const { HttpError, STATUSES, PRIORITIES, ACTIVE_STATUSES, publicUser } = require('./utils');
 const { getSetting } = require('./settings');
 const { visibilityClause, computeAccess } = require('./access');
@@ -674,30 +675,44 @@ async function recipientCanSee(db, def, creator, recipient) {
 // ---------------------------------------------------------------------------------------------------
 // Export CSV (séparateur « ; » pour Excel en français, BOM UTF-8)
 
-const csvCell = (v) => {
-  if (v == null) return '';
-  const s = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
-  // Pas de formule interprétée par le tableur.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return /[";\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
+/** Le résultat d'un rapport sous forme de table (intitulés + lignes), pour les exports. */
+function resultTable(result) {
+  if (result.type === 'list') {
+    return { headers: result.columns.map((c) => c.label), rows: result.rows.map((r) => result.columns.map((c) => r[c.key])) };
+  }
+  if (result.type === 'summary' || result.type === 'trend') {
+    const head = result.type === 'summary' ? result.dimension.label : 'Période';
+    return { headers: [head, ...result.series.map((s) => s.label)], rows: result.categories.map((c, i) => [c.label, ...result.series.map((s) => s.values[i])]) };
+  }
+  if (result.type === 'kpi') return { headers: ['Indicateur', 'Valeur', 'Période précédente'], rows: [[result.metric.label, result.value, result.previous]] };
+  if (result.type === 'heatmap') return { headers: ['Jour', ...result.columns], rows: result.rows.map((r, i) => [r, ...result.values[i]]) };
+  return { headers: [], rows: [] };
+}
 
 function toCsv(result) {
-  let rows = [];
-  if (result.type === 'list') {
-    rows = [result.columns.map((c) => c.label), ...result.rows.map((r) => result.columns.map((c) => r[c.key]))];
-  } else if (result.type === 'summary' || result.type === 'trend') {
-    const head = result.type === 'summary' ? result.dimension.label : 'Période';
-    rows = [[head, ...result.series.map((s) => s.label)], ...result.categories.map((c, i) => [c.label, ...result.series.map((s) => s.values[i])])];
-  } else if (result.type === 'kpi') {
-    rows = [['Indicateur', 'Valeur', 'Période précédente'], [result.metric.label, result.value, result.previous]];
-  } else if (result.type === 'heatmap') {
-    rows = [['Jour', ...result.columns], ...result.rows.map((r, i) => [r, ...result.values[i]])];
-  }
-  return '﻿' + rows.map((r) => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
+  const t = resultTable(result);
+  return exportCsv(t.headers, t.rows);
+}
+
+/** Export d'un résultat de rapport au format demandé (csv, xlsx, json). */
+function reportExport(format, result, { name, baseName }) {
+  const t = resultTable(result);
+  return buildExport(format, {
+    baseName,
+    title: name,
+    sheets: [{ name: name || 'Rapport', headers: t.headers, rows: t.rows }],
+    json: {
+      rapport: name,
+      periode: result.period || 'depuis le début',
+      exporte_le: new Date().toISOString(),
+      lignes: t.rows.map((r) => Object.fromEntries(t.headers.map((h, i) => [h, r[i] ?? null]))),
+    },
+  });
 }
 
 module.exports = {
+  resultTable,
+  reportExport,
   SLA_STATE_LABELS,
   TYPES,
   PERIODS,

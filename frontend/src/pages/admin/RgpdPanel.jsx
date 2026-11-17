@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiDownload, FiExternalLink, FiPlay, FiSearch, FiUserX, FiX } from 'react-icons/fi';
-import { api } from '../../lib/api';
+import { api, downloadFile } from '../../lib/api';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { confirmAction, promptText, toast, toastError } from '../../lib/notify';
-import { exportFileName, saveJson } from '../../lib/saveJson';
+import ExportMenu from '../../components/ExportMenu';
 import { ErrorState, Field, Spinner } from '../../components/ui';
 import { forgetLegal, LEGAL_PAGES } from '../../legal/useLegal';
 
@@ -122,7 +122,6 @@ function PersonCard({ me, onChange }) {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [toAnonymize, setToAnonymize] = useState(null);
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api('/api/users').then(setUsers).catch(setError);
@@ -137,15 +136,11 @@ function PersonCard({ me, onChange }) {
   }, [users, query]);
   const selected = users?.find((u) => u.id === selectedId) || null;
 
-  const exportData = async () => {
-    setBusy(true);
+  const exportData = async (format) => {
     try {
-      const data = await api(`/api/admin/rgpd/users/${selected.id}/export`);
-      saveJson(data, exportFileName(data));
+      await downloadFile(`/api/admin/rgpd/users/${selected.id}/export`, { query: { format } });
     } catch (err) {
       toastError(err);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -217,9 +212,7 @@ function PersonCard({ me, onChange }) {
                   <dd>{selected.created_count}</dd>
                 </dl>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className="btn btn-secondary" onClick={exportData} disabled={busy}>
-                    <FiDownload aria-hidden="true" /> Exporter ses données (JSON)
-                  </button>
+                  <ExportMenu onExport={exportData} label="Exporter ses données" align="left" />
                   {selected.id !== me.id && (
                     <button type="button" className="btn btn-danger" onClick={() => setToAnonymize(selected)}>
                       <FiUserX aria-hidden="true" /> Anonymiser…
@@ -334,20 +327,18 @@ function RequestsCard({ onChange }) {
                       </button>
                     )}
                     {r.user && !r.user.anonymized && (
-                      <button
-                        type="button"
+                      <ExportMenu
+                        label="Ses données"
                         className="btn btn-secondary py-1.5 text-sm"
-                        onClick={async () => {
+                        align="left"
+                        onExport={async (format) => {
                           try {
-                            const data = await api(`/api/admin/rgpd/users/${r.user.id}/export`);
-                            saveJson(data, exportFileName(data));
+                            await downloadFile(`/api/admin/rgpd/users/${r.user.id}/export`, { query: { format } });
                           } catch (err) {
                             toastError(err);
                           }
                         }}
-                      >
-                        <FiDownload aria-hidden="true" /> Ses données
-                      </button>
+                      />
                     )}
                     <button type="button" className="btn btn-secondary py-1.5 text-sm" onClick={() => close(r, 'done')}>
                       Marquer traitée

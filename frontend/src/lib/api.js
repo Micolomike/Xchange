@@ -131,3 +131,17 @@ export async function downloadAttachment(attachment) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** Télécharge un fichier produit par le serveur (nom tiré de Content-Disposition). */
+export async function downloadFile(path, { query, fallbackName = 'export' } = {}) {
+  const res = await api(path, { query, raw: true });
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')?.[1] || fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}

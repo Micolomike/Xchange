@@ -500,8 +500,9 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await expect(page.getByRole('heading', { name: 'Données d’une personne' })).toBeVisible();
   await page.fill('#rgpd-search', 'lucie');
   await page.getByRole('button', { name: /Lucie/ }).click();
+  await page.getByRole('button', { name: 'Exporter ses données' }).click();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exporter ses données (JSON)' }).click();
+  await page.getByRole('button', { name: /JSON \(\.json\)/ }).click();
   expect((await download).suggestedFilename()).toMatch(/^xchange-donnees-lucie-\d{4}-\d{2}-\d{2}\.json$/);
 
   // Demande de Lucie traitée depuis la carte des demandes : suppression proposée par défaut.
@@ -697,9 +698,10 @@ test('analyses : tableau de bord, rapport, envoi programmé', async () => {
   await expect(page.getByRole('region', { name: 'Aperçu' }).getByText('Urgente')).toBeVisible();
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Demandes par priorité' })).toBeVisible();
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'CSV' }).click();
-  expect((await download).suggestedFilename()).toMatch(/^rapport-Demandes-par-priorite-\d{4}-\d{2}-\d{2}\.csv$/);
+  await page.getByRole('button', { name: /Excel \(\.xlsx\)/ }).click();
+  expect((await download).suggestedFilename()).toMatch(/^rapport-Demandes-par-priorite-\d{4}-\d{2}-\d{2}\.xlsx$/);
 
   await page.getByRole('button', { name: 'Programmer un envoi' }).click();
   const sch = page.getByRole('dialog', { name: 'Programmer un envoi par e-mail' });
@@ -749,8 +751,9 @@ test('journal système : actions d’administration et filtres', async () => {
   await expect(page.getByRole('cell', { name: `${ADMIN.firstname} ${ADMIN.lastname}` }).first()).toBeVisible();
   await page.getByLabel('Rechercher').fill('SLA');
   await expect(page.getByRole('cell', { name: 'Délais (SLA) recalculés pour les demandes en cours' })).toBeVisible();
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'CSV' }).click();
+  await page.getByRole('button', { name: /CSV \(\.csv\)/ }).click();
   expect((await download).suggestedFilename()).toMatch(/^journal-systeme-\d{4}-\d{2}-\d{2}\.csv$/);
 });
 

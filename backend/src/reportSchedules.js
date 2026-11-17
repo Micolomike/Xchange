@@ -7,7 +7,7 @@
  */
 const { getMailSettings } = require('./settings');
 const { parseNotifyPrefs, displayName } = require('./utils');
-const { loadActor, runReport, recipientCanSee, toCsv } = require('./reports');
+const { loadActor, runReport, recipientCanSee, reportExport } = require('./reports');
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly'];
 /** Nom montré aux autres : pseudonyme seul si la personne l'a choisi. */
@@ -182,8 +182,10 @@ async function sendSchedule(db, mailer, scheduleId, { now = new Date(), logger =
   const skipped = [];
   const appUrl = (mail.appUrl || process.env.APP_URL || '').replace(/\/+$/, '');
   const { html: body, lines } = renderResult(result, appUrl);
-  const csv = toCsv(result);
-  const fileName = `rapport-${slug(s.report_name)}-${now.toISOString().slice(0, 10)}.csv`;
+  const file = await reportExport(['csv', 'xlsx', 'json'].includes(s.file_format) ? s.file_format : 'csv', result, {
+    name: s.report_name,
+    baseName: `rapport-${slug(s.report_name)}-${now.toISOString().slice(0, 10)}`,
+  });
   const prefix = mail.subjectPrefix ? `${mail.subjectPrefix} ` : '';
   const owner = shownName(creator);
   let sent = 0;
@@ -212,7 +214,7 @@ async function sendSchedule(db, mailer, scheduleId, { now = new Date(), logger =
       ...(s.message ? ['', s.message] : []),
       '',
       ...lines,
-      'Le détail est dans le fichier joint (à ouvrir avec un tableur).',
+      `Le détail est dans le fichier joint (${file.fileName}).`,
       ...(appUrl ? ['', `Ouvrir dans Xchange : ${appUrl}/analyses/rapports/${s.report_id}`] : []),
       '',
       '--',
@@ -235,7 +237,7 @@ ${appUrl ? `<p><a href="${escapeHtml(`${appUrl}/analyses/rapports/${s.report_id}
     )}</p></div>`;
     try {
       await mailer.send(
-        { to: p.email, subject: `${prefix}Rapport : ${s.report_name}`, text, html, attachments: [{ filename: fileName, content: csv, contentType: 'text/csv; charset=utf-8' }] },
+        { to: p.email, subject: `${prefix}Rapport : ${s.report_name}`, text, html, attachments: [{ filename: file.fileName, content: file.body, contentType: file.type }] },
         { event: 'report', userId: p.id }
       );
       sent += 1;

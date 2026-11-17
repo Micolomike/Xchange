@@ -287,17 +287,17 @@
   <div class="note"><strong>La règle des droits</strong>Dans l'application, un rapport ou un tableau de bord est toujours calculé avec les droits de la personne qui le regarde : partager ne donne accès à aucune demande en plus, et les demandes confidentielles restent cachées à ceux qui ne les voient pas. Les discussions n'entrent jamais dans les analyses.</div>
 
   <h3>Les rapports</h3>
-  <figure><img src="img/rapport.png" alt=""><figcaption>Un rapport : filtres de période et de groupe, graphique, export CSV et envois programmés.</figcaption></figure>
+  <figure><img src="img/rapport.png" alt=""><figcaption>Un rapport : filtres de période et de groupe, graphique, export (Excel, CSV ou JSON) et envois programmés.</figcaption></figure>
   <p>Cinq types : <strong>liste</strong> de demandes (colonnes et tri au choix), <strong>regroupement</strong> (par statut, priorité, catégorie, groupe, responsable, demandeur, formulaire, mois, jour de la semaine, avec un second regroupement possible), <strong>évolution</strong> (créées et résolues par jour, semaine ou mois), <strong>indicateur</strong> (un chiffre comparé à la période précédente) et <strong>carte de chaleur</strong> (les jours et heures d'arrivée des demandes). Filtres : période, statut, priorité, catégorie, groupe, formulaire, responsable, demandeur, confidentialité, retard, mot cherché. L'aperçu se met à jour pendant la saisie.</p>
   <ul>
     <li>Partage : privé, avec des groupes, ou avec tout le monde. Seul le créateur modifie ; les autres peuvent « Dupliquer » pour avoir leur propre copie.</li>
-    <li>« CSV » télécharge les données (séparateur point-virgule, lisible par Excel). Chaque graphique a aussi un bouton pour afficher ses valeurs en tableau.</li>
+    <li>« Exporter » télécharge les données au choix en Excel (.xlsx, dates et nombres reconnus, filtres prêts), en CSV (séparateur point-virgule) ou en JSON (pour un autre logiciel). Chaque graphique a aussi un bouton pour afficher ses valeurs en tableau.</li>
     <li>« Moi » et « Mes groupes » dans les filtres désignent la personne qui regarde.</li>
   </ul>
 
   <h3>Les envois programmés</h3>
   <figure><img src="img/envoi-programme.png" alt=""><figcaption>Programmer un envoi : fréquence, heure, destinataires.</figcaption></figure>
-  <p>Le créateur d'un rapport peut le faire envoyer par e-mail chaque jour, chaque semaine ou chaque mois, à une heure choisie (heure du PC). L'e-mail contient le rapport mis en forme (100 lignes au plus) et le détail en fichier CSV joint.</p>
+  <p>Le créateur d'un rapport peut le faire envoyer par e-mail chaque jour, chaque semaine ou chaque mois, à une heure choisie (heure du PC). L'e-mail contient le rapport mis en forme (100 lignes au plus) et le détail en fichier joint, au format choisi dans l'envoi : Excel (proposé par défaut), CSV ou JSON.</p>
   <ul>
     <li><strong>Destinataires</strong> : lui-même, des personnes choisies une par une, et les groupes dont il est membre (un administrateur peut choisir tous les groupes). 50 personnes et 10 groupes au plus par envoi, 20 envois par personne.</li>
     <li><strong>Droits</strong> : le rapport est calculé avec les droits de son créateur, puis envoyé séparément à chaque destinataire, <strong>seulement si ce destinataire voit lui-même toutes les demandes du rapport</strong>. Les autres sont écartés. Le contrôle est refait à chaque envoi : si quelqu'un quitte un groupe, il ne reçoit plus le rapport.</li>
@@ -376,7 +376,7 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   <ul>
     <li>Anonymisation ou suppression : « Anonymiser le compte… » ouvre la confirmation avec le bon choix déjà coché ; la demande se ferme toute seule.</li>
     <li>Autres demandes : « Marquer traitée » (réponse facultative) ou « Refuser » (motif obligatoire). La personne voit la réponse dans son compte.</li>
-    <li>« Ses données » télécharge tout ce qui la concerne, au format JSON : c'est la réponse à une demande d'accès.</li>
+    <li>« Ses données » télécharge tout ce qui la concerne : c'est la réponse à une demande d'accès. Trois formats : Excel (une feuille par rubrique : compte, demandes, messages, activité…), CSV (une seule table Rubrique, Ligne, Champ, Valeur) ou JSON (format complet et structuré, le plus adapté à la portabilité). Chacun peut faire de même dans « Mon compte ».</li>
   </ul>
   <h3>Anonymiser un compte</h3>
   <p>Irréversible. Le nom, l'identifiant et l'e-mail sont remplacés par « Utilisateur supprimé n°X » ; le mot de passe, la double authentification, les sessions, les navigateurs de confiance, les pièces jointes déposées, les groupes, les demandes d'adhésion et les journaux qui la concernent sont effacés. Vous choisissez de <strong>conserver</strong> ses demandes et messages (sans son nom) ou de les <strong>supprimer</strong>. Pour confirmer, il faut retaper son identifiant.</p>
@@ -494,7 +494,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
   <p>Ne sont jamais écrits : les adresses IP, les mots de passe, les identifiants tapés lors d'un échec, ni les nouvelles valeurs du profil (seul le nom du champ apparaît). Un échec avec un identifiant inconnu n'est rattaché à aucun compte. Les modifications d'une demande restent dans l'historique de la demande elle-même.</p>
   <figure><img src="img/journal-compte.png" alt=""><figcaption>Le journal filtré sur un compte, depuis le bouton « Journal du compte » de l'onglet Utilisateurs.</figcaption></figure>
   <p>La colonne <strong>Compte</strong> indique le compte concerné, y compris pour les actions d'administration. Cliquez sur un nom, ou sur le bouton « Journal du compte » d'une ligne de l'onglet Utilisateurs, pour ne voir que ce qui concerne ce compte ou ce qu'il a fait ; la pastille « Compte : … » retire ce filtre. La personne retrouve ces lignes dans l'export de ses données (rubrique <code>account_activity</code>).</p>
-  <p>Les trois compteurs du haut donnent le nombre d'erreurs, d'avertissements et d'informations des dernières 24 heures ; un clic filtre la liste. Filtres par niveau, source, dates et mot cherché ; « Actualiser toutes les 10 s » pour suivre en direct ; « CSV » exporte ce qui est filtré (10 000 lignes au plus). Le journal ne se modifie pas et ne se vide pas à la main : il est purgé avec les autres journaux, après la durée réglée dans l'onglet RGPD (12 mois par défaut). Les mêmes lignes, sauf l'activité des comptes, sont écrites dans <code>C:\Xchange\journaux</code>.</p>
+  <p>Les trois compteurs du haut donnent le nombre d'erreurs, d'avertissements et d'informations des dernières 24 heures ; un clic filtre la liste. Filtres par niveau, source, dates et mot cherché ; « Actualiser toutes les 10 s » pour suivre en direct ; « Exporter » télécharge ce qui est filtré (10 000 lignes au plus) en Excel, CSV ou JSON. Le journal ne se modifie pas et ne se vide pas à la main : il est purgé avec les autres journaux, après la durée réglée dans l'onglet RGPD (12 mois par défaut). Les mêmes lignes, sauf l'activité des comptes, sont écrites dans <code>C:\Xchange\journaux</code>.</p>
   <table>
     <tr><th>Situation</th><th>Que faire</th></tr>
     <tr><td>Le site ne répond pas depuis Internet</td><td>Vérifiez que le PC est allumé et connecté, puis lancez <code>etat.ps1</code>. Si l'application tourne mais pas l'accès Internet, vérifiez Tailscale.</td></tr>

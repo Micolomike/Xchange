@@ -1,4 +1,5 @@
 const express = require('express');
+const { parseFormat, sendExport, objectToSheets, sheetsToLongTable } = require('../exports');
 const { HttpError, parseId, displayName } = require('../utils');
 const { getSetting, setSetting } = require('../settings');
 const { LEGAL_DEFAULTS, fillRetention } = require('../legal');
@@ -32,6 +33,58 @@ function legalPublicRoutes({ db }) {
 function exportFileName(data) {
   const day = data.exported_at.slice(0, 10);
   return `xchange-donnees-${String(data.account.username).replace(/[^a-z0-9._-]+/gi, '_')}-${day}.json`;
+}
+
+// Intitulés des rubriques de l'export de données personnelles (tables Excel et CSV).
+const EXPORT_LABELS = {
+  exported_at: 'Exporté le',
+  note: 'Note',
+  account: 'Compte',
+  groups: 'Groupes',
+  group_requests: "Demandes d'adhésion",
+  requests: 'Demandes',
+  'requests.messages': 'Demandes - messages',
+  'requests.attachments': 'Demandes - fichiers',
+  'requests.history': 'Demandes - historique',
+  messages_on_other_requests: 'Messages autres demandes',
+  assigned_requests: 'Demandes assignées',
+  attachments_uploaded: 'Fichiers envoyés',
+  emails_sent: 'E-mails envoyés',
+  charter_acceptances: 'Charte acceptée',
+  trusted_browsers: 'Navigateurs de confiance',
+  security_history: 'Sécurité',
+  account_activity: 'Activité du compte',
+  data_requests: 'Demandes RGPD',
+  'chat.keep_messages': 'Discussions - conservation',
+  'chat.conversations': 'Discussions - conversations',
+  'chat.messages': 'Discussions - messages',
+  'chat.reports_made': 'Discussions - signalements',
+  'analyses.reports': 'Rapports',
+  'analyses.dashboards': 'Tableaux de bord',
+  'analyses.scheduled_sends': 'Envois programmés',
+  'analyses.receives': 'Rapports reçus',
+  impersonations: 'Prises de contrôle',
+};
+
+/**
+ * Envoie l'export des données d'une personne. Sans format : l'objet JSON (pour l'affichage) ;
+ * avec format=json, csv ou xlsx : un fichier à télécharger.
+ */
+async function sendPersonalData(req, res, data) {
+  const name = exportFileName(data).replace(/\.json$/, '');
+  if (!req.query.format) {
+    res.set('Content-Disposition', `attachment; filename="${name}.json"`);
+    return res.json(data);
+  }
+  const format = parseFormat(req.query.format);
+  const sheets = format === 'json' ? [] : objectToSheets(data, EXPORT_LABELS);
+  return sendExport(res, format, {
+    baseName: name,
+    title: 'Données personnelles Xchange',
+    sheets,
+    json: data,
+    csv: format === 'csv' ? sheetsToLongTable(sheets) : undefined,
+  });
 }
 
 /** Les lignes complètes de la base ne sortent pas vers le navigateur. */
@@ -108,8 +161,7 @@ function rgpdAdminRoutes({ db, config, notifier = null }) {
 
   router.get('/users/:id/export', async (req, res) => {
     const data = await exportUser(db, parseId(req.params.id));
-    res.set('Content-Disposition', `attachment; filename="${exportFileName(data)}"`);
-    res.json(data);
+    await sendPersonalData(req, res, data);
   });
 
   router.post('/users/:id/anonymize', async (req, res) => {
@@ -182,4 +234,4 @@ function rgpdAdminRoutes({ db, config, notifier = null }) {
   return router;
 }
 
-module.exports = { legalPublicRoutes, rgpdAdminRoutes, legalTexts, exportFileName };
+module.exports = { legalPublicRoutes, rgpdAdminRoutes, legalTexts, exportFileName, sendPersonalData };
