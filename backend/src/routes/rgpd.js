@@ -175,7 +175,7 @@ function rgpdAdminRoutes({ db, config, notifier = null }) {
   });
 
   router.post('/purge', async (req, res) => {
-    const done = await runPurge(db, config, { notifier });
+    const done = await runPurge(db, config, { notifier, logger: req.app.locals.syslog?.for('rgpd') });
     res.json({ done, ...(await info()) });
   });
 

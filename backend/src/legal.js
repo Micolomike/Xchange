@@ -31,7 +31,7 @@ Xchange sert à demander de l'aide et à en proposer. Nous traitons :
 - vos rapports et tableaux de bord (leurs réglages, pas de copie des demandes), vos envois programmés, leurs destinataires et l'historique de ces envois ;
 - vos groupes et vos demandes pour rejoindre un groupe ;
 - vos demandes concernant vos données personnelles ;
-- des journaux techniques : historique de sécurité de votre compte, e-mails de notification envoyés, actions faites par un administrateur à votre place, date de votre dernière activité.
+- des journaux techniques : historique de sécurité de votre compte, e-mails de notification envoyés, actions faites par un administrateur à votre place, date de votre dernière activité, et un journal système (tâches automatiques, erreurs, actions des administrateurs, où les comptes sont désignés par leur numéro).
 
 Les questions posées à l'assistant d'aide qui n'ont trouvé aucune réponse sont gardées sans votre nom, pour améliorer le service. L'assistant ne fait appel à aucune intelligence artificielle ni à aucun service extérieur.
 

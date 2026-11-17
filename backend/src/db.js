@@ -337,6 +337,17 @@ CREATE TABLE IF NOT EXISTS dashboard_shares (
   PRIMARY KEY (dashboard_id, group_id)
 );
 
+CREATE TABLE IF NOT EXISTS system_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  level TEXT NOT NULL,
+  source TEXT NOT NULL,
+  message TEXT NOT NULL,
+  details TEXT,
+  actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_system_logs_created ON system_logs(created_at);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

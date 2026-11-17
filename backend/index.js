@@ -7,44 +7,39 @@ const { startReportScheduler } = require('./src/reportSchedules');
 const { backfillSla, startSlaScheduler } = require('./src/sla');
 const { applyContent } = require('./src/content');
 const { syncTerms } = require('./src/terms');
+const { createSystemLog } = require('./src/systemLog');
+const { version } = require('./package.json');
 
 async function main() {
   const config = loadConfig();
-  if (config.jwtSecretIsEphemeral) {
-    console.warn(
-      '⚠️  JWT_SECRET non défini : un secret temporaire est utilisé, les sessions seront perdues à chaque redémarrage.'
-    );
-  }
-
   const db = await openDatabase(config.databasePath, { legacyDeletedLogPath: config.legacyDeletedLogPath });
-  await ensureAdmin(db, config);
+  // Journal système : console horodatée (C:\Xchange\journaux sur le PC) et onglet « Journal système ».
+  const syslog = createSystemLog({ db, stamp: true });
+  const log = (source) => syslog.for(source);
+  if (config.jwtSecretIsEphemeral) log('serveur').warn('JWT_SECRET non défini : sessions perdues à chaque redémarrage.');
+  await ensureAdmin(db, config, log('serveur'));
   if (config.seedContent) await applyContent(db);
   // Version de la charte prête avant la première requête (comptes ayant déjà accepté : version 1).
   await syncTerms(db);
 
-  const app = createApp({ db, config });
+  const app = createApp({ db, config, syslog });
   const server = app.listen(config.port, config.host, () => {
-    console.log(`Xchange démarré sur http://${config.host || 'localhost'}:${config.port}`);
+    log('serveur').info(`Xchange ${version} démarré sur http://${config.host || 'localhost'}:${config.port}`);
     console.log(`Base de données : ${config.databasePath}`);
     if (config.serveFrontend) console.log(`Site servi depuis : ${config.frontendDir}`);
   });
 
-  // Journal horodaté pour les sauvegardes automatiques (C:\Xchange\journaux sur un PC).
-  const stampLog = (fn) => (msg) => fn(`${new Date().toISOString()} ${msg}`);
-  const stopBackups = startBackupScheduler({
-    db,
-    config,
-    logger: { info: stampLog(console.log), error: stampLog(console.error) },
-  });
-  const stopPurge = startRgpdScheduler({ db, config, notifier: app.locals.notifier, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
+  const stopBackups = startBackupScheduler({ db, config, logger: log('sauvegarde') });
+  const stopPurge = startRgpdScheduler({ db, config, notifier: app.locals.notifier, logger: log('rgpd') });
   // SLA : échéances des demandes antérieures à leur mise en place, puis alertes toutes les 5 minutes.
   const filled = await backfillSla(db);
-  if (filled) console.log(`SLA : échéances calculées pour ${filled} demande(s) existante(s).`);
-  const stopSla = startSlaScheduler({ db, notifier: app.locals.notifier, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
-  const stopReports = startReportScheduler({ db, mailer: app.locals.mailer, logger: { info: stampLog(console.log), error: stampLog(console.error) } });
+  if (filled) log('sla').info(`Échéances calculées pour ${filled} demande(s) existante(s).`);
+  const stopSla = startSlaScheduler({ db, notifier: app.locals.notifier, logger: log('sla') });
+  const stopReports = startReportScheduler({ db, mailer: app.locals.mailer, logger: log('rapports') });
   if (config.backupDir) console.log(`Sauvegardes automatiques dans : ${config.backupDir}`);
 
-  const shutdown = () => {
+  const shutdown = async () => {
+    await log('serveur').info('Arrêt de Xchange demandé.');
     stopBackups();
     stopPurge();
     stopReports();

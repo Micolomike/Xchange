@@ -279,7 +279,7 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
   const settings = await getSetting(db, 'rgpd');
   const canMail = notifier ? await notifier.canSend() : false;
   const todo = await purgeCandidates(db, settings, now, { canMail });
-  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, reportRuns: 0, trash: 0 };
+  const done = { warned: 0, accounts: 0, mail: 0, impersonations: 0, groupRequests: 0, assistant: 0, chatMessages: 0, chatReports: 0, reportRuns: 0, systemLogs: 0, trash: 0 };
   for (const u of todo.toWarn) {
     if (await notifier.inactivityWarning(u.row, { lastSeen: u.last_seen, deadline: u.deadline })) {
       await db.run('UPDATE users SET inactivity_warned_at = ? WHERE id = ?', [now.toISOString(), u.id]);
@@ -296,6 +296,7 @@ async function runPurge(db, config, { now = new Date(), logger = console, notifi
     done.impersonations = (await db.run('DELETE FROM impersonations WHERE started_at < ?', [limit])).changes;
     done.assistant = (await db.run('DELETE FROM assistant_misses WHERE created_at < ?', [limit])).changes;
     done.reportRuns = (await db.run('DELETE FROM report_runs WHERE ran_at < ?', [limit])).changes;
+    done.systemLogs = (await db.run('DELETE FROM system_logs WHERE created_at < ?', [limit])).changes;
     done.chatReports = (await db.run("DELETE FROM chat_reports WHERE status <> 'pending' AND COALESCE(handled_at, created_at) < ?", [limit])).changes;
     done.groupRequests = (
       await db.run("DELETE FROM group_requests WHERE status <> 'pending' AND COALESCE(decided_at, created_at) < ?", [limit])

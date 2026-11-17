@@ -22,11 +22,13 @@ const { assistantRoutes, assistantAdminRoutes } = require('./routes/assistant');
 const { chatRoutes, chatAdminRoutes } = require('./routes/chat');
 const { analyticsRoutes, analyticsAdminRoutes } = require('./routes/analytics');
 const { slaAdminRoutes } = require('./routes/sla');
+const { systemLogRoutes } = require('./routes/systemLog');
+const { createSystemLog, adminActionLabel } = require('./systemLog');
 const { createHub } = require('./chat');
 const { createMailer } = require('./mailer');
 const { createNotifier } = require('./notifications');
 
-function createApp({ db, config, logger = console }) {
+function createApp({ db, config, logger = console, syslog = createSystemLog({ db, console: logger }) }) {
   const app = express();
   app.set('trust proxy', config.trustProxy);
   app.disable('x-powered-by');
@@ -52,12 +54,26 @@ function createApp({ db, config, logger = console }) {
   app.use(express.json({ limit: '1mb' }));
 
   const auth = authenticate({ db, config });
-  const mailer = createMailer({ db, config, logger });
-  const notifier = createNotifier({ db, config, mailer, logger });
+  app.locals.syslog = syslog;
+  const serverLog = syslog.for('serveur');
+  const mailer = createMailer({ db, config, logger: syslog.for('e-mail') });
+  const notifier = createNotifier({ db, config, mailer, logger: syslog.for('e-mail') });
   app.locals.mailer = mailer;
   app.locals.notifier = notifier;
-  const hub = createHub({ logger });
+  const hub = createHub({ logger: syslog.for('discussions') });
   app.locals.chatHub = hub;
+
+  // Journal système : chaque action d'administration réussie, avec son auteur (des numéros, pas de noms).
+  app.use('/api', (req, res, next) => {
+    const label = adminActionLabel(req.method, `/api${req.path}`);
+    if (label) {
+      res.on('finish', () => {
+        const admin = req.user?.impersonator ? req.user.impersonator : req.user?.role === 'admin' ? req.user : null;
+        if (res.statusCode < 400 && admin) syslog.write('info', 'administration', label, { actorId: admin.id });
+      });
+    }
+    next();
+  });
 
   // Tableaux de bord en direct : après chaque modification de demande, un simple signal (sans contenu)
   // est envoyé aux navigateurs connectés, qui recalculent leurs blocs avec leurs propres droits.
@@ -79,7 +95,7 @@ function createApp({ db, config, logger = console }) {
   const indexHtml = path.join(config.frontendDir, 'index.html');
   const serveFrontend = config.serveFrontend && fs.existsSync(indexHtml);
   if (config.serveFrontend && !serveFrontend) {
-    logger.warn(`SERVE_FRONTEND est activé mais ${indexHtml} est introuvable : compilez le frontend.`);
+    serverLog.warn(`SERVE_FRONTEND est activé mais ${indexHtml} est introuvable : compilez le frontend.`);
   }
   if (!serveFrontend) app.get('/', (req, res) => res.send('Backend API is running'));
   app.get('/api/health', (req, res) => res.json({ status: 'ok', time: nowIso() }));
@@ -109,6 +125,7 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/analytics', auth, analyticsRoutes({ db, mailer }));
   app.use('/api/admin/analytics', auth, requireAdmin, analyticsAdminRoutes({ db }));
   app.use('/api/admin/sla', auth, requireAdmin, slaAdminRoutes({ db }));
+  app.use('/api/admin/system-log', auth, requireAdmin, systemLogRoutes({ db }));
   app.use('/api/admin/chat', auth, requireAdmin, chatAdminRoutes({ db, hub }));
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
@@ -156,7 +173,7 @@ function createApp({ db, config, logger = console }) {
     if (err.type === 'entity.too.large') {
       return res.status(413).json({ error: 'Requête trop volumineuse.' });
     }
-    logger.error(err);
+    serverLog.error(`Erreur interne sur ${req.method} ${req.originalUrl.split('?')[0]} : ${err.message}`, { details: err.stack, actorId: req.user?.id ?? null });
     return res.status(500).json({ error: 'Erreur interne du serveur.' });
   });
 

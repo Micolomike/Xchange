@@ -93,6 +93,10 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 **Catalogue**
 - Rubriques dans un menu à gauche (pastilles sur téléphone), une rubrique à la fois, « Les plus demandés » en tête (6 formulaires les plus envoyés sur 90 jours), recherche sur tout le catalogue et demande libre toujours proposée.
 
+**Journal système** (Administration > Journal système)
+- Démarrages et arrêts, erreurs internes (avec détail technique), tâches automatiques (sauvegardes, purge RGPD, alertes SLA, rapports programmés, e-mails en échec) et actions réussies des administrateurs avec leur auteur ; comptes et demandes désignés par leur numéro.
+- Compteurs des dernières 24 h, filtres (niveau, source, dates, recherche), actualisation automatique, export CSV ; lecture seule, purgé avec les journaux (durée réglée dans l'onglet RGPD). Les mêmes lignes partent dans la console (C:\Xchange\journaux).
+
 **Délais (SLA)** (Administration > SLA)
 - Deux engagements par demande : prise en charge (responsable, changement de statut ou message d'une autre personne que l'auteur) et résolution (« Résolu » ou « Fermé »).
 - Par défaut : Haute 4 h / 2 jours, Moyenne 1 jour / 5 jours, Basse 2 jours / 10 jours, en temps ouvré du lundi au vendredi de 9 h à 18 h, hors jours fériés français (calculés, Pâques comprise) ; décompte 24 h sur 24 possible ; règles par catégorie ; alerte à 75 % du délai.
@@ -261,6 +265,7 @@ Toutes les routes sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/confi
 | `GET`, `POST` | `/api/analytics/reports/:id/schedules` ; `PUT`, `DELETE` `/api/analytics/schedules/:id` ; `POST` `/api/analytics/schedules/:id/send` ; `GET` `/api/analytics/schedules/:id/runs` ; `GET` `/api/analytics/recipients?q=` | créateur |
 | `GET`, `POST` | `/api/analytics/dashboards` (`template` possible) ; `GET`, `PUT`, `DELETE` `/api/analytics/dashboards/:id` ; `POST` `…/duplicate` ; `GET` `…/data?period=&group=` | connecté (modification : créateur) |
 | `GET` | `/api/analytics/templates/:key`, `/api/analytics/templates/:key/data` (tableaux prêts à l'emploi, dont `sla`) | connecté |
+| `GET` | `/api/admin/system-log?level=&source=&q=&from=&to=&before=&limit=`, `/api/admin/system-log/csv` | admin |
 | `GET`, `PUT` | `/api/admin/sla` ; `POST` `/api/admin/sla/preview`, `/api/admin/sla/recalculate` | admin |
 | `GET` | `/api/admin/analytics/schedules` ; `POST` `/api/admin/analytics/schedules/:id/disable` | admin |
 | `GET` | `/api/admin/chat/reports?status=` ; `POST` `/api/admin/chat/reports/:id/remove`, `/api/admin/chat/reports/:id/dismiss` | admin |

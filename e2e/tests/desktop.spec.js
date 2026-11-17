@@ -718,6 +718,19 @@ test('SLA : réglages, demande, tableau de bord', async () => {
   await expect(page.getByRole('heading', { name: /À traiter en priorité/ })).toBeVisible();
 });
 
+test('journal système : actions d’administration et filtres', async () => {
+  await page.goto('/admin?tab=log');
+  await expect(page.getByRole('tab', { name: 'Journal système' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByLabel('Source').selectOption('administration');
+  await expect(page.getByRole('cell', { name: 'Réglages des délais (SLA) modifiés' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: `${ADMIN.firstname} ${ADMIN.lastname}` }).first()).toBeVisible();
+  await page.getByLabel('Rechercher').fill('SLA');
+  await expect(page.getByRole('cell', { name: 'Délais (SLA) recalculés pour les demandes en cours' })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'CSV' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^journal-systeme-\d{4}-\d{2}-\d{2}\.csv$/);
+});
+
 test('mode sombre : choix retenu après rechargement', async () => {
   await page.goto('/profile');
   const display = page.getByRole('radiogroup', { name: 'Thème' });

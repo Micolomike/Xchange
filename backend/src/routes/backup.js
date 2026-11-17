@@ -112,7 +112,7 @@ function backupRoutes({ db, config }) {
 
   router.post('/run', async (req, res) => {
     if (!config.backupDir) throw new HttpError(400, "Les sauvegardes automatiques ne sont pas configurées sur ce serveur (BACKUP_DIR).");
-    await runBackup({ db, config, logger: { info() {}, error() {} } });
+    await runBackup({ db, config, logger: req.app.locals.syslog?.for('sauvegarde') || { info() {}, error() {} } });
     res.json(await scheduleInfo());
   });
 

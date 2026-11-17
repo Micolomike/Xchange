@@ -96,7 +96,7 @@
     <li>Un administrateur doit utiliser la double authentification : il ne peut pas la refuser (voir chapitre 13).</li>
     <li>Vos actions sont tracées : prises de contrôle, réponses aux demandes RGPD, dispenses de double authentification, modifications de la charte.</li>
   </ul>
-  <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient huit onglets : Utilisateurs, Groupes, Catalogue, SLA, Signalements, Corbeille, Sauvegardes et Paramètres. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
+  <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient neuf onglets : Utilisateurs, Groupes, Catalogue, SLA, Signalements, Corbeille, Sauvegardes, Paramètres et Journal système. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
 </section>
 
 <!-- 2 -->
@@ -385,7 +385,7 @@ APP_URL=https://micolomike.taila5de36.ts.net</pre>
   <p>Une fois par jour, Xchange :</p>
   <ul>
     <li>prévient par e-mail les comptes inactifs un mois avant leur anonymisation, puis les anonymise s'ils ne se sont pas reconnectés (24 mois d'inactivité par défaut ; jamais les administrateurs ; sans adresse e-mail, pas d'avertissement possible) ;</li>
-    <li>supprime les journaux (e-mails envoyés, prises de contrôle, demandes d'adhésion traitées, signalements traités, historique des envois de rapports, besoins non trouvés par l'assistant) plus vieux que 12 mois par défaut ;</li>
+    <li>supprime les journaux (journal système, e-mails envoyés, prises de contrôle, demandes d'adhésion traitées, signalements traités, historique des envois de rapports, besoins non trouvés par l'assistant) plus vieux que 12 mois par défaut ;</li>
     <li>efface les messages de discussion plus vieux que la durée choisie par leur auteur, et les mentions « Message supprimé » de plus de 30 jours ;</li>
     <li>vide la corbeille après 30 jours par défaut, et oublie les navigateurs de confiance expirés.</li>
   </ul>
@@ -480,6 +480,16 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
 <!-- 16 -->
 <section class="chapter">
   <h2><span class="num">16</span>Dépannage</h2>
+  <h3>Le journal système</h3>
+  <p class="path">Administration &gt; Journal système</p>
+  <figure><img src="img/journal-systeme.png" alt=""><figcaption>Le journal système : erreurs, avertissements et informations, avec filtres et export.</figcaption></figure>
+  <p>C'est le premier endroit où regarder quand quelque chose ne va pas. Il regroupe :</p>
+  <ul>
+    <li><strong>Serveur</strong> : démarrages, arrêts, erreurs internes (avec le détail technique, bouton « Détails »).</li>
+    <li><strong>Administration</strong> : chaque action réussie d'un administrateur (compte modifié, groupe créé, réglages changés, anonymisation, export, restauration de la corbeille, sauvegarde, signalement traité…), avec son auteur. Les comptes et demandes sont désignés par leur numéro.</li>
+    <li><strong>Tâches automatiques</strong> : sauvegardes, purge RGPD, alertes SLA, rapports programmés, envois d'e-mails en échec, discussions.</li>
+  </ul>
+  <p>Les trois compteurs du haut donnent le nombre d'erreurs, d'avertissements et d'informations des dernières 24 heures ; un clic filtre la liste. Filtres par niveau, source, dates et mot cherché ; « Actualiser toutes les 10 s » pour suivre en direct ; « CSV » exporte ce qui est filtré (10 000 lignes au plus). Le journal ne se modifie pas et ne se vide pas à la main : il est purgé avec les autres journaux, après la durée réglée dans l'onglet RGPD (12 mois par défaut). Les mêmes lignes sont écrites dans <code>C:\Xchange\journaux</code>.</p>
   <table>
     <tr><th>Situation</th><th>Que faire</th></tr>
     <tr><td>Le site ne répond pas depuis Internet</td><td>Vérifiez que le PC est allumé et connecté, puis lancez <code>etat.ps1</code>. Si l'application tourne mais pas l'accès Internet, vérifiez Tailscale.</td></tr>
@@ -506,6 +516,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <li>Traiter les demandes d'adhésion en attente (Groupes).</li>
     <li>Traiter les demandes RGPD, avant leur date limite.</li>
     <li>Traiter les messages signalés (Signalements).</li>
+    <li>Regarder les erreurs du journal système des derniers jours.</li>
     <li>Ouvrir le tableau de bord SLA : relancer les groupes dont les demandes dépassent leurs délais.</li>
     <li>Jeter un œil aux envois programmés de tous (Analyses &gt; Rapports) : un envoi en échec, ou vers beaucoup de monde ?</li>
     <li>Regarder les demandes sans responsable sur le tableau de bord.</li>

@@ -12,6 +12,7 @@ import CatalogPanel from './admin/CatalogPanel';
 import SettingsPanel from './admin/SettingsPanel';
 import ChatReportsPanel from './admin/ChatReportsPanel';
 import SlaPanel from './admin/SlaPanel';
+import SystemLogPanel from './admin/SystemLogPanel';
 
 const TABS = [
   { value: 'users', label: 'Utilisateurs' },
@@ -22,8 +23,9 @@ const TABS = [
   { value: 'trash', label: 'Corbeille' },
   { value: 'backup', label: 'Sauvegardes' },
   { value: 'settings', label: 'Paramètres' },
+  { value: 'log', label: 'Journal système' },
 ];
-const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, sla: SlaPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
+const PANELS = { users: UsersPanel, groups: GroupsPanel, catalog: CatalogPanel, sla: SlaPanel, log: SystemLogPanel, chat: ChatReportsPanel, trash: TrashPanel, backup: BackupPanel, settings: SettingsPanel };
 
 export default function Admin() {
   const [params, setParams] = useSearchParams();
@@ -66,7 +68,7 @@ export default function Admin() {
           </button>
         }
       >
-        Comptes, groupes, catalogue, délais (SLA), signalements, corbeille, sauvegardes et paramètres.
+        Comptes, groupes, catalogue, délais (SLA), signalements, corbeille, sauvegardes, paramètres et journal système.
       </PageHeader>
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Sections d'administration">
         {TABS.map((t) => (
