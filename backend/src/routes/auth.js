@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { rateLimit } = require('express-rate-limit');
 const { getSetting } = require('../settings');
 const { exportUser } = require('../rgpd');
+const { RGPD_TYPES, dueDate } = require('../rgpdRequests');
 const { exportFileName } = require('./rgpd');
 const { displayName, HttpError, publicUser, validateUserInput, nowIso, NOTIFY_PREFS, parseNotifyPrefs } = require('../utils');
 const QRCode = require('qrcode');
@@ -254,6 +255,36 @@ function authRoutes({ db, config, authenticate, notifier }) {
     const data = await exportUser(db, req.user.id);
     res.set('Content-Disposition', `attachment; filename="${exportFileName(data)}"`);
     res.json(data);
+  });
+
+  // Demandes sur ses données personnelles (anonymisation, suppression, rectification, autre).
+  router.get('/me/rgpd-requests', authenticate, forbidImpersonation, async (req, res) => {
+    const rows = await db.all(
+      'SELECT id, type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id DESC',
+      [req.user.id]
+    );
+    res.json(rows.map((r) => ({ ...r, due_at: dueDate(r.created_at) })));
+  });
+
+  router.post('/me/rgpd-requests', authenticate, forbidImpersonation, async (req, res) => {
+    const type = String(req.body?.type || '');
+    if (!RGPD_TYPES[type]) throw new HttpError(400, 'Choisissez le type de demande.', { type: 'Obligatoire.' });
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    if (message.length > 2000) throw new HttpError(400, 'Message trop long (2 000 caractères maximum).', { message: 'Trop long.' });
+    if (['rectify', 'other'].includes(type) && !message) {
+      throw new HttpError(400, 'Précisez votre demande.', { message: 'Expliquez ce que vous souhaitez.' });
+    }
+    const pending = await db.get("SELECT id FROM rgpd_requests WHERE user_id = ? AND type = ? AND status = 'pending'", [req.user.id, type]);
+    if (pending) throw new HttpError(409, 'Une demande de ce type est déjà en cours de traitement.');
+    const now = nowIso();
+    const { lastID } = await db.run('INSERT INTO rgpd_requests (user_id, type, message, created_at) VALUES (?, ?, ?, ?)', [
+      req.user.id,
+      type,
+      message,
+      now,
+    ]);
+    notifier?.rgpdRequested(lastID);
+    res.status(201).json({ id: lastID, type, message, status: 'pending', response: '', created_at: now, due_at: dueDate(now) });
   });
 
   // Acceptation de la charte par un compte créé avant qu'elle existe (ou par un administrateur).

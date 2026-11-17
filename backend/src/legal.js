@@ -48,7 +48,7 @@ Les e-mails de notification passent par la messagerie Orange (Orange SA, France)
 Quand un compte est anonymisé, le nom, l'adresse e-mail et l'identifiant sont remplacés par « Utilisateur supprimé ». Le texte des demandes et des messages conservés n'est pas modifié : un nom écrit dans un message n'est pas détecté automatiquement. Vous pouvez demander la suppression complète de vos demandes et messages.
 
 ## Vos droits
-Vous pouvez accéder à vos données, les corriger, les exporter, demander leur effacement, vous opposer à un traitement ou demander sa limitation. Votre profil se modifie dans « Mon compte », d'où vous pouvez aussi télécharger vos données. Pour le reste, écrivez à x.change@orange.fr : nous répondons sous un mois.
+Vous pouvez accéder à vos données, les corriger, les exporter, demander leur effacement, vous opposer à un traitement ou demander sa limitation. Dans « Mon compte », rubrique « Mes données », vous pouvez modifier votre profil, télécharger vos données et demander l'anonymisation ou la suppression de votre compte, ou la correction d'une information. Vous pouvez aussi écrire à x.change@orange.fr. Nous répondons sous un mois.
 
 Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la CNIL (www.cnil.fr).
 

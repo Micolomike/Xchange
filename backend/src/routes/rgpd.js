@@ -1,7 +1,8 @@
 const express = require('express');
-const { HttpError, parseId } = require('../utils');
+const { HttpError, parseId, displayName } = require('../utils');
 const { getSetting, setSetting } = require('../settings');
 const { LEGAL_DEFAULTS, fillRetention } = require('../legal');
+const { RGPD_TYPES, dueDate } = require('../rgpdRequests');
 const { anonymizeUser, exportUser, purgeCandidates, runPurge } = require('../rgpd');
 
 const LEGAL_KEYS = ['legalNotice', 'privacyPolicy', 'charter'];
@@ -48,6 +49,7 @@ function rgpdAdminRoutes({ db, config }) {
       legal: Object.fromEntries(LEGAL_KEYS.map((k) => [k, { text: legal[k] || LEGAL_DEFAULTS[k], custom: Boolean(legal[k]) }])),
       candidates: await purgeCandidates(db, settings),
       anonymized: n,
+      pendingRequests: (await db.get("SELECT COUNT(*) AS n FROM rgpd_requests WHERE status = 'pending'")).n,
       terms: { total: terms.total, accepted: terms.accepted || 0 },
     };
   }
@@ -97,8 +99,65 @@ function rgpdAdminRoutes({ db, config }) {
   });
 
   router.post('/users/:id/anonymize', async (req, res) => {
-    const result = await anonymizeUser(db, config, parseId(req.params.id), { mode: req.body?.mode, actorId: req.user.id });
+    const userId = parseId(req.params.id);
+    // Lancée depuis une demande de la personne : la demande est close avec l'anonymisation.
+    const request = req.body?.requestId
+      ? await db.get("SELECT * FROM rgpd_requests WHERE id = ? AND user_id = ? AND status = 'pending'", [Number(req.body.requestId), userId])
+      : null;
+    if (req.body?.requestId && !request) throw new HttpError(404, 'Demande introuvable ou déjà traitée.');
+    const result = await anonymizeUser(db, config, userId, { mode: req.body?.mode, actorId: req.user.id });
+    if (request) {
+      const response = result.mode === 'delete' ? 'Compte anonymisé, demandes et messages supprimés.' : 'Compte anonymisé, demandes conservées sans nom.';
+      await db.run("UPDATE rgpd_requests SET status = 'done', response = ?, handled_at = ?, handled_by = ? WHERE id = ?", [
+        response,
+        new Date().toISOString(),
+        req.user.id,
+        request.id,
+      ]);
+    }
     res.json({ success: true, ...result });
+  });
+
+  router.get('/requests', async (req, res) => {
+    const rows = await db.all(
+      `SELECT r.*, u.username, u.firstname, u.lastname, u.email, u.anonymized_at,
+              h.username AS h_username, h.firstname AS h_firstname, h.lastname AS h_lastname
+       FROM rgpd_requests r LEFT JOIN users u ON u.id = r.user_id LEFT JOIN users h ON h.id = r.handled_by
+       ORDER BY (r.status = 'pending') DESC, r.id DESC LIMIT 200`
+    );
+    const now = new Date().toISOString();
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        type: r.type,
+        type_label: RGPD_TYPES[r.type] || r.type,
+        message: r.message,
+        status: r.status,
+        response: r.response,
+        created_at: r.created_at,
+        due_at: dueDate(r.created_at),
+        overdue: r.status === 'pending' && dueDate(r.created_at) < now,
+        handled_at: r.handled_at,
+        handled_by: r.h_username ? displayName({ username: r.h_username, firstname: r.h_firstname, lastname: r.h_lastname }) : null,
+        user: r.username
+          ? { id: r.user_id, name: displayName(r), username: r.username, email: r.email, anonymized: Boolean(r.anonymized_at) }
+          : null,
+      }))
+    );
+  });
+
+  router.post('/requests/:id/close', async (req, res) => {
+    const id = parseId(req.params.id);
+    const status = req.body?.status;
+    if (!['done', 'rejected'].includes(status)) throw new HttpError(400, 'Statut invalide.');
+    const response = typeof req.body?.response === 'string' ? req.body.response.trim().slice(0, 2000) : '';
+    if (status === 'rejected' && !response) throw new HttpError(400, 'Indiquez le motif du refus.', { response: 'Obligatoire pour un refus.' });
+    const { changes } = await db.run(
+      "UPDATE rgpd_requests SET status = ?, response = ?, handled_at = ?, handled_by = ? WHERE id = ? AND status = 'pending'",
+      [status, response, new Date().toISOString(), req.user.id, id]
+    );
+    if (!changes) throw new HttpError(404, 'Demande introuvable ou déjà traitée.');
+    res.json({ success: true });
   });
 
   router.post('/purge', async (req, res) => {

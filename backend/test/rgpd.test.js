@@ -138,6 +138,37 @@ describe('RGPD', () => {
     assert.equal((await ctx.api.post(`/api/admin/rgpd/users/99999/anonymize`).set(admin.auth).send({ mode: 'keep' })).status, 404);
   });
 
+  test('demandes RGPD : formulaire, suivi, traitement par anonymisation ou réponse', async () => {
+    const zoe = await ctx.register('zoe', { firstname: 'Zoé' });
+    const post = (body) => ctx.api.post('/api/auth/me/rgpd-requests').set(zoe.auth).send(body);
+    assert.equal((await post({ type: 'nimporte' })).status, 400);
+    assert.equal((await post({ type: 'rectify' })).status, 400); // message obligatoire
+    const rect = (await post({ type: 'rectify', message: 'Mon nom est mal écrit' }).expect(201)).body;
+    assert.equal((await post({ type: 'rectify', message: 'encore' })).status, 409);
+    const anon = (await post({ type: 'anonymize' }).expect(201)).body;
+    assert.ok(anon.due_at > anon.created_at);
+
+    let list = (await ctx.api.get('/api/admin/rgpd/requests').set(admin.auth).expect(200)).body;
+    assert.equal(list.filter((r) => r.status === 'pending').length, 2);
+    assert.equal(list[0].user.name, 'Zoé');
+    assert.equal((await ctx.api.get('/api/admin/rgpd').set(admin.auth)).body.pendingRequests, 2);
+    assert.equal((await ctx.api.get('/api/admin/rgpd/requests').set(zoe.auth)).status, 403);
+
+    assert.equal((await ctx.api.post(`/api/admin/rgpd/requests/${rect.id}/close`).set(admin.auth).send({ status: 'rejected' })).status, 400);
+    await ctx.api.post(`/api/admin/rgpd/requests/${rect.id}/close`).set(admin.auth).send({ status: 'done', response: 'Corrigé.' }).expect(200);
+    const mine = (await ctx.api.get('/api/auth/me/rgpd-requests').set(zoe.auth).expect(200)).body;
+    assert.equal(mine.find((r) => r.id === rect.id).response, 'Corrigé.');
+    assert.equal((await ctx.api.get('/api/auth/me/export').set(zoe.auth)).body.data_requests.length, 2);
+
+    await ctx.api.post(`/api/admin/rgpd/users/${zoe.user.id}/anonymize`).set(admin.auth).send({ mode: 'keep', requestId: anon.id }).expect(200);
+    list = (await ctx.api.get('/api/admin/rgpd/requests').set(admin.auth)).body;
+    const closed = list.find((r) => r.id === anon.id);
+    assert.equal(closed.status, 'done');
+    assert.equal(closed.handled_by, 'Swann');
+    assert.equal(closed.user.anonymized, true);
+    assert.ok(!JSON.stringify(closed).includes('Zoé'));
+  });
+
   test('purge : comptes inactifs anonymisés, vieux journaux supprimés, admins épargnés', async () => {
     const old = await ctx.register('ancien');
     const recent = await ctx.register('recent');

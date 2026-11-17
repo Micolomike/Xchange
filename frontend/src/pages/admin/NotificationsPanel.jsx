@@ -15,6 +15,7 @@ const MAIL_EVENTS = [
   { key: 'status_changed', label: 'Changement de statut', who: 'Le demandeur' },
   { key: 'join_requested', label: 'Demande pour rejoindre un groupe', who: 'Les administrateurs' },
   { key: 'join_decided', label: 'Réponse à une demande d’adhésion', who: 'La personne qui a demandé' },
+  { key: 'rgpd_request', label: 'Demande sur des données personnelles (RGPD)', who: 'Les administrateurs' },
 ];
 const EVENT_LABELS = Object.fromEntries([...MAIL_EVENTS.map((e) => [e.key, e.label]), ['test', 'E-mail de test']]);
 

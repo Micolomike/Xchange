@@ -465,6 +465,8 @@ test('paramètres : listes, délai par défaut et apparence', async () => {
 test('RGPD : pages légales, onglet d’administration, export et anonymisation', async () => {
   const admin = await login(ADMIN);
   await api('POST', '/api/users', { username: 'lucie', password: 'motdepasse-lucie', firstname: 'Lucie', email: 'lucie@exemple.fr' }, admin);
+  const lucie = await login({ username: 'lucie', password: 'motdepasse-lucie' });
+  await api('POST', '/api/auth/me/rgpd-requests', { type: 'erase', message: 'Je quitte l’association.' }, lucie);
   await page.goto('/');
   await page.getByRole('contentinfo').getByRole('link', { name: 'Politique de confidentialité' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Politique de confidentialité' })).toBeVisible();
@@ -478,12 +480,17 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await page.getByRole('button', { name: 'Exporter ses données (JSON)' }).click();
   expect((await download).suggestedFilename()).toMatch(/^xchange-donnees-lucie-\d{4}-\d{2}-\d{2}\.json$/);
 
-  await page.getByRole('button', { name: 'Anonymiser…' }).click();
+  // Demande de Lucie traitée depuis la carte des demandes : suppression proposée par défaut.
+  const card = page.locator('section[aria-labelledby="rgpd-requests"]');
+  await expect(card.getByText('Je quitte l’association.')).toBeVisible();
+  await card.getByRole('button', { name: 'Anonymiser le compte…' }).click();
   const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('radio', { name: /Les supprimer/ })).toBeChecked();
   await expect(dialog.getByRole('button', { name: 'Anonymiser définitivement' })).toBeDisabled();
   await dialog.getByLabel(/tapez son identifiant/).fill('lucie');
   await dialog.getByRole('button', { name: 'Anonymiser définitivement' }).click();
   await expect(page.getByText(/Compte anonymisé/)).toBeVisible();
+  await expect(card.getByText('Aucune demande en attente.')).toBeVisible();
   await expect(page.getByText('1 compte(s) anonymisé(s) à ce jour.')).toBeVisible();
 
   // Texte juridique modifié puis visible publiquement.

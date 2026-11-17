@@ -9,7 +9,7 @@ import { formatDateTime } from '../lib/format';
 import { api } from '../lib/api';
 import RecoveryCodes from '../components/RecoveryCodes';
 import { ROLES } from '../lib/constants';
-import { toast, toastError } from '../lib/notify';
+import { confirmAction, toast, toastError } from '../lib/notify';
 import { Field, PageHeader } from '../components/ui';
 
 function MfaSection({ user }) {
@@ -348,8 +348,108 @@ function DisplaySection() {
   );
 }
 
+const RGPD_CHOICES = [
+  { value: 'anonymize', label: 'Anonymiser mon compte', hint: 'Mon nom, mon identifiant et mon e-mail sont effacés. Mes demandes restent, signées « Utilisateur supprimé ».' },
+  { value: 'erase', label: 'Supprimer mon compte, mes demandes et mes messages', hint: 'Tout ce que j’ai écrit disparaît.' },
+  { value: 'rectify', label: 'Corriger des informations', hint: 'Une information que je ne peux pas modifier moi-même.' },
+  { value: 'other', label: 'Autre demande', hint: 'Opposition, limitation, question sur mes données.' },
+];
+const RGPD_LABELS = Object.fromEntries(RGPD_CHOICES.map((c) => [c.value, c.label]));
+const RGPD_STATUS = {
+  pending: { label: 'En cours', cls: 'bg-progress-soft text-progress' },
+  done: { label: 'Traitée', cls: 'bg-resolved-soft text-resolved' },
+  rejected: { label: 'Refusée', cls: 'bg-closed-soft text-closed' },
+};
+
+function DataRequestForm({ onSent }) {
+  const [type, setType] = useState('');
+  const [message, setMessage] = useState('');
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const needsText = type === 'rectify' || type === 'other';
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const local = {};
+    if (!type) local.type = 'Choisissez une demande.';
+    if (needsText && !message.trim()) local.message = 'Expliquez ce que vous souhaitez.';
+    if (Object.keys(local).length) return setErrors(local);
+    if (type === 'anonymize' || type === 'erase') {
+      const ok = await confirmAction({
+        title: 'Envoyer cette demande ?',
+        text: 'Une fois traitée par un administrateur, vous ne pourrez plus vous connecter avec ce compte. Pensez à télécharger vos données avant.',
+        confirmText: 'Envoyer la demande',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      const created = await api('/api/auth/me/rgpd-requests', { method: 'POST', body: { type, message } });
+      toast('Demande envoyée aux administrateurs');
+      setType('');
+      setMessage('');
+      setErrors({});
+      onSent(created);
+    } catch (err) {
+      setErrors(err.details || {});
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} noValidate className="mt-5 border-t border-line pt-5">
+      <fieldset aria-describedby={errors.type ? 'rgpd-type-error' : undefined}>
+        <legend className="font-semibold">Faire une demande sur mes données</legend>
+        <div className="mt-2 space-y-2">
+          {RGPD_CHOICES.map((c) => (
+            <label key={c.value} className={`flex items-start gap-3 rounded-md border p-3 text-sm ${type === c.value ? 'border-accent bg-accent-soft' : 'border-line'}`}>
+              <input
+                type="radio"
+                name="rgpd-type"
+                className="mt-1"
+                checked={type === c.value}
+                onChange={() => {
+                  setType(c.value);
+                  setErrors({});
+                }}
+              />
+              <span>
+                <span className="font-semibold">{c.label}</span>
+                <span className="block text-ink-mute">{c.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {errors.type && (
+          <p id="rgpd-type-error" role="alert" className="mt-1 text-sm text-danger">
+            {errors.type}
+          </p>
+        )}
+      </fieldset>
+      {type && (
+        <div className="mt-4">
+          <Field id="rgpd-message" label={needsText ? 'Votre demande' : 'Précision (facultatif)'} required={needsText} error={errors.message}>
+            {(p) => <textarea {...p} rows={3} maxLength={2000} className="field" value={message} onChange={(e) => setMessage(e.target.value)} />}
+          </Field>
+        </div>
+      )}
+      <button type="submit" className="btn btn-secondary mt-4" disabled={busy}>
+        {busy ? 'Envoi…' : 'Envoyer la demande'}
+      </button>
+    </form>
+  );
+}
+
 function DataSection() {
   const [busy, setBusy] = useState(false);
+  const [requests, setRequests] = useState([]);
+  useEffect(() => {
+    api('/api/auth/me/rgpd-requests').then(setRequests).catch(() => {});
+  }, []);
+
   const download = async () => {
     setBusy(true);
     try {
@@ -367,8 +467,7 @@ function DataSection() {
         <FiDatabase aria-hidden="true" /> Mes données
       </h2>
       <p className="mt-1 text-sm text-ink-mute">
-        Téléchargez tout ce qu’Xchange conserve sur vous : compte, demandes, messages, groupes. Pour supprimer votre compte, écrivez à
-        un administrateur. Détails dans la{' '}
+        Téléchargez tout ce qu’Xchange conserve sur vous : compte, demandes, messages, groupes. Détails dans la{' '}
         <Link to="/confidentialite" className="font-semibold text-accent-strong underline">
           politique de confidentialité
         </Link>
@@ -377,6 +476,29 @@ function DataSection() {
       <button type="button" className="btn btn-secondary mt-4" onClick={download} disabled={busy}>
         <FiDownload aria-hidden="true" /> {busy ? 'Préparation…' : 'Télécharger mes données'}
       </button>
+
+      {requests.length > 0 && (
+        <div className="mt-5 border-t border-line pt-5">
+          <h3 className="font-semibold">Mes demandes</h3>
+          <ul className="mt-2 space-y-2">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-md border border-line p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${RGPD_STATUS[r.status].cls}`}>{RGPD_STATUS[r.status].label}</span>
+                  <span className="font-semibold">{RGPD_LABELS[r.type] || r.type}</span>
+                </div>
+                <p className="mt-1 text-xs text-ink-mute">
+                  Envoyée le {formatDateTime(r.created_at)}
+                  {r.status === 'pending' && `, réponse au plus tard le ${formatDateTime(r.due_at)}`}
+                </p>
+                {r.response && <p className="mt-1 text-ink-soft">Réponse : {r.response}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <DataRequestForm onSent={(r) => setRequests((list) => [r, ...list])} />
     </section>
   );
 }

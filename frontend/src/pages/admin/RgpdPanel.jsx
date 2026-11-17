@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiDownload, FiExternalLink, FiPlay, FiSearch, FiUserX, FiX } from 'react-icons/fi';
 import { api } from '../../lib/api';
 import { formatDateTime } from '../../lib/format';
-import { confirmAction, toast, toastError } from '../../lib/notify';
+import { confirmAction, promptText, toast, toastError } from '../../lib/notify';
 import { exportFileName, saveJson } from '../../lib/saveJson';
 import { ErrorState, Field, Spinner } from '../../components/ui';
 import { forgetLegal, LEGAL_PAGES } from '../../legal/useLegal';
@@ -24,7 +24,7 @@ const fullName = (u) => [u.firstname, u.lastname].filter(Boolean).join(' ') || u
 
 /* ------------------------------------------------------------------ Anonymisation */
 
-function AnonymizeDialog({ user, onClose, onDone }) {
+function AnonymizeDialog({ user, onClose, onDone, initialMode = 'keep', requestId = null }) {
   const ref = useRef(null);
   const [mode, setMode] = useState('keep');
   const [typed, setTyped] = useState('');
@@ -34,15 +34,15 @@ function AnonymizeDialog({ user, onClose, onDone }) {
     const d = ref.current;
     if (user && d && !d.open) d.showModal();
     if (!user && d?.open) d.close();
-    setMode('keep');
+    setMode(initialMode);
     setTyped('');
-  }, [user]);
+  }, [user, initialMode]);
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const r = await api(`/api/admin/rgpd/users/${user.id}/anonymize`, { method: 'POST', body: { mode } });
+      const r = await api(`/api/admin/rgpd/users/${user.id}/anonymize`, { method: 'POST', body: { mode, ...(requestId ? { requestId } : {}) } });
       const parts = [];
       if (r.tickets) parts.push(`${r.tickets} demande(s) supprimée(s)`);
       if (r.comments) parts.push(`${r.comments} message(s) supprimé(s)`);
@@ -235,6 +235,141 @@ function PersonCard({ me, onChange }) {
           setToAnonymize(null);
           setSelectedId(null);
           setQuery('');
+          load();
+          onChange();
+        }}
+      />
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ Demandes des personnes */
+
+const REQUEST_STATUS = {
+  pending: { label: 'À traiter', cls: 'bg-progress-soft text-progress' },
+  done: { label: 'Traitée', cls: 'bg-resolved-soft text-resolved' },
+  rejected: { label: 'Refusée', cls: 'bg-closed-soft text-closed' },
+};
+
+function RequestsCard({ onChange }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const [anon, setAnon] = useState(null);
+
+  const load = useCallback(() => {
+    setError(null);
+    api('/api/admin/rgpd/requests').then(setRows).catch(setError);
+  }, []);
+  useEffect(load, [load]);
+
+  const close = async (r, status) => {
+    const res = await promptText({
+      title: status === 'done' ? 'Marquer la demande comme traitée' : 'Refuser la demande',
+      label: status === 'done' ? 'Réponse visible par la personne (facultatif)' : 'Motif du refus, visible par la personne',
+      confirmText: status === 'done' ? 'Marquer traitée' : 'Refuser',
+    });
+    if (!res.isConfirmed) return;
+    try {
+      await api(`/api/admin/rgpd/requests/${r.id}/close`, { method: 'POST', body: { status, response: res.value || '' } });
+      toast(status === 'done' ? 'Demande traitée' : 'Demande refusée');
+      load();
+      onChange();
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  if (error) return <ErrorState error={error} onRetry={load} />;
+  if (!rows) return <Spinner />;
+  const pending = rows.filter((r) => r.status === 'pending');
+  const visible = showAll ? rows : pending;
+
+  return (
+    <Card
+      id="rgpd-requests"
+      title={`Demandes des personnes${pending.length ? ` (${pending.length} à traiter)` : ''}`}
+      description="Faites depuis « Mon compte ». Le délai légal de réponse est d’un mois."
+    >
+      {visible.length === 0 ? (
+        <p className="text-sm text-ink-mute">{showAll ? 'Aucune demande pour l’instant.' : 'Aucune demande en attente.'}</p>
+      ) : (
+        <ul className="space-y-3">
+          {visible.map((r) => {
+            const st = REQUEST_STATUS[r.status];
+            const erasure = r.type === 'anonymize' || r.type === 'erase';
+            return (
+              <li key={r.id} className="rounded-md border border-line p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
+                  <span className="font-semibold">{r.type_label}</span>
+                  <span className="text-sm text-ink-mute">par {r.user ? r.user.name : 'compte supprimé'}</span>
+                </div>
+                <p className="mt-1 text-xs text-ink-mute">
+                  Reçue le {formatDateTime(r.created_at)}
+                  {r.status === 'pending' && (
+                    <span className={r.overdue ? 'font-semibold text-danger' : ''}>
+                      {', '}
+                      réponse attendue avant le {formatDateTime(r.due_at)}
+                      {r.overdue && ' (délai dépassé)'}
+                    </span>
+                  )}
+                  {r.handled_at && `, ${r.status === 'done' ? 'traitée' : 'refusée'} le ${formatDateTime(r.handled_at)} par ${r.handled_by || 'un administrateur'}`}
+                </p>
+                {r.message && <p className="mt-2 whitespace-pre-line rounded bg-paper px-3 py-2 text-sm">{r.message}</p>}
+                {r.response && <p className="mt-2 text-sm text-ink-soft">Réponse : {r.response}</p>}
+                {r.status === 'pending' && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {erasure && r.user && !r.user.anonymized && (
+                      <button
+                        type="button"
+                        className="btn btn-danger py-1.5 text-sm"
+                        onClick={() => setAnon({ user: { id: r.user.id, username: r.user.username, firstname: r.user.name }, mode: r.type === 'erase' ? 'delete' : 'keep', requestId: r.id })}
+                      >
+                        <FiUserX aria-hidden="true" /> Anonymiser le compte…
+                      </button>
+                    )}
+                    {r.user && !r.user.anonymized && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary py-1.5 text-sm"
+                        onClick={async () => {
+                          try {
+                            const data = await api(`/api/admin/rgpd/users/${r.user.id}/export`);
+                            saveJson(data, exportFileName(data));
+                          } catch (err) {
+                            toastError(err);
+                          }
+                        }}
+                      >
+                        <FiDownload aria-hidden="true" /> Ses données
+                      </button>
+                    )}
+                    <button type="button" className="btn btn-secondary py-1.5 text-sm" onClick={() => close(r, 'done')}>
+                      Marquer traitée
+                    </button>
+                    <button type="button" className="btn btn-ghost py-1.5 text-sm" onClick={() => close(r, 'rejected')}>
+                      Refuser
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {rows.length > pending.length && (
+        <button type="button" className="btn btn-ghost mt-3 text-sm" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? 'Masquer les demandes closes' : `Voir aussi les ${rows.length - pending.length} demande(s) close(s)`}
+        </button>
+      )}
+      <AnonymizeDialog
+        user={anon?.user || null}
+        initialMode={anon?.mode}
+        requestId={anon?.requestId}
+        onClose={() => setAnon(null)}
+        onDone={() => {
+          setAnon(null);
           load();
           onChange();
         }}
@@ -478,6 +613,7 @@ export default function RgpdPanel({ me }) {
   if (!info) return <Spinner />;
   return (
     <div className="space-y-6">
+      <RequestsCard onChange={load} />
       <PersonCard me={me} onChange={load} />
       <RetentionCard key={JSON.stringify(info.settings)} info={info} onSaved={setInfo} />
       <LegalCard legal={info.legal} onSaved={setInfo} />

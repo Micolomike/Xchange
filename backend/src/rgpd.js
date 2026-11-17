@@ -149,6 +149,7 @@ async function exportUser(db, id) {
     assigned_requests: (await db.all('SELECT id, title, status FROM tickets WHERE assigned_to = ? ORDER BY id', [id])),
     attachments_uploaded: await db.all('SELECT ticket_id, original_name, size, created_at FROM attachments WHERE uploaded_by = ?', [id]),
     emails_sent: await db.all('SELECT created_at, event, subject, status FROM mail_log WHERE user_id = ? ORDER BY id', [id]),
+    data_requests: await db.all('SELECT type, message, status, response, created_at, handled_at FROM rgpd_requests WHERE user_id = ? ORDER BY id', [id]),
     impersonations: await db.all(
       `SELECT i.started_at, i.ended_at, a.username AS by_admin FROM impersonations i LEFT JOIN users a ON a.id = i.admin_id
        WHERE i.target_id = ? ORDER BY i.id`,

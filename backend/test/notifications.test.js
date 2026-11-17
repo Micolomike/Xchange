@@ -83,6 +83,13 @@ describe('notifications par e-mail', () => {
     assert.deepEqual(await take(), []);
   });
 
+  test('demande RGPD : les administrateurs sont prévenus', async () => {
+    await ctx.api.post('/api/auth/me/rgpd-requests').set(karim.auth).send({ type: 'anonymize' }).expect(201);
+    const sent = await take();
+    assert.deepEqual(sent.map((m) => m.to), ['admin@exemple.fr']);
+    assert.match(sent[0].subject, /Demande RGPD de Karim : anonymiser mon compte/);
+  });
+
   test('préférences fines : chacun choisit ce qu’il reçoit', async () => {
     await ctx.api.put('/api/auth/me').set(mamie.auth).send({ notify_email: true }).expect(200);
     const me = await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_prefs: { group_new: false } }).expect(200);

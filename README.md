@@ -81,7 +81,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Conservation : anonymisation automatique des comptes inactifs (24 mois par défaut, jamais les administrateurs) et suppression des journaux anciens (12 mois), une fois par jour ; aperçu de la prochaine purge et lancement manuel.
 - Textes juridiques modifiables : mentions légales, politique de confidentialité (durées de conservation remplies automatiquement), charte d'utilisation ; pages publiques `/mentions-legales`, `/confidentialite`, `/charte`, en lien en bas de chaque page.
 - Case « J'accepte la charte et la politique de confidentialité » à l'inscription (désactivable) ; bandeau d'acceptation pour les comptes plus anciens.
-- « Mon compte » : téléchargement de ses propres données.
+- « Mon compte » : téléchargement de ses propres données et formulaire de demande (anonymisation, suppression, correction, autre) ; les administrateurs sont prévenus par e-mail, voient les demandes avec le délai d'un mois dans l'onglet RGPD et les traitent en un clic (anonymisation, réponse ou refus motivé).
 
 **Affichage**
 - Mode clair, sombre ou automatique (suit le réglage de l'appareil), depuis le bouton de la barre de navigation ou « Mon compte ». Retenu sur chaque appareil.

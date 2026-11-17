@@ -9,6 +9,7 @@
  */
 const { displayName, parseNotifyPrefs: parsePrefs } = require('./utils');
 const { getMailSettings } = require('./settings');
+const { RGPD_TYPES } = require('./rgpdRequests');
 
 const ticketNumber = (id) => `#${String(id).padStart(4, '0')}`;
 const STATUS = { open: 'Ouvert', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
@@ -75,6 +76,12 @@ const BUILDERS = {
       : [`Votre demande pour rejoindre « ${group} » n’a pas été retenue.`, ...(reason ? [`Motif : ${reason}`] : [])],
     link: approved ? '/tickets?group=mine' : '/profile',
   }),
+  rgpd_request: ({ who, typeLabel }) => ({
+    subject: `Demande RGPD de ${who} : ${typeLabel}`,
+    lines: [`${who} a fait une demande sur ses données personnelles : ${typeLabel}.`, 'Vous avez un mois pour y répondre.'],
+    link: '/admin?tab=settings&section=rgpd',
+    linkLabel: 'Traiter la demande',
+  }),
   test: () => ({
     subject: 'E-mail de test',
     lines: ['Les notifications par e-mail de Xchange fonctionnent.'],
@@ -91,6 +98,7 @@ const SAMPLE = {
   group: 'Informaticiens',
   message: 'Je m’y connais un peu en réseau, je peux aider.',
   approved: true,
+  typeLabel: 'anonymiser mon compte',
 };
 
 function createNotifier({ db, mailer, logger = console }) {
@@ -249,6 +257,21 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
         return {
           list: await recipients([{ id: r.user_id, pref: 'mine' }], r.decided_by),
           data: { group: r.group_name, approved: r.status === 'approved', reason: r.reason },
+        };
+      });
+    },
+
+    rgpdRequested(requestId) {
+      return run('rgpd_request', async () => {
+        const r = await db.get(
+          'SELECT r.*, u.username, u.firstname, u.lastname FROM rgpd_requests r JOIN users u ON u.id = r.user_id WHERE r.id = ?',
+          [requestId]
+        );
+        if (!r) return null;
+        const admins = await db.all("SELECT id FROM users WHERE role = 'admin' AND anonymized_at IS NULL");
+        return {
+          list: await recipients(admins.map((a) => ({ id: a.id, pref: 'admin' })), r.user_id),
+          data: { who: displayName(r), typeLabel: RGPD_TYPES[r.type]?.toLowerCase() || r.type },
         };
       });
     },

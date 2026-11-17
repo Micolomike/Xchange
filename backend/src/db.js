@@ -159,6 +159,18 @@ CREATE TABLE IF NOT EXISTS mail_log (
   error TEXT
 );
 
+CREATE TABLE IF NOT EXISTS rgpd_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  type TEXT NOT NULL,
+  message TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  response TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  handled_at TEXT,
+  handled_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
