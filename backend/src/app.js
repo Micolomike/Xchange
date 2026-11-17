@@ -72,6 +72,13 @@ function createApp({ db, config, logger = console }) {
   app.use('/api/admin/catalog', auth, requireAdmin, catalogAdminRoutes({ db, config }));
   app.use('/api/admin/settings', auth, requireAdmin, settingsAdminRoutes({ db, config, mailer, notifier }));
   app.use('/api/admin/rgpd', auth, requireAdmin, rgpdAdminRoutes({ db, config, notifier }));
+  // Guide de l'administrateur (PDF généré depuis docs/admin/guide.html, réservé aux administrateurs).
+  app.get('/api/admin/guide.pdf', auth, requireAdmin, (req, res) => {
+    const file = path.join(__dirname, '..', 'docs', 'guide-administrateur.pdf');
+    if (!fs.existsSync(file)) throw new HttpError(404, 'Le guide n’est pas disponible sur ce serveur.');
+    res.set('Cache-Control', 'no-store');
+    res.download(file, 'Xchange-guide-administrateur.pdf');
+  });
   app.use('/api/admin/backup', auth, requireAdmin, backupRoutes({ db, config }));
   app.use('/api/admin', auth, requireAdmin, adminRoutes({ db, config }));
 

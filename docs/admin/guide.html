@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Xchange, guide de l'administrateur</title>
+<style>
+  @font-face {
+    font-family: 'Public Sans';
+    src: url('../../frontend/node_modules/@fontsource-variable/public-sans/files/public-sans-latin-wght-normal.woff2') format('woff2');
+    font-weight: 100 900;
+  }
+  @page { size: A4; margin: 20mm 18mm 22mm 18mm; }
+  :root { --ink: #1b2430; --soft: #46505e; --mute: #6b7685; --line: #dde2e8; --accent: #2f4bd8; --accent-soft: #e8ecfc; --warn: #9a5b00; --warn-soft: #fdf3e2; }
+  * { box-sizing: border-box; }
+  html { font-family: 'Public Sans', Arial, sans-serif; font-size: 10.5pt; color: var(--ink); line-height: 1.5; }
+  body { margin: 0; }
+  h1, h2, h3 { line-height: 1.25; break-after: avoid; }
+  h2 { font-size: 17pt; margin: 0 0 4mm; padding-top: 2mm; color: var(--ink); }
+  h2 .num { color: var(--accent); margin-right: 3mm; }
+  h3 { font-size: 12pt; margin: 6mm 0 2mm; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1mm; }
+  code, kbd { font-family: Consolas, 'Courier New', monospace; font-size: 9pt; background: #f1f3f6; padding: 0.3mm 1.2mm; border-radius: 1mm; }
+  pre { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #f1f3f6; border: 1px solid var(--line); border-radius: 2mm; padding: 3mm 4mm; white-space: pre-wrap; break-inside: avoid; margin: 0 0 3mm; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; font-size: 9.5pt; break-inside: auto; }
+  th { text-align: left; background: #f1f3f6; font-weight: 600; }
+  th, td { border-bottom: 1px solid var(--line); padding: 1.6mm 2mm; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .chapter { break-before: page; }
+  .note, .warn { border-radius: 2mm; padding: 3mm 4mm; margin: 0 0 4mm; break-inside: avoid; }
+  .note { background: var(--accent-soft); }
+  .warn { background: var(--warn-soft); }
+  .note strong:first-child, .warn strong:first-child { display: block; margin-bottom: 1mm; }
+  figure { margin: 2mm 0 5mm; break-inside: avoid; }
+  figure img { width: 100%; max-height: 95mm; object-fit: cover; object-position: top; border: 1px solid var(--line); border-radius: 2mm; display: block; }
+  figcaption { font-size: 9pt; color: var(--mute); margin-top: 1.5mm; }
+  .path { font-weight: 600; }
+  /* Couverture */
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover .brand { display: flex; align-items: center; gap: 4mm; font-size: 20pt; font-weight: 700; }
+  .cover .logo { width: 14mm; height: 14mm; border-radius: 3mm; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 15pt; }
+  .cover h1 { font-size: 34pt; margin: 0 0 4mm; letter-spacing: -0.5pt; }
+  .cover .lead { font-size: 13pt; color: var(--soft); max-width: 140mm; }
+  .cover .meta { color: var(--mute); font-size: 10pt; border-top: 1px solid var(--line); padding-top: 4mm; }
+  /* Sommaire */
+  .toc ol { list-style: none; padding: 0; }
+  .toc li { display: flex; gap: 3mm; padding: 1.8mm 0; border-bottom: 1px solid var(--line); font-size: 11pt; }
+  .toc .n { color: var(--accent); font-weight: 700; width: 8mm; }
+  .toc .d { color: var(--mute); font-size: 9.5pt; margin-left: auto; text-align: right; max-width: 90mm; }
+  .check li { list-style: none; margin-left: -6mm; }
+  .check li::before { content: '\2610'; margin-right: 2mm; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="brand"><span class="logo">&#8644;</span> Xchange</div>
+  <div>
+    <h1>Guide de l'administrateur</h1>
+    <p class="lead">Gérer les comptes, les groupes, les droits, le catalogue, les notifications, le RGPD, les sauvegardes et le PC qui héberge Xchange.</p>
+  </div>
+  <p class="meta">Version {{VERSION}}, mise à jour le {{DATE}}.<br>Document réservé aux administrateurs, disponible dans Administration, bouton « Guide administrateur (PDF) ».</p>
+</section>
+
+<section class="chapter toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><span class="n">1</span>Le rôle d'administrateur<span class="d">Ce que vous pouvez faire, et ce que vous ne voyez pas</span></li>
+    <li><span class="n">2</span>Les comptes<span class="d">Création, rôles, mots de passe, double authentification, prise de contrôle</span></li>
+    <li><span class="n">3</span>Les groupes<span class="d">Membres, demandes d'adhésion, groupes sur invitation</span></li>
+    <li><span class="n">4</span>Droits et visibilité<span class="d">Matrice, règles par catégorie, demandes confidentielles</span></li>
+    <li><span class="n">5</span>Le catalogue de formulaires<span class="d">Constructeur, règles d'affichage, publication</span></li>
+    <li><span class="n">6</span>Le suivi des demandes<span class="d">Statuts, affectation, corbeille</span></li>
+    <li><span class="n">7</span>Catégories, priorités et apparence<span class="d">Listes, délais, logo, couleurs, page d'accueil</span></li>
+    <li><span class="n">8</span>Les notifications par e-mail<span class="d">Configuration, événements, journal, dépannage</span></li>
+    <li><span class="n">9</span>RGPD<span class="d">Demandes des personnes, anonymisation, purge, textes juridiques, charte</span></li>
+    <li><span class="n">10</span>Sécurité des connexions<span class="d">Double authentification, navigateurs de confiance, blocages</span></li>
+    <li><span class="n">11</span>Sauvegardes et restauration<span class="d">Automatiques, à la demande, remise en état</span></li>
+    <li><span class="n">12</span>Le PC qui héberge Xchange<span class="d">Scripts, fichier de configuration, journaux, accès Internet</span></li>
+    <li><span class="n">13</span>Dépannage<span class="d">Les problèmes courants et leur solution</span></li>
+    <li><span class="n">14</span>Routine de l'administrateur<span class="d">Ce qu'il faut vérifier chaque semaine et chaque mois</span></li>
+  </ol>
+</section>
+
+<!-- 1 -->
+<section class="chapter">
+  <h2><span class="num">1</span>Le rôle d'administrateur</h2>
+  <p>Un administrateur gère les comptes, les groupes, le catalogue et les réglages, et voit toutes les demandes. Il a tous les droits de la matrice (chapitre 4), avec une exception volontaire : <strong>une demande confidentielle n'est visible que par son auteur, la personne qui la traite et les membres du groupe auquel elle est affectée</strong>. Un administrateur qui n'en fait pas partie ne la voit pas, même dans la corbeille.</p>
+  <h3>Les garde-fous</h3>
+  <ul>
+    <li>Le premier compte créé devient administrateur. Le dernier administrateur ne peut être ni supprimé, ni rétrogradé, ni anonymisé.</li>
+    <li>Un administrateur doit utiliser la double authentification : il ne peut pas la refuser (voir chapitre 10).</li>
+    <li>Vos actions sont tracées : prises de contrôle, réponses aux demandes RGPD, dispenses de double authentification, modifications de la charte.</li>
+  </ul>
+  <div class="note"><strong>Où trouver quoi</strong>Le menu Administration contient six onglets : Utilisateurs, Groupes, Catalogue, Corbeille, Sauvegardes et Paramètres. Paramètres se divise en Droits et visibilité, Notifications, Catégories et priorités, Apparence et RGPD. Chaque onglet a sa propre adresse : vous pouvez le mettre en favori.</div>
+</section>
+
+<!-- 2 -->
+<section class="chapter">
+  <h2><span class="num">2</span>Les comptes</h2>
+  <p class="path">Administration &gt; Utilisateurs</p>
+  <figure><img src="img/utilisateurs.png" alt=""><figcaption>La liste des comptes : rôle, groupes, état de la double authentification, nombre de demandes.</figcaption></figure>
+  <h3>Créer un compte</h3>
+  <p>« Ajouter un utilisateur » crée un compte avec un identifiant et un mot de passe que vous transmettez à la personne. Les visiteurs peuvent aussi s'inscrire eux-mêmes tant que l'inscription est ouverte (<code>ALLOW_REGISTRATION=true</code>). À l'inscription, la personne accepte la charte et la politique de confidentialité, peut demander à rejoindre des groupes et peut choisir de n'afficher que son pseudonyme.</p>
+  <h3>Rôle</h3>
+  <p>La liste déroulante passe un compte d'Utilisateur à Administrateur et inversement. Ne nommez administrateur que des personnes de confiance : elles voient presque tout.</p>
+  <h3>Mot de passe oublié</h3>
+  <p>Le bouton de réinitialisation génère un mot de passe provisoire, affiché une seule fois. Transmettez-le à la personne par un autre moyen que l'e-mail si possible ; elle le change ensuite dans « Mon compte ». Toutes ses sessions ouvertes sont fermées.</p>
+  <h3>Double authentification : les quatre états</h3>
+  <table>
+    <tr><th>Affiché</th><th>Signification</th></tr>
+    <tr><td>Activée</td><td>La personne utilise une appli d'authentification.</td></tr>
+    <tr><td>À configurer</td><td>Elle la configurera à sa prochaine connexion.</td></tr>
+    <tr><td>Refusée par la personne</td><td>Elle a choisi de ne pas l'utiliser, après avoir lu les risques. Le choix est enregistré avec sa date, comme étant le sien.</td></tr>
+    <tr><td>Dispensé (admin)</td><td>Vous l'en avez dispensée, par exemple faute de smartphone.</td></tr>
+  </table>
+  <p>« Dispenser » et « Exiger » basculent la dispense ; les sessions de la personne sont fermées dans les deux cas. En cas de téléphone perdu, réinitialisez sa double authentification : elle la reconfigure à la connexion suivante, et ses navigateurs de confiance sont oubliés.</p>
+  <h3>Pseudonyme seul</h3>
+  <p>Le badge « Pseudonyme seul » signale une personne qui a caché son prénom et son nom aux autres membres. Vous les voyez dans cette liste et dans l'onglet RGPD ; partout ailleurs, y compris pour vous, seul le pseudonyme apparaît.</p>
+  <h3>Se mettre à la place d'un utilisateur</h3>
+  <p>L'icône en forme d'œil ouvre Xchange comme la personne le voit, pendant une heure au plus, pour la dépanner. Un bandeau orange rappelle la situation, avec « Revenir à mon compte ».</p>
+  <ul>
+    <li>Ce que vous faites est enregistré au nom de la personne, avec la mention « fait par » vous.</li>
+    <li>Impossible vers un autre administrateur ; les demandes confidentielles restent masquées ; mot de passe, informations du compte et double authentification ne sont pas modifiables.</li>
+    <li>Chaque prise de contrôle est journalisée et visible par la personne dans « Mon compte ».</li>
+  </ul>
+  <h3>Supprimer ou anonymiser ?</h3>
+  <p>Supprimer un compte efface la ligne du compte ; ses demandes restent sans auteur. Pour une personne qui demande l'effacement de ses données, préférez l'<strong>anonymisation</strong> dans l'onglet RGPD (chapitre 9) : elle efface aussi ses pièces jointes, ses journaux et ses traces de sécurité, et laisse une trace propre de votre réponse.</p>
+</section>
+
+<!-- 3 -->
+<section class="chapter">
+  <h2><span class="num">3</span>Les groupes</h2>
+  <p class="path">Administration &gt; Groupes</p>
+  <figure><img src="img/groupes.png" alt=""><figcaption>Les groupes, leurs membres et les demandes d'adhésion en attente.</figcaption></figure>
+  <p>Un groupe rassemble les personnes qui traitent un type de demande (Informaticiens, Fiscalistes, Bricoleurs…). Une demande affectée à un groupe est visible par ses membres, qui peuvent la prendre en charge, la confier à l'un d'eux ou la transférer à un autre groupe. Seul un membre du groupe peut en être responsable.</p>
+  <h3>Demandes d'adhésion</h3>
+  <ul>
+    <li>Un groupe « ouvert aux demandes » apparaît dans « Mon compte » et à l'inscription : chacun peut demander à le rejoindre, avec un mot facultatif.</li>
+    <li>Vous acceptez ou refusez dans la carte des demandes en attente ; un refus demande un motif, que la personne voit. Le tableau de bord signale les demandes en attente, et vous recevez un e-mail si les notifications sont actives.</li>
+    <li>Un groupe « sur invitation » n'accepte pas de demandes : vous ajoutez ses membres vous-même. C'est le cas des Coordinateurs, qui voient toutes les demandes non personnelles et les répartissent.</li>
+  </ul>
+  <div class="note"><strong>Bonne pratique</strong>Un groupe sans membre ne traite rien : les demandes qui lui sont affectées attendent. Vérifiez régulièrement que chaque groupe utilisé a au moins une personne active.</div>
+</section>
+
+<!-- 4 -->
+<section class="chapter">
+  <h2><span class="num">4</span>Droits et visibilité</h2>
+  <p class="path">Administration &gt; Paramètres &gt; Droits et visibilité</p>
+  <figure><img src="img/droits.png" alt=""><figcaption>La matrice : une ligne pour tous les utilisateurs, puis une ligne par groupe.</figcaption></figure>
+  <h3>La matrice</h3>
+  <p>Chaque ligne fixe ce que voient et peuvent faire ses membres. Une personne <strong>cumule</strong> la ligne « Tous les utilisateurs » et celles de tous ses groupes.</p>
+  <table>
+    <tr><th>Colonne</th><th>Effet</th></tr>
+    <tr><td>Voit les tickets</td><td>Les siens ; ceux de son groupe ; tous.</td></tr>
+    <tr><td>Créer</td><td>Peut faire une demande.</td></tr>
+    <tr><td>Traiter</td><td>Change le statut, prend en charge.</td></tr>
+    <tr><td>Assigner</td><td>Confie une demande à quelqu'un ou la transfère à un groupe.</td></tr>
+    <tr><td>Modifier</td><td>Change le titre, la description, la priorité des demandes qu'elle voit.</td></tr>
+    <tr><td>Supprimer</td><td>Met une demande à la corbeille.</td></tr>
+  </table>
+  <p>L'auteur d'une demande peut toujours la voir, la modifier et la commenter.</p>
+  <h3>Règles par catégorie</h3>
+  <p>Sous la matrice, chaque catégorie peut être réservée à certains groupes : ces groupes voient toutes les demandes de la catégorie, et la catégorie n'est plus visible par le droit « tous » des autres groupes. Par défaut, les sujets personnels (impôts, budget, carrière, santé, droit) ne sont visibles que par leur groupe.</p>
+  <h3>Demandes confidentielles</h3>
+  <p>L'auteur coche « Demande confidentielle » à la création, ou plus tard. Seuls l'auteur, le responsable et les membres du groupe d'affectation la voient. Les e-mails n'en donnent ni le titre ni le contenu.</p>
+</section>
+
+<!-- 5 -->
+<section class="chapter">
+  <h2><span class="num">5</span>Le catalogue de formulaires</h2>
+  <p class="path">Administration &gt; Catalogue</p>
+  <figure><img src="img/catalogue.png" alt=""><figcaption>Les formulaires, par rubrique, avec leur groupe et leur état de publication.</figcaption></figure>
+  <p>Un formulaire guide la personne avec des questions adaptées et crée une demande déjà rangée : bon groupe, bonne catégorie, bonne priorité.</p>
+  <h3>Le constructeur</h3>
+  <ul>
+    <li>Types de questions : texte court ou long, liste déroulante, boutons de choix, Oui / Non, case à cocher, date, nombre, e-mail, pièce jointe.</li>
+    <li>Pour chaque question : obligatoire ou non, aide, exemple, ordre.</li>
+    <li><strong>Règles d'affichage</strong> : une question n'apparaît que si une question précédente a une valeur donnée, est cochée, remplie ou vide. Le serveur applique les mêmes règles et ignore les réponses masquées.</li>
+    <li>L'aperçu à droite montre le formulaire tel que les utilisateurs le verront.</li>
+  </ul>
+  <h3>Réglages du formulaire</h3>
+  <p>Rubrique, description, groupe qui traite les demandes, catégorie et priorité des demandes créées, visibilité (tout le monde ou certains groupes), publication. « Dupliquer » sert de point de départ pour un formulaire proche.</p>
+  <div class="note"><strong>Bon à savoir</strong>Les réponses sont enregistrées avec la demande : modifier ou supprimer un formulaire ne change pas les demandes déjà envoyées.</div>
+</section>
+
+<!-- 6 -->
+<section class="chapter">
+  <h2><span class="num">6</span>Le suivi des demandes</h2>
+  <figure><img src="img/ticket.png" alt=""><figcaption>Une demande : description, pièces jointes, historique et messages, réglages à droite.</figcaption></figure>
+  <ul>
+    <li><strong>Statuts</strong> : ouvert, en cours, résolu, fermé ; une demande résolue ou fermée peut être rouverte.</li>
+    <li><strong>Affectation</strong> : un groupe, puis un responsable parmi ses membres. Transférer à un autre groupe retire le responsable s'il n'en fait pas partie.</li>
+    <li><strong>Historique</strong> : chaque changement est tracé (statut, priorité, responsable, groupe, fichiers, modifications), avec la mention « fait par » en cas de prise de contrôle.</li>
+    <li><strong>Pièces jointes</strong> : 5 fichiers par envoi, 10 Mo chacun par défaut ; les exécutables, scripts, HTML et SVG sont refusés.</li>
+  </ul>
+  <h3>La corbeille</h3>
+  <p class="path">Administration &gt; Corbeille</p>
+  <p>Une demande supprimée va à la corbeille. Vous pouvez la restaurer, ou la supprimer définitivement avec ses fichiers. La corbeille se vide automatiquement après le délai réglé dans l'onglet RGPD (30 jours par défaut).</p>
+</section>
+
+<!-- 7 -->
+<section class="chapter">
+  <h2><span class="num">7</span>Catégories, priorités et apparence</h2>
+  <h3>Catégories et priorités</h3>
+  <p class="path">Administration &gt; Paramètres &gt; Catégories et priorités</p>
+  <ul>
+    <li>Catégories : ajout, renommage, ordre, désactivation. Une catégorie désactivée n'est plus proposée, mais les demandes qui l'utilisent la gardent.</li>
+    <li>Priorités : toujours trois niveaux, avec un nom, une couleur et un délai par défaut en jours, qui remplit la date limite quand le demandeur n'en donne pas.</li>
+  </ul>
+  <h3>Apparence</h3>
+  <p class="path">Administration &gt; Paramètres &gt; Apparence</p>
+  <ul>
+    <li>Nom de l'application et logo (PNG, JPG ou WEBP, 512 Ko au plus).</li>
+    <li>Couleur principale : refusée si le texte blanc des boutons devient illisible. Elle est déclinée automatiquement pour le mode sombre.</li>
+    <li>Titre et texte de la page d'accueil, vus par les visiteurs non connectés.</li>
+  </ul>
+  <p>Chaque utilisateur choisit le mode clair, sombre ou automatique avec le bouton de la barre du haut ; ce n'est pas un réglage d'administration.</p>
+</section>
+
+<!-- 8 -->
+<section class="chapter">
+  <h2><span class="num">8</span>Les notifications par e-mail</h2>
+  <p class="path">Administration &gt; Paramètres &gt; Notifications</p>
+  <figure><img src="img/notifications.png" alt=""><figcaption>L'état de l'envoi, les statistiques et l'e-mail de test.</figcaption></figure>
+  <h3>La boîte d'envoi</h3>
+  <p>Les e-mails partent de la boîte configurée dans <code>C:\Xchange\xchange.env</code> (chapitre 12). Le mot de passe n'apparaît jamais dans l'application.</p>
+  <pre>SMTP_HOST=smtp.orange.fr
+SMTP_PORT=465
+SMTP_USER=x.change@orange.fr
+SMTP_PASSWORD=(mot de passe de la boîte)
+MAIL_FROM=x.change@orange.fr
+APP_URL=https://micolomike.taila5de36.ts.net</pre>
+  <p>Après modification du fichier, lancez <code>redemarrer.ps1</code>, puis « Envoyer le test ».</p>
+  <h3>Les réglages</h3>
+  <ul>
+    <li><strong>Interrupteur général</strong> : coupe tous les envois.</li>
+    <li><strong>Événements</strong> : nouvelle demande pour un groupe, transfert, demande confiée, nouveau message, changement de statut (avec le choix des statuts), demande d'adhésion et réponse, demande sur des données personnelles. « Aperçu » montre un exemple de chaque e-mail.</li>
+    <li><strong>Contenu</strong> : nom d'expéditeur, début de l'objet, titre et extraits des messages montrés ou non, texte en bas des e-mails, adresse publique pour les liens.</li>
+    <li><strong>Destinataires</strong> : les comptes sans adresse e-mail, qui ne reçoivent rien.</li>
+    <li><strong>Journal</strong> : les 100 derniers envois, avec un filtre « Échecs seulement ».</li>
+  </ul>
+  <p>La personne qui fait une action n'est jamais prévenue, et chacun peut affiner ou couper ses e-mails dans « Mon compte ». L'avertissement envoyé avant l'anonymisation d'un compte inactif est un message de service : il part même si la personne a coupé ses notifications.</p>
+  <div class="warn"><strong>Erreur d'authentification avec Orange</strong>Orange peut exiger un mot de passe dédié aux logiciels tiers, créé dans l'espace client de la boîte. La dernière erreur s'affiche dans la carte « Envoi ».</div>
+</section>
+
+<!-- 9 -->
+<section class="chapter">
+  <h2><span class="num">9</span>RGPD</h2>
+  <p class="path">Administration &gt; Paramètres &gt; RGPD</p>
+  <figure><img src="img/rgpd.png" alt=""><figcaption>Les demandes des personnes et la recherche d'un compte.</figcaption></figure>
+  <h3>Les demandes des personnes</h3>
+  <p>Depuis « Mon compte », rubrique « Mes données », chacun peut demander l'anonymisation ou la suppression de son compte, la correction d'une information, ou autre chose. Vous recevez un e-mail. <strong>Vous avez un mois pour répondre</strong> ; la date limite s'affiche, en rouge si elle est dépassée.</p>
+  <ul>
+    <li>Anonymisation ou suppression : « Anonymiser le compte… » ouvre la confirmation avec le bon choix déjà coché ; la demande se ferme toute seule.</li>
+    <li>Autres demandes : « Marquer traitée » (réponse facultative) ou « Refuser » (motif obligatoire). La personne voit la réponse dans son compte.</li>
+    <li>« Ses données » télécharge tout ce qui la concerne, au format JSON : c'est la réponse à une demande d'accès.</li>
+  </ul>
+  <h3>Anonymiser un compte</h3>
+  <p>Irréversible. Le nom, l'identifiant et l'e-mail sont remplacés par « Utilisateur supprimé n°X » ; le mot de passe, la double authentification, les sessions, les navigateurs de confiance, les pièces jointes déposées, les groupes, les demandes d'adhésion et les journaux qui la concernent sont effacés. Vous choisissez de <strong>conserver</strong> ses demandes et messages (sans son nom) ou de les <strong>supprimer</strong>. Pour confirmer, il faut retaper son identifiant.</p>
+  <div class="warn"><strong>Limite à connaître</strong>Le texte des demandes conservées n'est pas modifié : un nom écrit dans un message reste lisible. Les sauvegardes contiennent les données jusqu'à leur renouvellement.</div>
+  <h3>Conservation et purge</h3>
+  <p>Une fois par jour, Xchange :</p>
+  <ul>
+    <li>prévient par e-mail les comptes inactifs un mois avant leur anonymisation, puis les anonymise s'ils ne se sont pas reconnectés (24 mois d'inactivité par défaut ; jamais les administrateurs ; sans adresse e-mail, pas d'avertissement possible) ;</li>
+    <li>supprime les journaux (e-mails envoyés, prises de contrôle, demandes d'adhésion traitées) plus vieux que 12 mois par défaut ;</li>
+    <li>vide la corbeille après 30 jours par défaut, et oublie les navigateurs de confiance expirés.</li>
+  </ul>
+  <p>La carte « Conservation et purge » montre ce que fera la prochaine purge, et permet de la lancer à la main. 0 désactive une règle.</p>
+  <h3>Textes juridiques et charte</h3>
+  <ul>
+    <li>Mentions légales, politique de confidentialité et charte d'utilisation se modifient dans la carte « Textes juridiques ». « ## » commence un titre, « - » une ligne de liste.</li>
+    <li>Dans la politique de confidentialité, <code>{{inactiveMonths}}</code>, <code>{{logMonths}}</code> et <code>{{trashDays}}</code> affichent les durées réglées : laissez-les tels quels.</li>
+    <li><strong>Chaque modification de la charte crée une nouvelle version</strong>, archivée telle quelle. Tout le monde voit alors un bandeau et doit la relire et l'accepter ; chaque acceptation est enregistrée avec sa version et sa date. La carte « Conservation et purge » indique combien de comptes ont accepté la version en vigueur.</li>
+  </ul>
+  <h3>Hors de l'application</h3>
+  <ul>
+    <li>Tenir un registre des traitements : une fiche suffit pour Xchange.</li>
+    <li>En cas de fuite de données (PC volé, base exposée), prévenir la CNIL sous 72 heures si elle présente un risque pour les personnes, et les personnes si le risque est élevé.</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section class="chapter">
+  <h2><span class="num">10</span>Sécurité des connexions</h2>
+  <h3>Double authentification</h3>
+  <ul>
+    <li>Elle est demandée à tous par défaut (<code>MFA_REQUIRED=true</code>) : code à 6 chiffres d'une appli (Microsoft Authenticator, Google Authenticator…), et 10 codes de secours à usage unique.</li>
+    <li>Un utilisateur peut la refuser à la première connexion, après avoir lu les risques et coché une case. Le refus est enregistré comme son choix, avec sa date, dans son historique de sécurité. Un administrateur ne peut pas la refuser.</li>
+    <li>Vous pouvez en dispenser quelqu'un (chapitre 2) ; c'est alors tracé comme votre décision.</li>
+  </ul>
+  <h3>Navigateurs de confiance</h3>
+  <p>À la saisie du code, la case « Faire confiance à ce navigateur pendant 30 jours » évite de redemander le code sur cet appareil. Le mot de passe reste demandé. La confiance tombe à l'expiration, au changement de mot de passe, à la réinitialisation de la double authentification, ou quand la personne la retire dans « Mon compte ». La durée se règle avec <code>TRUSTED_DEVICE_DAYS</code> (1 à 90 jours).</p>
+  <h3>Blocages</h3>
+  <p>10 mots de passe faux de suite bloquent le compte 15 minutes ; 10 codes faux de suite bloquent la vérification 15 minutes. Le blocage se lève tout seul.</p>
+  <h3>Si plus aucun administrateur ne peut se connecter</h3>
+  <p>Sur le PC serveur, dans un PowerShell lancé en administrateur :</p>
+  <pre>cd C:\Xchange\app\backend
+node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifiant&gt;</pre>
+</section>
+
+<!-- 11 -->
+<section class="chapter">
+  <h2><span class="num">11</span>Sauvegardes et restauration</h2>
+  <p class="path">Administration &gt; Sauvegardes</p>
+  <figure><img src="img/sauvegardes.png" alt=""><figcaption>Sauvegarde automatique, copie vers un autre disque et sauvegarde à la demande.</figcaption></figure>
+  <h3>Automatique</h3>
+  <ul>
+    <li>Chaque jour à l'heure choisie, Xchange copie la base dans <code>C:\Xchange\sauvegardes</code> et garde le nombre de sauvegardes réglé (14 par défaut). Si le PC était éteint à l'heure prévue, la sauvegarde est faite au démarrage suivant.</li>
+    <li>Une copie complète en .zip (base et pièces jointes) peut partir vers un autre disque, par exemple <code>D:\Xchange-sauvegardes</code>. Le dossier doit d'abord être autorisé avec <code>autoriser-dossier.ps1 -Dossier D:\Xchange-sauvegardes</code>.</li>
+    <li>La carte affiche l'état de la dernière sauvegarde et de la dernière copie ; « Sauvegarder maintenant » lance les deux tout de suite.</li>
+  </ul>
+  <h3>À la demande</h3>
+  <p>« Télécharger » produit une archive .zip complète, à ranger hors du PC (clé USB, disque externe). Sur Chrome et Edge, vous choisissez l'emplacement.</p>
+  <h3>Restaurer</h3>
+  <p>Dans un PowerShell administrateur :</p>
+  <pre>powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\restaurer.ps1</pre>
+  <p>Le script propose les sauvegardes disponibles. Pour une archive téléchargée, ajoutez <code>-Fichier &lt;chemin\archive.zip&gt;</code>. L'état actuel est sauvegardé avant la restauration.</p>
+  <div class="warn"><strong>Les sauvegardes contiennent toutes les données</strong>Rangez-les en lieu sûr ; un disque chiffré (BitLocker) est recommandé.</div>
+</section>
+
+<!-- 12 -->
+<section class="chapter">
+  <h2><span class="num">12</span>Le PC qui héberge Xchange</h2>
+  <p>Xchange tourne sur le PC sous le compte Windows « Service local », sans droits administrateur, dans <code>C:\Xchange</code>, et n'écoute que sur le PC lui-même. L'accès depuis Internet passe par Tailscale Funnel, à l'adresse <code>https://micolomike.taila5de36.ts.net</code>, sans port ouvert sur la box.</p>
+  <h3>Les scripts</h3>
+  <p>Chacun se lance dans un PowerShell ouvert en administrateur :</p>
+  <pre>powershell -ExecutionPolicy Bypass -File C:\Xchange\app\deploy\windows\&lt;script&gt;</pre>
+  <table>
+    <tr><th>Script</th><th>Rôle</th></tr>
+    <tr><td><code>mettre-a-jour.ps1</code></td><td>Sauvegarde, récupère la dernière version, recompile et redémarre. Faites ensuite Ctrl+F5 dans le navigateur.</td></tr>
+    <tr><td><code>etat.ps1</code></td><td>État de l'application, de l'accès Internet, des sauvegardes, fin du journal.</td></tr>
+    <tr><td><code>redemarrer.ps1</code></td><td>Redémarre Xchange, par exemple après une modification de <code>xchange.env</code>.</td></tr>
+    <tr><td><code>restaurer.ps1</code></td><td>Remet une sauvegarde (chapitre 11).</td></tr>
+    <tr><td><code>autoriser-dossier.ps1 -Dossier &lt;chemin&gt;</code></td><td>Crée un dossier et autorise Xchange à y écrire.</td></tr>
+    <tr><td><code>installer.ps1</code></td><td>Installe ou réinstalle, en conservant configuration et données.</td></tr>
+    <tr><td><code>desinstaller.ps1</code></td><td>Coupe l'accès Internet, supprime les tâches et le compte ; <code>-SupprimerDonnees</code> efface tout.</td></tr>
+  </table>
+  <h3>Le fichier de configuration</h3>
+  <p><code>C:\Xchange\xchange.env</code> ne s'ouvre qu'avec le Bloc-notes lancé en administrateur. Il contient des secrets : ne le partagez pas et n'en faites pas de capture d'écran.</p>
+  <table>
+    <tr><th>Variable</th><th>Rôle</th></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>Clé qui signe les sessions. La changer déconnecte tout le monde.</td></tr>
+    <tr><td><code>ALLOW_REGISTRATION</code></td><td><code>false</code> pour fermer l'inscription libre.</td></tr>
+    <tr><td><code>MFA_REQUIRED</code></td><td><code>false</code> pour rendre la double authentification facultative.</td></tr>
+    <tr><td><code>TRUSTED_DEVICE_DAYS</code></td><td>Durée de confiance d'un navigateur (30 par défaut).</td></tr>
+    <tr><td><code>SMTP_*</code>, <code>MAIL_FROM</code>, <code>APP_URL</code></td><td>Envoi des e-mails (chapitre 8).</td></tr>
+    <tr><td><code>BACKUP_DIR</code></td><td>Dossier des sauvegardes automatiques. L'heure, le nombre gardé et la copie se règlent dans l'onglet Sauvegardes.</td></tr>
+    <tr><td><code>MAX_UPLOAD_MB</code></td><td>Taille maximale d'une pièce jointe (10 par défaut).</td></tr>
+    <tr><td><code>LOGIN_MAX_FAILURES</code>, <code>LOGIN_LOCK_MINUTES</code></td><td>Blocage après des échecs de connexion.</td></tr>
+  </table>
+  <p>Toute modification demande <code>redemarrer.ps1</code>.</p>
+  <h3>Les journaux</h3>
+  <p><code>C:\Xchange\journaux\xchange.log</code> trace les démarrages, sauvegardes, purges et erreurs. Il est remplacé quand il dépasse 5 Mo (l'ancien est gardé en <code>xchange.ancien.log</code>). Il ne contient ni mot de passe ni adresse e-mail.</p>
+</section>
+
+<!-- 13 -->
+<section class="chapter">
+  <h2><span class="num">13</span>Dépannage</h2>
+  <table>
+    <tr><th>Situation</th><th>Que faire</th></tr>
+    <tr><td>Le site ne répond pas depuis Internet</td><td>Vérifiez que le PC est allumé et connecté, puis lancez <code>etat.ps1</code>. Si l'application tourne mais pas l'accès Internet, vérifiez Tailscale.</td></tr>
+    <tr><td>Rien de nouveau après une mise à jour</td><td>Relancez <code>mettre-a-jour.ps1</code>, puis Ctrl+F5 dans le navigateur.</td></tr>
+    <tr><td>Xchange ne redémarre pas après une modification de <code>xchange.env</code></td><td>Une ligne est mal écrite : <code>redemarrer.ps1</code> affiche la fin du journal avec l'erreur.</td></tr>
+    <tr><td>Les e-mails ne partent pas</td><td>Paramètres &gt; Notifications : lisez la dernière erreur et le journal des envois, puis envoyez un test. Vérifiez que l'interrupteur général est actif.</td></tr>
+    <tr><td>Quelqu'un a perdu son téléphone</td><td>Utilisateurs : réinitialisez sa double authentification, ou il utilise un code de secours.</td></tr>
+    <tr><td>Quelqu'un ne voit pas une demande</td><td>Vérifiez son groupe, la matrice des droits, la règle de la catégorie, et si la demande est confidentielle.</td></tr>
+    <tr><td>Une demande reste sans réponse</td><td>Le groupe a-t-il des membres ? Le tableau de bord signale les demandes de vos groupes sans responsable.</td></tr>
+    <tr><td>La sauvegarde vers D: échoue</td><td>Disque débranché, plein, ou dossier non autorisé : relancez <code>autoriser-dossier.ps1</code>.</td></tr>
+    <tr><td>Un compte est bloqué</td><td>Attendez 15 minutes, ou réinitialisez son mot de passe.</td></tr>
+  </table>
+</section>
+
+<!-- 14 -->
+<section class="chapter">
+  <h2><span class="num">14</span>Routine de l'administrateur</h2>
+  <h3>Chaque semaine</h3>
+  <ul class="check">
+    <li>Traiter les demandes d'adhésion en attente (Groupes).</li>
+    <li>Traiter les demandes RGPD, avant leur date limite.</li>
+    <li>Regarder les demandes sans responsable sur le tableau de bord.</li>
+    <li>Vérifier l'état de la dernière sauvegarde et de la copie sur l'autre disque.</li>
+  </ul>
+  <h3>Chaque mois</h3>
+  <ul class="check">
+    <li>Lancer <code>mettre-a-jour.ps1</code>.</li>
+    <li>Ranger une sauvegarde téléchargée hors du PC.</li>
+    <li>Regarder le journal des envois d'e-mails (filtre « Échecs seulement ») et la prochaine purge RGPD.</li>
+    <li>Vérifier que chaque groupe utilisé a des membres actifs.</li>
+    <li>Relire la liste des administrateurs : chacun en a-t-il encore besoin ?</li>
+  </ul>
+  <h3>À chaque modification des textes juridiques</h3>
+  <ul class="check">
+    <li>Relire les trois textes : mentions légales, politique de confidentialité, charte.</li>
+    <li>Garder les repères de durée (<code>{{inactiveMonths}}</code>, <code>{{logMonths}}</code>, <code>{{trashDays}}</code>).</li>
+    <li>Savoir qu'une nouvelle charte devra être acceptée par tout le monde.</li>
+  </ul>
+</section>
+
+</body>
+</html>

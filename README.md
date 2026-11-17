@@ -96,6 +96,15 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 **Tableau de bord**
 - Compteurs (ouverts, en cours, en retard, délai moyen de résolution sur 90 jours), « Ma file » triée par priorité, activité récente, graphique créés/résolus sur 14 jours, répartition des tickets actifs par priorité.
 
+## Guide de l'administrateur
+
+Le guide PDF est téléchargeable dans Administration (bouton « Guide administrateur (PDF) », réservé aux administrateurs). Sa source est `docs/admin/guide.html` (captures dans `docs/admin/img/`). Après chaque évolution, mettre la source à jour puis régénérer le PDF, qui est versionné dans `backend/docs/` :
+
+```bash
+cd e2e
+npm run guide
+```
+
 ## Démarrage en local
 
 Prérequis : Node.js 20 ou plus récent.

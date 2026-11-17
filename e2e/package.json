@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "guide": "node scripts/guide-admin.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1"

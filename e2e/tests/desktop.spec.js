@@ -473,6 +473,7 @@ test('RGPD : pages légales, onglet d’administration, export et anonymisation'
   await expect(page.getByText('après 2 ans sans connexion')).toBeVisible();
 
   await page.goto('/admin?tab=settings&section=rgpd');
+  await expect(page.getByRole('button', { name: 'Guide administrateur (PDF)' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Données d’une personne' })).toBeVisible();
   await page.fill('#rgpd-search', 'lucie');
   await page.getByRole('button', { name: /Lucie/ }).click();

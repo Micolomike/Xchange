@@ -1,5 +1,9 @@
 import { useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { FiBookOpen } from 'react-icons/fi';
 import { PageHeader } from '../components/ui';
+import { api } from '../lib/api';
+import { toastError } from '../lib/notify';
 import UsersPanel from './admin/UsersPanel';
 import TrashPanel from './admin/TrashPanel';
 import BackupPanel from './admin/BackupPanel';
@@ -21,10 +25,45 @@ export default function Admin() {
   const [params, setParams] = useSearchParams();
   const tab = PANELS[params.get('tab')] ? params.get('tab') : 'users';
   const Panel = PANELS[tab];
+  const [guideBusy, setGuideBusy] = useState(false);
+
+  // Le guide est protégé : on le télécharge avec la session, puis on l'ouvre dans un nouvel onglet.
+  const openGuide = async () => {
+    const win = window.open('', '_blank');
+    setGuideBusy(true);
+    try {
+      const res = await api('/api/admin/guide.pdf', { raw: true });
+      const url = URL.createObjectURL(await res.blob());
+      if (win) win.location.href = url;
+      else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Xchange-guide-administrateur.pdf';
+        document.body.append(a);
+        a.click();
+        a.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      win?.close();
+      toastError(err);
+    } finally {
+      setGuideBusy(false);
+    }
+  };
 
   return (
     <div>
-      <PageHeader title="Administration">Comptes, groupes, catalogue, corbeille, sauvegardes et paramètres.</PageHeader>
+      <PageHeader
+        title="Administration"
+        actions={
+          <button type="button" className="btn btn-secondary" onClick={openGuide} disabled={guideBusy}>
+            <FiBookOpen aria-hidden="true" /> {guideBusy ? 'Ouverture…' : 'Guide administrateur (PDF)'}
+          </button>
+        }
+      >
+        Comptes, groupes, catalogue, corbeille, sauvegardes et paramètres.
+      </PageHeader>
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Sections d'administration">
         {TABS.map((t) => (
           <button

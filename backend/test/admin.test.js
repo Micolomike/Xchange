@@ -165,4 +165,16 @@ describe('administration et pièces jointes', () => {
     assert.equal(res.status, 404);
     assert.ok(fs.existsSync(path.join(ctx.dir, 'tickets.db')));
   });
+  test('guide administrateur en PDF : réservé aux administrateurs', async () => {
+    const res = await ctx.api.get('/api/admin/guide.pdf').set(admin.auth).buffer(true).parse((r, cb) => {
+      const chunks = [];
+      r.on('data', (c) => chunks.push(c));
+      r.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.equal(res.status, 200);
+    assert.match(res.headers['content-type'], /pdf/);
+    assert.equal(res.body.subarray(0, 4).toString(), '%PDF');
+    assert.match(res.headers['content-disposition'], /Xchange-guide-administrateur\.pdf/);
+    assert.equal((await ctx.api.get('/api/admin/guide.pdf').set(alice.auth)).status, 403);
+  });
 });

@@ -26,3 +26,4 @@ electron-app/
 # Tests navigateur
 e2e/test-results/
 e2e/playwright-report/
+docs/admin/.guide-rendu.html
