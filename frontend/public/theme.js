@@ -3,7 +3,7 @@
   var choice = 'system';
   try {
     choice = localStorage.getItem('xchange.theme') || 'system';
-  } catch (e) {
+  } catch {
     /* stockage indisponible : thème du système */
   }
   var dark = choice === 'dark' || (choice !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
