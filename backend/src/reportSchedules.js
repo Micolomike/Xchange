@@ -238,7 +238,7 @@ ${appUrl ? `<p><a href="${escapeHtml(`${appUrl}/analyses/rapports/${s.report_id}
     try {
       await mailer.send(
         { to: p.email, subject: `${prefix}Rapport : ${s.report_name}`, text, html, attachments: [{ filename: file.fileName, content: file.body, contentType: file.type }] },
-        { event: 'report', userId: p.id }
+        { event: 'report', userId: p.id, reportId: s.report_id }
       );
       sent += 1;
     } catch (err) {

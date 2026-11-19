@@ -50,6 +50,17 @@ describe('notifications par e-mail', () => {
     await ctx.api.post(`/api/tickets/${t.id}/comments`).set(mamie.auth).send({ body: 'Merci, ça marche' }).expect(201);
     sent = await take();
     assert.deepEqual(sent.map((m) => m.to), ['karim@exemple.fr']);
+
+    // Chaque envoi réussi est aussi dans le journal système : nature, demande, compte destinataire ; ni adresse ni objet.
+    const log = (await ctx.api.get(`/api/admin/system-log?source=e-mail&q=n°${t.id}`).set(admin.auth).expect(200)).body.items;
+    const lines = log.map((i) => `${i.message} | ${i.subject}`).reverse();
+    assert.deepEqual(lines, [
+      `E-mail envoyé : nouvelle demande pour un groupe (demande n°${t.id}) | Karim`,
+      `E-mail envoyé : changement de statut (demande n°${t.id}) | Francine`,
+      `E-mail envoyé : nouveau message sur une demande (demande n°${t.id}) | Francine`,
+      `E-mail envoyé : nouveau message sur une demande (demande n°${t.id}) | Karim`,
+    ]);
+    assert.ok(log.every((i) => i.level === 'info' && !JSON.stringify(i).includes('@exemple.fr') && !JSON.stringify(i).includes('Wi-Fi')));
   });
 
   test('demande confidentielle : ni titre ni contenu dans l’e-mail', async () => {

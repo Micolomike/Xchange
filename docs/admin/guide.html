@@ -520,7 +520,8 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
   <ul>
     <li><strong>Serveur</strong> : démarrages, arrêts, erreurs internes (avec le détail technique, bouton « Détails »).</li>
     <li><strong>Administration</strong> : chaque action réussie d'un administrateur (compte modifié, groupe créé, réglages changés, anonymisation, export, restauration de la corbeille, sauvegarde, signalement traité…), avec son auteur. Les comptes et demandes sont désignés par leur numéro.</li>
-    <li><strong>Tâches automatiques</strong> : sauvegardes, purge RGPD, alertes SLA, rapports programmés, envois d'e-mails en échec, discussions.</li>
+    <li><strong>Tâches automatiques</strong> : sauvegardes, purge RGPD, alertes SLA, rapports programmés, discussions.</li>
+    <li><strong>E-mails</strong> : chaque envoi réussi (par exemple « E-mail envoyé : changement de statut (demande n°42) ») avec le compte destinataire dans la colonne Compte, et chaque échec avec sa cause. L'adresse et l'objet n'y figurent pas : ils restent dans le journal des envois (Paramètres &gt; Notifications). Les envois réussis ne sont pas recopiés dans le fichier texte du PC.</li>
   </ul>
   <h3>L'activité des comptes</h3>
   <p>La source <strong>Utilisateurs</strong> trace ce que fait chaque compte et ce qui lui arrive : inscription, création par un administrateur, connexions réussies (avec le type de navigateur et la méthode : double authentification, code de secours, navigateur de confiance), échecs de connexion et blocages, changement de mot de passe, champs du profil modifiés, choix d'affichage, préférences de notification, acceptation de la charte, nouveaux codes de secours, export des données, demandes RGPD, demandes créées ou mises à la corbeille, demandes d'adhésion et départs de groupe, avertissement d'inactivité et anonymisation automatique.</p>

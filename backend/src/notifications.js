@@ -200,7 +200,7 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
         const url = await baseUrl(mail);
         for (const to of list) {
           try {
-            await mailer.send(compose(mail, to, BUILDERS[event](data, mail), url), { event, userId: to.id });
+            await mailer.send(compose(mail, to, BUILDERS[event](data, mail), url), { event, userId: to.id, ticketId: data?.t?.id || null });
           } catch {
             /* erreur déjà journalisée par le mailer */
           }

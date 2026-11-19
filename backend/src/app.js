@@ -57,7 +57,13 @@ function createApp({ db, config, logger = console, syslog = createSystemLog({ db
   const auth = authenticate({ db, config });
   app.locals.syslog = syslog;
   const serverLog = syslog.for('serveur');
-  const mailer = createMailer({ db, config, logger: syslog.for('e-mail') });
+  const mailer = createMailer({
+    db,
+    config,
+    logger: syslog.for('e-mail'),
+    // Envois réussis : dans le journal système seulement (pas dans le fichier texte du PC).
+    journal: (level, message, opts) => syslog.write(level, 'e-mail', message, opts),
+  });
   const notifier = createNotifier({ db, config, mailer, logger: syslog.for('e-mail') });
   app.locals.mailer = mailer;
   app.locals.notifier = notifier;

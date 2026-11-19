@@ -7,7 +7,32 @@ const { getSetting, setSetting } = require('./settings');
 
 const LOG_KEEP = 1000; // lignes gardées dans le journal des envois
 
-function createMailer({ db, config, logger = console, transport } = {}) {
+/** Nature de chaque e-mail, pour le journal système. */
+const EVENT_LABELS = {
+  ticket_created: 'nouvelle demande pour un groupe',
+  ticket_transferred: 'demande transférée',
+  comment: 'nouveau message sur une demande',
+  status_changed: 'changement de statut',
+  assigned: 'demande assignée',
+  join_requested: "demande d'adhésion à un groupe",
+  join_decided: "réponse à une demande d'adhésion",
+  rgpd_request: 'demande RGPD',
+  sla_warning: 'délai bientôt dépassé (SLA)',
+  sla_breach: 'délai dépassé (SLA)',
+  chat_report: 'message de discussion signalé',
+  inactivity_warning: "avertissement d'inactivité",
+  test: "e-mail d'essai",
+  report: 'rapport programmé',
+};
+
+/** Ligne du journal système : nature de l'envoi et numéro de la demande ou du rapport, jamais l'adresse ni l'objet. */
+function journalText(meta) {
+  const what = EVENT_LABELS[meta.event] || meta.event || 'autre';
+  const ref = meta.ticketId ? ` (demande n°${meta.ticketId})` : meta.reportId ? ` (rapport n°${meta.reportId})` : '';
+  return `${what}${ref}`;
+}
+
+function createMailer({ db, config, logger = console, transport, journal = null } = {}) {
   const smtp = config.smtp;
   const sent = []; // gardés en mémoire pour les tests
   let transporter = transport || null;
@@ -50,10 +75,12 @@ function createMailer({ db, config, logger = console, transport } = {}) {
       const state = await getSetting(db, 'mail_state');
       await setSetting(db, 'mail_state', { ...state, lastSentAt: new Date().toISOString() });
       await log(meta, message, 'sent');
+      // Journal système (base seulement) : le compte destinataire est le « compte concerné ».
+      if (journal) await journal('info', `E-mail envoyé : ${journalText(meta)}`, { subjectId: meta.userId || null });
       return info;
     } catch (err) {
       // Pas d'adresse dans le journal du serveur (données personnelles) : le détail est dans le journal des envois.
-      logger.error(`Envoi d'e-mail impossible (compte n°${meta.userId ?? '?'}) : ${err.message}`);
+      logger.error(`Envoi d'e-mail impossible : ${journalText(meta)} (compte n°${meta.userId ?? '?'}) : ${err.message}`, { subjectId: meta.userId || null });
       const state = await getSetting(db, 'mail_state');
       const reason = explain(err);
       await setSetting(db, 'mail_state', { ...state, lastErrorAt: new Date().toISOString(), lastError: reason });
@@ -76,4 +103,4 @@ function explain(err) {
   return msg.slice(0, 300);
 }
 
-module.exports = { createMailer, explainMailError: explain };
+module.exports = { createMailer, explainMailError: explain, EVENT_LABELS };
