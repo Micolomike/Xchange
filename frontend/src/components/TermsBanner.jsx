@@ -29,7 +29,7 @@ export default function TermsBanner() {
 
   return (
     <div className="border-b border-line bg-accent-soft" role="region" aria-label="Charte d’utilisation">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm sm:px-6">
+      <div className="shell flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm">
         {changed ? (
           <p className="flex-1 text-ink">
             La{' '}

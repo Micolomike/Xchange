@@ -122,6 +122,41 @@
 }
 
 @layer components {
+  /*
+   * Largeur des pages : toute la largeur de l'écran (jusqu'à 2560 px), avec des marges qui grandissent.
+   * Les pages de lecture ou de saisie gardent une colonne plus étroite (.page-narrow, .page-medium).
+   */
+  .shell {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 160rem;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 40rem) {
+    .shell {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 64rem) {
+    .shell {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 96rem) {
+    .shell {
+      padding-inline: 3rem;
+    }
+  }
+  .page-narrow {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 72rem;
+  }
+  .page-medium {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 100rem;
+  }
   /* Talon de ticket : identifiant encoche, l'élément signature de l'interface. */
   .ticket-stub {
     --notch: 4px;

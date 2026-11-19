@@ -6,5 +6,11 @@ import Landing from './Landing';
 export default function Home() {
   const { user, status } = useAuth();
   if (status === 'loading') return <Spinner />;
-  return user ? <Dashboard /> : <Landing />;
+  return user ? (
+    <Dashboard />
+  ) : (
+    <div className="page-narrow">
+      <Landing />
+    </div>
+  );
 }

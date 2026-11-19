@@ -47,17 +47,17 @@ export default function App() {
         <ImpersonationBanner />
         <Navbar />
         <TermsBanner />
-        <main id="contenu" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6">
+        <main id="contenu" className="shell flex-1 pb-16 pt-8">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/double-authentification" element={<MfaSetup />} />
             <Route path="/tickets" element={<RequireAuth><TicketList /></RequireAuth>} />
-            <Route path="/tickets/new" element={<RequireAuth><CreateTicket /></RequireAuth>} />
-            <Route path="/tickets/:id" element={<RequireAuth><TicketDetail /></RequireAuth>} />
+            <Route path="/tickets/new" element={<div className="page-narrow"><RequireAuth><CreateTicket /></RequireAuth></div>} />
+            <Route path="/tickets/:id" element={<div className="page-medium"><RequireAuth><TicketDetail /></RequireAuth></div>} />
             <Route path="/catalogue" element={<RequireAuth><Catalog /></RequireAuth>} />
-            <Route path="/catalogue/:id" element={<RequireAuth><CatalogForm /></RequireAuth>} />
+            <Route path="/catalogue/:id" element={<div className="page-narrow"><RequireAuth><CatalogForm /></RequireAuth></div>} />
             <Route path="/discussions" element={<RequireAuth><Discussions /></RequireAuth>} />
             <Route path="/discussions/:id" element={<RequireAuth><Discussions /></RequireAuth>} />
             <Route path="/analyses" element={<Navigate to="/analyses/tableaux" replace />} />
@@ -69,12 +69,12 @@ export default function App() {
             <Route path="/analyses/rapports/:id" element={<RequireAuth><ReportView /></RequireAuth>} />
             <Route path="/analyses/rapports/:id/modifier" element={<RequireAuth><ReportEditor /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
-            <Route path="/admin/catalogue/:id" element={<RequireAuth admin><FormBuilder /></RequireAuth>} />
+            <Route path="/admin/catalogue/:id" element={<div className="page-medium"><RequireAuth admin><FormBuilder /></RequireAuth></div>} />
             <Route path="/admin/utilisateurs/:id" element={<RequireAuth admin><UserOverview /></RequireAuth>} />
-            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-            <Route path="/mentions-legales" element={<LegalPage kind="legalNotice" />} />
-            <Route path="/confidentialite" element={<LegalPage kind="privacyPolicy" />} />
-            <Route path="/charte" element={<LegalPage kind="charter" />} />
+            <Route path="/profile" element={<div className="page-narrow"><RequireAuth><Profile /></RequireAuth></div>} />
+            <Route path="/mentions-legales" element={<div className="page-narrow"><LegalPage kind="legalNotice" /></div>} />
+            <Route path="/confidentialite" element={<div className="page-narrow"><LegalPage kind="privacyPolicy" /></div>} />
+            <Route path="/charte" element={<div className="page-narrow"><LegalPage kind="charter" /></div>} />
             {/* Anciennes adresses de la première version */}
             <Route path="/create" element={<Navigate to="/tickets/new" replace />} />
             <Route path="/admin/data" element={<Navigate to="/admin" replace />} />

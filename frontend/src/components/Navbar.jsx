@@ -94,7 +94,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 xl:gap-4" aria-label="Navigation principale">
+      <nav className="shell flex h-14 items-center gap-3 xl:gap-4" aria-label="Navigation principale">
         <Logo />
         {user && <div className="hidden items-center gap-0.5 lg:flex xl:gap-1">{links}</div>}
 
