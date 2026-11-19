@@ -9,7 +9,7 @@ import { useAuth } from '../auth/context';
 import { formatDateTime } from '../lib/format';
 import { api, downloadFile } from '../lib/api';
 import RecoveryCodes from '../components/RecoveryCodes';
-import { ROLES } from '../lib/constants';
+import { NOTIFY_CHOICES, ROLES } from '../lib/constants';
 import { confirmAction, toast, toastError } from '../lib/notify';
 import { Field, PageHeader } from '../components/ui';
 
@@ -357,15 +357,6 @@ function AdminAccessSection() {
   );
 }
 
-const NOTIFY_CHOICES = [
-  { key: 'mine', label: 'Mes demandes', hint: 'Réponses, changements de statut, réponse à une demande pour rejoindre un groupe.' },
-  { key: 'assigned', label: 'Une demande m’est confiée' },
-  { key: 'handled', label: 'Messages sur les demandes que je traite', hint: 'Ou que mon groupe peut prendre, tant que personne ne s’en occupe.' },
-  { key: 'group_new', label: 'Nouvelles demandes dans mes groupes', hint: 'Y compris les demandes transférées à un de mes groupes.' },
-  { key: 'admin', label: 'Demandes pour rejoindre un groupe, à valider', adminOnly: true },
-  { key: 'sla', label: 'Délais (SLA) bientôt dépassés ou dépassés', hint: 'Pour les demandes qui me sont confiées, ou celles de mes groupes sans responsable.' },
-  { key: 'reports', label: 'Rapports programmés envoyés par d’autres personnes', hint: 'Les rapports que vous programmez vous-même vous sont toujours envoyés.' },
-];
 
 function NotificationsSection({ user }) {
   const { updateProfile } = useAuth();

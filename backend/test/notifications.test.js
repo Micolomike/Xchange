@@ -53,7 +53,7 @@ describe('notifications par e-mail', () => {
 
     // Chaque envoi réussi est aussi dans le journal système : nature, demande, compte destinataire ; ni adresse ni objet.
     const log = (await ctx.api.get(`/api/admin/system-log?source=e-mail&q=n°${t.id}`).set(admin.auth).expect(200)).body.items;
-    const lines = log.map((i) => `${i.message} | ${i.subject}`).reverse();
+    const lines = log.filter((i) => i.message.startsWith('E-mail envoyé')).map((i) => `${i.message} | ${i.subject}`).reverse();
     assert.deepEqual(lines, [
       `E-mail envoyé : nouvelle demande pour un groupe (demande n°${t.id}) | Karim`,
       `E-mail envoyé : changement de statut (demande n°${t.id}) | Francine`,
@@ -61,6 +61,24 @@ describe('notifications par e-mail', () => {
       `E-mail envoyé : nouveau message sur une demande (demande n°${t.id}) | Karim`,
     ]);
     assert.ok(log.every((i) => i.level === 'info' && !JSON.stringify(i).includes('@exemple.fr') && !JSON.stringify(i).includes('Wi-Fi')));
+
+    // Et chaque e-mail qui ne part pas, avec la raison : ici Karim, membre du groupe, coupe ses e-mails ;
+    // puis il crée lui-même une demande pour son groupe.
+    await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_email: false }).expect(200);
+    const t2 = await ctx.createTicket(mamie, { title: 'Clavier', assigned_group: info.id });
+    await settle();
+    await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_email: true, notify_prefs: { group_new: false } }).expect(200);
+    const t3 = await ctx.createTicket(mamie, { title: 'Souris', assigned_group: info.id });
+    await settle();
+    await ctx.api.put('/api/auth/me').set(karim.auth).send({ notify_prefs: { group_new: true } }).expect(200);
+    const t4 = await ctx.createTicket(karim, { title: 'Écran', assigned_group: info.id });
+    await take();
+    const why = (await ctx.api.get('/api/admin/system-log?source=e-mail&q=non%20envoy').set(admin.auth).expect(200)).body.items.map((i) => `${i.message} | ${i.subject}`);
+    assert.ok(why.includes(`E-mail non envoyé : nouvelle demande pour un groupe (demande n°${t2.id}) : a désactivé tous les e-mails dans « Mon compte » | Karim`), why.join('\n'));
+    assert.ok(why.includes(`E-mail non envoyé : nouvelle demande pour un groupe (demande n°${t3.id}) : a désactivé « Nouvelles demandes dans mes groupes » dans « Mon compte » | Karim`));
+    assert.ok(why.some((w) => w.startsWith(`E-mail non envoyé : nouvelle demande pour un groupe (demande n°${t4.id}) : c'est cette personne qui a fait l'action`)));
+    // Un message de l'auteur sur sa propre demande ne produit pas de ligne « non envoyé » pour lui.
+    assert.ok(!why.some((w) => /nouveau message.*fait l'action/.test(w)));
   });
 
   test('demande confidentielle : ni titre ni contenu dans l’e-mail', async () => {

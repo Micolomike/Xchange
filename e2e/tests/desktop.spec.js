@@ -762,6 +762,18 @@ test('SLA : réglages, demande, tableau de bord', async () => {
   await expect(page.getByRole('heading', { name: /À traiter en priorité/ })).toBeVisible();
 });
 
+test('fiche d’un compte : identité, notifications, demandes', async () => {
+  await page.goto('/admin?tab=users');
+  const row = page.getByRole('row', { name: new RegExp(USER.username) });
+  await expect(row.getByText(/Actives|Partielles|Coupées|Sans e-mail/)).toBeVisible();
+  await row.locator('a[href^="/admin/utilisateurs/"]').click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Notifications par e-mail' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Sécurité' })).toBeVisible();
+  await expect(page.getByText(`@${USER.username}`)).toBeVisible();
+  await page.getByRole('link', { name: 'Utilisateurs' }).first().click();
+  await expect(page).toHaveURL(/tab=users/);
+});
+
 test('journal système : actions d’administration et filtres', async () => {
   await page.goto('/admin?tab=log');
   await expect(page.getByRole('tab', { name: 'Journal système' })).toHaveAttribute('aria-selected', 'true');

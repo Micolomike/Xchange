@@ -7,7 +7,8 @@
  * - la personne qui a fait l'action n'est jamais prévenue.
  * Les e-mails partent en arrière-plan ; une demande confidentielle n'en dévoile jamais le contenu.
  */
-const { displayName, parseNotifyPrefs: parsePrefs } = require('./utils');
+const { displayName, parseNotifyPrefs: parsePrefs, NOTIFY_LABELS } = require('./utils');
+const { journalText } = require('./mailer');
 const { getMailSettings } = require('./settings');
 const { RGPD_TYPES } = require('./rgpdRequests');
 
@@ -142,7 +143,11 @@ const SAMPLE = {
   due: '2026-12-17T16:00:00.000Z',
 };
 
-function createNotifier({ db, mailer, logger = console }) {
+function createNotifier({ db, mailer, logger = console, journal = null }) {
+  /** Journal système (base seulement) : pourquoi un e-mail n'est pas parti. */
+  const note = async (message, subjectId = null) => {
+    if (journal) await journal('info', message, { subjectId });
+  };
   const pending = new Set();
 
   async function baseUrl(mail) {
@@ -155,21 +160,34 @@ function createNotifier({ db, mailer, logger = console }) {
    */
   async function recipients(entries, actorId) {
     const byId = new Map();
+    const skipped = [];
     for (const e of entries) {
-      if (!e.id || e.id === actorId) continue;
+      if (!e.id) continue;
+      if (e.id === actorId) {
+        if (!skipped.some((s) => s.id === e.id)) skipped.push({ id: e.id, actor: true, reason: "c'est cette personne qui a fait l'action (on n'est jamais prévenu de ses propres actions)" });
+        continue;
+      }
       byId.set(e.id, [...(byId.get(e.id) || []), e.pref]);
     }
-    if (!byId.size) return [];
+    const list = [];
+    list.skipped = skipped;
+    if (!byId.size) return list;
     const ids = [...byId.keys()];
     const rows = await db.all(
-      `SELECT id, username, firstname, lastname, email, notify_prefs FROM users
-       WHERE id IN (${ids.map(() => '?').join(',')}) AND notify_email = 1 AND email IS NOT NULL AND email <> ''`,
+      `SELECT id, username, firstname, lastname, email, notify_email, notify_prefs, anonymized_at FROM users WHERE id IN (${ids.map(() => '?').join(',')})`,
       ids
     );
-    return rows.filter((u) => {
+    for (const u of rows) {
       const prefs = parsePrefs(u.notify_prefs);
-      return byId.get(u.id).some((p) => prefs[p]);
-    });
+      const wanted = byId.get(u.id);
+      if (u.anonymized_at) continue;
+      if (!u.email) skipped.push({ id: u.id, reason: "pas d'adresse e-mail dans son compte" });
+      else if (!u.notify_email) skipped.push({ id: u.id, reason: 'a désactivé tous les e-mails dans « Mon compte »' });
+      else if (!wanted.some((p) => prefs[p])) {
+        skipped.push({ id: u.id, reason: `a désactivé « ${wanted.map((p) => NOTIFY_LABELS[p] || p).join(' » / « ')} » dans « Mon compte »` });
+      } else list.push(u);
+    }
+    return list;
   }
 
   function compose(mail, to, { subject, lines, link, linkLabel = 'Ouvrir dans Xchange' }, url) {
@@ -193,10 +211,21 @@ ${href ? `<p><a href="${escapeHtml(href)}" style="display:inline-block;backgroun
       try {
         if (!mailer.configured) return;
         const mail = await getMailSettings(db);
-        if (!mail.enabled || !mail.events[event]) return;
         const result = await task(mail);
         if (!result) return;
         const { list, data } = result;
+        const what = journalText({ event, ticketId: data?.t?.id });
+        if (!mail.enabled || !mail.events[event]) {
+          if (list.length) {
+            await note(
+              `E-mail non envoyé : ${what} : ${!mail.enabled ? 'les e-mails sont coupés' : 'cet événement est désactivé'} dans Paramètres > Notifications (${list.length} destinataire${list.length > 1 ? 's' : ''})`
+            );
+          }
+          return;
+        }
+        // L'auteur n'est noté que pour les nouvelles demandes de groupe (sinon chaque action ajouterait une ligne).
+        const noteActor = event === 'ticket_created' || event === 'ticket_transferred';
+        for (const s of list.skipped || []) if (!s.actor || noteActor) await note(`E-mail non envoyé : ${what} : ${s.reason}`, s.id);
         const url = await baseUrl(mail);
         for (const to of list) {
           try {

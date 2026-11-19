@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiActivity, FiEdit2, FiEye, FiKey, FiShieldOff, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import { useAuth } from '../../auth/context';
 import { api } from '../../lib/api';
-import { ROLES } from '../../lib/constants';
+import { ROLES, notifyState } from '../../lib/constants';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { confirmAction, showInfo, toast, toastError } from '../../lib/notify';
 import { Avatar } from '../../components/Badges';
@@ -13,6 +13,23 @@ const EMPTY = { username: '', password: '', firstname: '', lastname: '', email: 
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+const NOTIFY_STYLES = {
+  ok: 'bg-resolved-soft text-resolved',
+  partial: 'bg-progress-soft text-progress',
+  off: 'bg-danger-soft text-danger',
+  noemail: 'bg-paper text-ink-mute',
+};
+
+/** État des notifications d'un compte : ce qu'il reçoit vraiment (détail au survol). */
+export function NotifyBadge({ user }) {
+  const st = notifyState(user);
+  return (
+    <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${NOTIFY_STYLES[st.kind]}`} title={st.detail}>
+      {st.label}
+    </span>
+  );
 }
 
 function UserForm({ initial, onCancel, onSaved }) {
@@ -262,6 +279,7 @@ export default function UsersPanel() {
               <th scope="col" className="px-5 py-2.5">Rôle</th>
               <th scope="col" className="px-5 py-2.5">Groupes</th>
               <th scope="col" className="px-5 py-2.5">Double auth.</th>
+              <th scope="col" className="px-5 py-2.5">Notifications</th>
               <th scope="col" className="px-5 py-2.5 text-right">Tickets créés</th>
               <th scope="col" className="px-5 py-2.5 text-right">En charge</th>
               <th scope="col" className="px-5 py-2.5">Inscrit le</th>
@@ -278,7 +296,9 @@ export default function UsersPanel() {
                     <Avatar user={u} size="lg" />
                     <span className="min-w-0">
                       <span className="block font-semibold">
-                        {u.name}
+                        <Link to={`/admin/utilisateurs/${u.id}`} className="hover:text-accent-strong hover:underline" title="Voir la fiche du compte">
+                          {u.name}
+                        </Link>
                         {u.id === me.id && <span className="ml-1 text-xs font-normal text-ink-mute">(vous)</span>}
                         {u.hide_real_name && (
                           <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-closed-soft px-2 py-0.5 text-xs font-semibold text-closed" title="Les autres membres ne voient que son pseudonyme">
@@ -332,6 +352,9 @@ export default function UsersPanel() {
                   >
                     {u.mfa_exempt ? 'Exiger' : 'Dispenser'}
                   </button>
+                </td>
+                <td className="px-5 py-3">
+                  <NotifyBadge user={u} />
                 </td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.created_count}</td>
                 <td className="px-5 py-3 text-right tabular-nums">{u.assigned_active_count}</td>

@@ -16,6 +16,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 - Suppression vers une corbeille, restauration ou suppression définitive par un administrateur.
 
 **Comptes et rôles**
+- Fiche complète d'un compte (clic sur son nom dans Administration > Utilisateurs) : identité, notifications reçues ou non, sécurité, groupes, demandes, e-mails reçus, activité, analyses, RGPD ; les demandes confidentielles hors de portée restent masquées. Colonne « Notifications » dans la liste (Actives, Partielles, Coupées, Sans e-mail).
 - Inscription et connexion (jetons JWT), page « Mon compte » (profil, changement de mot de passe).
 - Deux rôles :
   - **Utilisateur** : voit les tickets qu'il a créés ou qui lui sont assignés ; modifie ses propres tickets ; change le statut de ses tickets et de ceux qui lui sont assignés.
@@ -100,7 +101,7 @@ Application de gestion de tickets pour une équipe : on crée une demande, on l'
 
 **Journal système** (Administration > Journal système)
 - Démarrages et arrêts, erreurs internes (avec détail technique), tâches automatiques (sauvegardes, purge RGPD, alertes SLA, rapports programmés) et actions réussies des administrateurs avec leur auteur et le compte concerné.
-- E-mails (source « E-mails ») : chaque envoi réussi (nature de l'e-mail, numéro de la demande ou du rapport, compte destinataire) et chaque échec avec sa cause ; jamais d'adresse ni d'objet, qui restent dans le journal des envois (Paramètres > Notifications).
+- E-mails (source « E-mails ») : chaque e-mail non envoyé avec sa raison (choix de la personne, pas d'adresse, auteur de l'action, événement désactivé), chaque envoi réussi (nature de l'e-mail, numéro de la demande ou du rapport, compte destinataire) et chaque échec avec sa cause ; jamais d'adresse ni d'objet, qui restent dans le journal des envois (Paramètres > Notifications).
 - Activité des comptes (source « Utilisateurs ») : inscription, connexions et échecs (type de navigateur, méthode), blocages, mot de passe, champs du profil modifiés (sans les valeurs), affichage, notifications, charte, codes de secours, export, demandes RGPD, demandes créées ou mises à la corbeille, adhésions et départs de groupe, avertissement et anonymisation pour inactivité. Jamais d'adresse IP, de mot de passe ni d'identifiant tapé. Filtre par compte (bouton « Journal du compte » dans l'onglet Utilisateurs) ; ces lignes figurent dans l'export de données de la personne.
 - Compteurs des dernières 24 h, filtres (niveau, source, dates, recherche), actualisation automatique, export Excel, CSV ou JSON ; lecture seule, purgé avec les journaux (durée réglée dans l'onglet RGPD). Les mêmes lignes, sauf l'activité des comptes, partent dans la console (C:\Xchange\journaux).
 

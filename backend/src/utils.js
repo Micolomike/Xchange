@@ -15,6 +15,16 @@ const ROLES = ['user', 'admin'];
 
 /** Choix de notifications proposés à chacun (« Mon compte ») ; absent = accepté. */
 const NOTIFY_PREFS = ['mine', 'assigned', 'handled', 'group_new', 'admin', 'reports', 'sla'];
+/** Libellés des choix de notification (« Mon compte »), pour le journal et la fiche d'un compte. */
+const NOTIFY_LABELS = {
+  mine: 'Mes demandes',
+  assigned: 'Une demande m’est confiée',
+  handled: 'Messages sur les demandes que je traite',
+  group_new: 'Nouvelles demandes dans mes groupes',
+  admin: 'Demandes pour rejoindre un groupe, à valider',
+  sla: 'Délais (SLA) bientôt dépassés ou dépassés',
+  reports: 'Rapports programmés envoyés par d’autres personnes',
+};
 function parseNotifyPrefs(raw) {
   let stored = {};
   try {
@@ -184,6 +194,7 @@ function validateTicketInput(body, { partial = false, categories = CATEGORIES } 
 }
 
 module.exports = {
+  NOTIFY_LABELS,
   NOTIFY_PREFS,
   parseNotifyPrefs,
   HttpError,

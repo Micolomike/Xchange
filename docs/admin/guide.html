@@ -104,6 +104,18 @@
   <h2><span class="num">2</span>Les comptes</h2>
   <p class="path">Administration &gt; Utilisateurs</p>
   <figure><img src="img/utilisateurs.png" alt=""><figcaption>La liste des comptes : rôle, groupes, état de la double authentification, nombre de demandes.</figcaption></figure>
+  <h3>La fiche d'un compte</h3>
+  <p>Cliquer sur le nom d'une personne ouvre sa fiche : identité (nom réel, adresse, rôle, affichage, inscription, dernière activité, charte acceptée), notifications, sécurité (double authentification, codes de secours restants, dernière connexion, échecs sur 30 jours, navigateurs de confiance, historique, prises de contrôle), groupes et demandes d'adhésion, demandes créées et en charge, e-mails reçus, activité récente, analyses et demandes RGPD. Une demande confidentielle dont vous ne faites pas partie y apparaît sans titre ni lien.</p>
+  <h3>Notifications : qui reçoit quoi</h3>
+  <p>La colonne « Notifications » de la liste résume ce que la personne reçoit vraiment ; le détail est au survol et sur sa fiche :</p>
+  <table>
+    <tr><th>Affiché</th><th>Signification</th></tr>
+    <tr><td>Actives</td><td>Reçoit tous les e-mails prévus.</td></tr>
+    <tr><td>Partielles</td><td>A désactivé certains choix dans « Mon compte » (par exemple « Nouvelles demandes dans mes groupes »).</td></tr>
+    <tr><td>Coupées</td><td>A désactivé tous les e-mails.</td></tr>
+    <tr><td>Sans e-mail</td><td>Aucune adresse dans son compte.</td></tr>
+  </table>
+  <p>Seule la personne change ses choix. Deux règles valent pour tous : on n'est jamais prévenu de ses propres actions (créer une demande pour son propre groupe ne vous envoie rien), et les nouvelles demandes d'un groupe ne vont qu'à ses membres : un administrateur qui n'est pas membre du groupe ne les reçoit pas. Chaque e-mail qui ne part pas est noté dans le journal système avec sa raison (chapitre 16).</p>
   <h3>Créer un compte</h3>
   <p>« Ajouter un utilisateur » crée un compte avec un identifiant et un mot de passe que vous transmettez à la personne. Les visiteurs peuvent aussi s'inscrire eux-mêmes tant que l'inscription est ouverte (<code>ALLOW_REGISTRATION=true</code>). À l'inscription, la personne accepte la charte et la politique de confidentialité, peut demander à rejoindre des groupes et peut choisir de n'afficher que son pseudonyme.</p>
   <h3>Rôle</h3>
@@ -522,6 +534,7 @@ node --env-file=C:\Xchange\xchange.env scripts\reinitialiser-mfa.js &lt;identifi
     <li><strong>Administration</strong> : chaque action réussie d'un administrateur (compte modifié, groupe créé, réglages changés, anonymisation, export, restauration de la corbeille, sauvegarde, signalement traité…), avec son auteur. Les comptes et demandes sont désignés par leur numéro.</li>
     <li><strong>Tâches automatiques</strong> : sauvegardes, purge RGPD, alertes SLA, rapports programmés, discussions.</li>
     <li><strong>E-mails</strong> : chaque envoi réussi (par exemple « E-mail envoyé : changement de statut (demande n°42) ») avec le compte destinataire dans la colonne Compte, et chaque échec avec sa cause. L'adresse et l'objet n'y figurent pas : ils restent dans le journal des envois (Paramètres &gt; Notifications). Les envois réussis ne sont pas recopiés dans le fichier texte du PC.</li>
+    <li><strong>E-mails non envoyés</strong> : la raison, pour chaque personne concernée. Par exemple « E-mail non envoyé : nouvelle demande pour un groupe (demande n°8) : a désactivé « Nouvelles demandes dans mes groupes » dans « Mon compte » », « … : pas d'adresse e-mail dans son compte », ou « … : c'est cette personne qui a fait l'action ». Un événement désactivé dans Paramètres &gt; Notifications donne aussi une ligne.</li>
   </ul>
   <h3>L'activité des comptes</h3>
   <p>La source <strong>Utilisateurs</strong> trace ce que fait chaque compte et ce qui lui arrive : inscription, création par un administrateur, connexions réussies (avec le type de navigateur et la méthode : double authentification, code de secours, navigateur de confiance), échecs de connexion et blocages, changement de mot de passe, champs du profil modifiés, choix d'affichage, préférences de notification, acceptation de la charte, nouveaux codes de secours, export des données, demandes RGPD, demandes créées ou mises à la corbeille, demandes d'adhésion et départs de groupe, avertissement d'inactivité et anonymisation automatique.</p>

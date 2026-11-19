@@ -21,6 +21,7 @@ import MfaSetup from './pages/MfaSetup';
 import Catalog from './pages/Catalog';
 import CatalogForm from './pages/CatalogForm';
 import FormBuilder from './pages/admin/FormBuilder';
+import UserOverview from './pages/admin/UserOverview';
 import NotFound from './pages/NotFound';
 import Discussions from './pages/Discussions';
 import Dashboards from './pages/analytics/Dashboards';
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/analyses/rapports/:id/modifier" element={<RequireAuth><ReportEditor /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
             <Route path="/admin/catalogue/:id" element={<RequireAuth admin><FormBuilder /></RequireAuth>} />
+            <Route path="/admin/utilisateurs/:id" element={<RequireAuth admin><UserOverview /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="/mentions-legales" element={<LegalPage kind="legalNotice" />} />
             <Route path="/confidentialite" element={<LegalPage kind="privacyPolicy" />} />

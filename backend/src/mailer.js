@@ -103,4 +103,4 @@ function explain(err) {
   return msg.slice(0, 300);
 }
 
-module.exports = { createMailer, explainMailError: explain, EVENT_LABELS };
+module.exports = { createMailer, explainMailError: explain, EVENT_LABELS, journalText };

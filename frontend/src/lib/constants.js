@@ -38,3 +38,26 @@ export const ROLES = {
 
 export const MAX_UPLOAD_MB = 10;
 export const MAX_FILES = 5;
+
+/** Choix de notification d'un compte (« Mon compte »). */
+export const NOTIFY_CHOICES = [
+  { key: 'mine', label: 'Mes demandes', hint: 'Réponses, changements de statut, réponse à une demande pour rejoindre un groupe.' },
+  { key: 'assigned', label: 'Une demande m’est confiée' },
+  { key: 'handled', label: 'Messages sur les demandes que je traite', hint: 'Ou que mon groupe peut prendre, tant que personne ne s’en occupe.' },
+  { key: 'group_new', label: 'Nouvelles demandes dans mes groupes', hint: 'Y compris les demandes transférées à un de mes groupes.' },
+  { key: 'admin', label: 'Demandes pour rejoindre un groupe, à valider', adminOnly: true },
+  { key: 'sla', label: 'Délais (SLA) bientôt dépassés ou dépassés', hint: 'Pour les demandes qui me sont confiées, ou celles de mes groupes sans responsable.' },
+  { key: 'reports', label: 'Rapports programmés envoyés par d’autres personnes', hint: 'Les rapports que vous programmez vous-même vous sont toujours envoyés.' },
+];
+
+/**
+ * Résumé des notifications d'un compte : ce qu'il reçoit vraiment.
+ * kind : ok (tout), partial (certains choix coupés), off (tout coupé), noemail (pas d'adresse).
+ */
+export function notifyState(u) {
+  if (!u.email) return { kind: 'noemail', label: 'Sans e-mail', detail: "Aucune adresse : ce compte ne reçoit aucun e-mail." };
+  if (u.notify_email === false) return { kind: 'off', label: 'Coupées', detail: 'A désactivé tous les e-mails dans « Mon compte ».' };
+  const off = NOTIFY_CHOICES.filter((c) => (!c.adminOnly || u.role === 'admin') && u.notify_prefs?.[c.key] === false);
+  if (off.length) return { kind: 'partial', label: 'Partielles', detail: `Ne reçoit pas : ${off.map((c) => c.label).join(' ; ')}.` };
+  return { kind: 'ok', label: 'Actives', detail: 'Reçoit tous les e-mails prévus.' };
+}
